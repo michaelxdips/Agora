@@ -53,10 +53,11 @@ import java.util.Date
  */
 @Composable
 fun SettingsAdaptationHistoryPage(
+    viewModel: com.newoether.agora.viewmodel.ChatViewModel,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current.applicationContext
-    val viewModel = remember(context) {
+    val history = remember(context) {
         val database = AdaptationDatabase.get(context)
         AutopilotHistoryViewModel(
             log = database.adaptationLogDao(),
@@ -67,12 +68,16 @@ fun SettingsAdaptationHistoryPage(
             ),
         )
     }
-    LaunchedEffect(viewModel) { viewModel.refresh() }
+    LaunchedEffect(history) { history.refresh() }
 
-    val entries by viewModel.entries.collectAsState()
+    val entries by history.entries.collectAsState()
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     var pendingUndo by remember { mutableStateOf<AdaptationEntry?>(null) }
     val scope = rememberCoroutineScope()
+    val appContext = LocalContext.current.applicationContext
+    val debugBuild = remember(appContext) {
+        (appContext.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    }
 
     pendingUndo?.let { entry ->
         AlertDialog(
@@ -87,7 +92,7 @@ fun SettingsAdaptationHistoryPage(
             confirmButton = {
                 TextButton(onClick = {
                     pendingUndo = null
-                    scope.launch { viewModel.undo(entry) }
+                    scope.launch { history.undo(entry) }
                 }) { Text("Undo") }
             },
             dismissButton = {
@@ -101,6 +106,20 @@ fun SettingsAdaptationHistoryPage(
         onBack = onBack,
         listState = listState,
     ) {
+        item { AutopilotControlsSection() }
+        if (debugBuild) {
+            item {
+                TextButton(
+                    onClick = {
+                        // Debug trigger ("Run reflection now"), debug builds only.
+                        viewModel.currentConversationId.value?.let { conversationId ->
+                            ReflectionWorker.scheduleNow(appContext, conversationId)
+                        }
+                    },
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                ) { Text(stringResource(R.string.hermes_autopilot_run_now)) }
+            }
+        }
         if (entries.isEmpty()) {
             item {
                 Text(

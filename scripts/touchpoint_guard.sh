@@ -13,7 +13,7 @@ REGISTRY="UPSTREAM_TOUCHPOINTS.md"
 UPSTREAM_REF="${1:-origin/master}"
 
 # Hermes-only paths: additions here are always allowed.
-ALLOWED_RE='^(AGENTS\.md|ROADMAP\.md|STATUS\.md|NOTICE\.md|UPSTREAM_SYNC\.md|UPSTREAM_TOUCHPOINTS\.md|BLOCKED\.md|HANDOVER\.md|scripts/touchpoint_guard\.sh|scripts/upstream_sync\.sh|\.github/workflows/upstream-sync\.yml|app/src/fdroid/res/|app/src/main/java/com/newoether/agora/autopilot/|app/src/test/java/com/newoether/agora/autopilot/|app/src/androidTest/java/com/newoether/agora/autopilot/)'
+ALLOWED_RE='^(AGENTS\.md|ROADMAP\.md|STATUS\.md|NOTICE\.md|UPSTREAM_SYNC\.md|UPSTREAM_TOUCHPOINTS\.md|BLOCKED\.md|HANDOVER\.md|GAP_ANALYSIS\.md|scripts/touchpoint_guard\.sh|scripts/upstream_sync\.sh|\.github/workflows/upstream-sync\.yml|app/src/fdroid/res/|app/src/play/res/|app/src/main/java/com/newoether/agora/autopilot/|app/src/test/java/com/newoether/agora/autopilot/|app/src/androidTest/java/com/newoether/agora/autopilot/)'
 
 fail=0
 note() { printf '%s\n' "$*"; }

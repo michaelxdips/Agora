@@ -350,6 +350,7 @@ fun SettingsScreen(
                 "skills" -> SettingsSkillsPage(viewModel, onBack = { selectedCategory = null })
                 // HERMES INTEGRATION POINT: autopilot Adaptation History page (Phase 4).
                 "adaptation" -> com.newoether.agora.autopilot.SettingsAdaptationHistoryPage(
+                    viewModel = viewModel,
                     onBack = { selectedCategory = null },
                 )
                 "datacontrol" -> SettingsDataControlPage(viewModel, onBack = { selectedCategory = null })

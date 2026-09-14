@@ -1,6 +1,7 @@
 package com.newoether.agora.autopilot
 
 import com.newoether.agora.util.DebugLog
+import kotlinx.coroutines.CancellationException
 
 /** Outcome of one reflection pass, for logging and tests. */
 data class ReflectionOutcome(
@@ -65,6 +66,11 @@ class ReflectionEngine(
                     timestamp = now,
                 )
                 applied += 1
+            } catch (cancelled: CancellationException) {
+                // A cancelled pass must stop writing, not finish the loop. Catching bare Exception
+                // here (CancellationException is one) kept applying every remaining op after the
+                // work had been cancelled — memory written by a pass nobody is waiting for.
+                throw cancelled
             } catch (error: Exception) {
                 // One rejected op must not abandon the rest of the pass.
                 DebugLog.w(TAG, "op rejected for ${op.targetFile}: ${error.message}")

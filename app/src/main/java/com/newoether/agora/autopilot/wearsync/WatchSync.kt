@@ -5,6 +5,7 @@ import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
 import com.newoether.agora.data.MemoryManager
 import com.newoether.agora.util.DebugLog
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -56,6 +57,11 @@ object WatchSync {
             Wearable.getDataClient(context).putDataItem(request).await()
             DebugLog.d(TAG, "watch config pushed")
             true
+        } catch (cancelled: CancellationException) {
+            // A cancelled push is not a failed push. Swallowing it (CancellationException IS an
+            // Exception) makes a cancelled coroutine look like a transport error, and the caller
+            // then reports "no watch reachable" for work that was simply abandoned.
+            throw cancelled
         } catch (error: Exception) {
             DebugLog.w(TAG, "watch config push failed: ${error.javaClass.simpleName}")
             false
@@ -81,6 +87,8 @@ object WatchSync {
             Wearable.getDataClient(context).putDataItem(request).await()
             DebugLog.d(TAG, "watch memory snapshot pushed (${snapshot.length} chars)")
             true
+        } catch (cancelled: CancellationException) {
+            throw cancelled   // see pushConfig: cancellation is not a transport failure
         } catch (error: Exception) {
             DebugLog.w(TAG, "watch memory push failed: ${error.javaClass.simpleName}")
             false
@@ -91,6 +99,8 @@ object WatchSync {
     suspend fun connectedWatchCount(context: Context): Int = withContext(Dispatchers.IO) {
         try {
             Wearable.getNodeClient(context).connectedNodes.await().size
+        } catch (cancelled: CancellationException) {
+            throw cancelled   // see pushConfig: cancellation is not a transport failure
         } catch (error: Exception) {
             DebugLog.w(TAG, "watch node query failed: ${error.javaClass.simpleName}")
             0

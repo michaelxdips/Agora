@@ -5,6 +5,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.newoether.agora.data.MemoryManager
 import com.newoether.agora.util.DebugLog
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -43,6 +44,8 @@ class PersonaReconcileWorker(
             DebugLog.d(TAG, "persona reconcile: clean=${state.storeIsClean} " +
                 "active=${state.enabled.filterValues { it }.keys}")
             Result.success()
+        } catch (cancelled: CancellationException) {
+            throw cancelled   // a cancelled reconcile is not a broken persona; see ReflectionEngine
         } catch (error: Exception) {
             // Never surface a persona failure to the user; a broken persona must not break launch.
             DebugLog.e(TAG, "persona reconcile failed", error)

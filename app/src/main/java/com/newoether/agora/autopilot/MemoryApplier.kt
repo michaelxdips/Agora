@@ -3,6 +3,7 @@ package com.newoether.agora.autopilot
 import com.newoether.agora.data.MemoryManager
 import com.newoether.agora.data.SkillManager
 import com.newoether.agora.util.DebugLog
+import kotlinx.coroutines.CancellationException
 
 /**
  * One addressable file inside an Agora-owned store.
@@ -103,6 +104,8 @@ class MemoryApplier(
             } else {
                 write(target, before, existedBefore = true)
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled   // a cancelled undo is not a failed undo; see ReflectionEngine
         } catch (error: Exception) {
             DebugLog.e(TAG, "undo failed for ${entry.targetFile}", error)
             return false

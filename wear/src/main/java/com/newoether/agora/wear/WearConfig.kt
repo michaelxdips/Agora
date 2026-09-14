@@ -26,8 +26,21 @@ data class WearConfig(
 ) {
     fun isValid(): Boolean =
         baseUrl.isNotBlank() && apiKey.isNotBlank() && model.isNotBlank() &&
-            (baseUrl.startsWith("https://") || baseUrl.startsWith("http://localhost") ||
-                baseUrl.startsWith("http://10.0.2.2"))
+            (baseUrl.startsWith("https://") || isLocalDevBaseUrl(baseUrl))
+
+    /**
+     * The localhost escape hatch, for a dev-side model server (Ollama, LM Studio, llama.cpp).
+     *
+     * `127.0.0.1` is included because the first version listed only `localhost` and `10.0.2.2`, which
+     * rejected the more common literal — a user pointing BYOK at `http://127.0.0.1:11434` got
+     * "Need an https base URL, key and model" with no hint why, while the identical server spelled
+     * `localhost` was accepted. Caught by `WearChatClientTest`, which is why that test suite exists.
+     * `10.0.2.2` is the emulator's alias for the host machine.
+     */
+    private fun isLocalDevBaseUrl(url: String): Boolean {
+        val hosts = listOf("http://localhost", "http://127.0.0.1", "http://10.0.2.2")
+        return hosts.any { url.startsWith(it) }
+    }
 
     companion object {
         const val CURRENT_VERSION = 1

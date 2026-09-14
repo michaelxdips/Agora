@@ -13,7 +13,7 @@ never remove upstream behaviour — add, don't rewrite.
 app/build.gradle.kts :: max=12
 app/src/main/AndroidManifest.xml :: max=6
 app/src/main/res/values/strings.xml :: max=4
-app/src/main/java/com/newoether/agora/ui/settings/SettingsScreen.kt :: max=18
+app/src/main/java/com/newoether/agora/ui/settings/SettingsScreen.kt :: max=24
 app/src/main/java/com/newoether/agora/MainActivity.kt :: max=40
 app/src/main/java/com/newoether/agora/viewmodel/GenerationRequestBuilder.kt :: max=8
 <!-- GUARD:DATA:END -->

@@ -574,9 +574,10 @@ class GenerationRequestBuilder(
             val includeActiveMemory = settings.accessActiveMemory.value
             val includeSkillCatalog = settings.accessSkills.value
             val activeMemoryDeferred = async(Dispatchers.IO) {
-                // HERMES P5 ISOLATION: persona blocks live in active memory (that is the injection
-                // channel) but must never reach the reflection/synthesis request path. Stripping
-                // here, at the single place active memory enters a request, covers both callers.
+                // HERMES INTEGRATION POINT: P5 isolation — persona blocks live in active memory
+                // (that is the injection channel) but must never reach the reflection/synthesis
+                // request path. Stripping here, at the single place active memory enters a request,
+                // covers both callers.
                 if (includeActiveMemory) PersonaStore.stripAll(memoryManager.getActiveMemory()) else ""
             }
             val skillCatalogDeferred = async {

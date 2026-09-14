@@ -4,6 +4,8 @@ import android.content.Context
 import com.newoether.agora.util.DebugLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.io.File
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
@@ -46,20 +48,45 @@ object PersonaUpdater {
         lines.joinToString("\n").ifBlank { "no personas in upstream.lock" }
     }
 
-    /** Raw upstream file at the pinned ref, or null when the fetch fails. */
+    /**
+     * Raw upstream file at the pinned ref, or null when the fetch fails.
+     *
+     * OkHttp, not `ProcessBuilder("curl", …)`. The first implementation shelled out to curl because
+     * "the same shell the agent uses" sounded like drift-proofing — but **Android ships no curl**:
+     * `adb shell curl` → `inaccessible or not found`, and `ProcessBuilder` would have thrown
+     * `IOException` on every device, so "Check for persona updates" could never work in the app. It
+     * was silently failing as "fetch failed (offline?)" on a perfectly good network. OkHttp is
+     * already a dependency of this module (5.3.2, used by the provider stack), so this is a real
+     * fix with no new dependency.
+     */
     fun fetch(repoUrl: String, ref: String, sourcePath: String): String? = runCatching {
         val url = repoUrl.trimEnd('/')
             .replace("github.com", "raw.githubusercontent.com") + "/$ref/$sourcePath"
-        val process = ProcessBuilder("curl", "-sSL", "--max-time", "20", url)
-            .redirectErrorStream(true)
-            .start()
-        val text = process.inputStream.bufferedReader().readText()
-        if (!process.waitFor(25, TimeUnit.SECONDS) || process.exitValue() != 0) return null
-        text.takeIf { it.isNotBlank() && it.contains("---") }
+        val request = Request.Builder().url(url).get().build()
+        http.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                DebugLog.w(TAG, "persona fetch HTTP ${response.code}")
+                return null
+            }
+            val text = response.body?.string().orEmpty()
+            text.takeIf { it.isNotBlank() && it.contains("---") }
+        }
     }.getOrElse {
-        DebugLog.w(TAG, "persona fetch failed: ${it.message}")
+        DebugLog.w(TAG, "persona fetch failed: ${it.javaClass.simpleName}")
         null
     }
+
+    /**
+     * Shared client. `Call.execute()` is blocking, so this is only ever called from
+     * `Dispatchers.IO` (see [run] and the settings page). Timeouts mirror the old curl invocation's
+     * `--max-time 20`, and redirects are followed because raw.githubusercontent.com serves them.
+     */
+    private val http = OkHttpClient.Builder()
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
+        .callTimeout(25, TimeUnit.SECONDS)
+        .followRedirects(true)
+        .build()
 
     fun sha256(text: String): String =
         MessageDigest.getInstance("SHA-256").digest(text.toByteArray())

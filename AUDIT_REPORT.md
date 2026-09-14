@@ -122,6 +122,57 @@ the log is left as found. Re-verified: **5/5 OK with no wipe and no reinstall be
 
 ---
 
+## Pass 3 — full scan for bugs, optimisation and missing features (post-Phase-8)
+
+Ran after the owner asked for a harder scan. Six more defects, **five of them in code this fork
+wrote**, plus the finding that matters most: **two of the existing test suites were structurally
+incapable of catching the bug they were supposed to cover.**
+
+| # | Sev | Finding | How found | Status |
+|---|---|---|---|---|
+| 16 | **CRITICAL** | **"Check for persona updates" could never work.** `PersonaUpdater.fetch` shelled out to `ProcessBuilder("curl", …)`. Android ships no curl — `adb shell curl` → `inaccessible or not found` — so every call threw `IOException`, `runCatching` swallowed it, and the UI reported **"fetch failed (offline?)"** on a device with perfect connectivity, forever. | `adb shell which curl` on the API-34 image, then comparing with the code path | **FIXED** — OkHttp (already a 5.3.2 dependency; no new dep). Verified on device: 6/6 instrumented tests including the exact-path assertion |
+| 17 | **HIGH** | **The JVM test for #16 did not catch #16.** With the buggy `ProcessBuilder` version deliberately restored, `PersonaUpdaterTest` still passed **6/6** — because the developer *host* ships curl, so the subprocess succeeded on the test machine and failed only on the device. This is precisely why the bug survived a phase that had claimed "fetch verified". | restored the bug, re-ran, watched it pass anyway | **FIXED** — the load-bearing coverage moved to an **instrumented** test that asserts the request reaches a loopback socket and that the device has no curl. Proven RED on the buggy code (2 failures on both devices), GREEN after |
+| 18 | **HIGH** | **`WearChatClient` had zero tests** — the watch's URL building, response parsing and every failure path were asserted by nothing. Writing the suite immediately found #19 and #20. | `ls wear/src/test/` → 2 files, neither touching the client | **FIXED** — 17 new tests. Wear suite 14 → **31** |
+| 19 | **HIGH** | **`ask()` violated its own "never throws" contract.** The catch block **re-threw** `WearChatException`, so a transport failure escaped the `Result` and crashed past the caller's `result.fold(...)` — meaning the **offline queue never received the question**. Offline is a normal watch state; the feature built for it was unreachable. | the new tests asserted `result.isFailure` and got a thrown exception instead | **FIXED** — returns `Result.failure`. The queue path is now the one that runs |
+| 20 | **MEDIUM** | **Failure messages were useless.** A bare `catch (Throwable)` caught the deliberately-thrown `WearChatException` and replaced its message with the class name, so every watch error read **"WearChatException"**. The user saw nothing actionable. | the new tests asserted `"HTTP 401"` and got `"WearChatException"` | **FIXED** — typed catch first, specific message preserved; unknown throwables still summarised by class name so a URL or key cannot leak |
+| 21 | **MEDIUM** | **`127.0.0.1` was rejected while `localhost` was accepted.** The HTTPS-only allowlist listed `localhost` and `10.0.2.2` but not the loopback literal, so BYOK pointed at `http://127.0.0.1:11434` (the common way to write it) failed validation with "Need an https base URL, key and model" and no hint why. | the new validation test | **FIXED** — `127.0.0.1` accepted, rationale documented |
+| 22 | **HIGH** | **Cancellation swallowed in 8 places.** `catch (Exception)` / `runCatching` / `recoverCatching` catch `CancellationException` too, so a cancelled reflection pass kept writing memory, a cancelled undo reported "undo failed", a cancelled watch push reported "no watch reachable", and a cancelled persona reconcile reported a broken persona. The phone's `ReflectionCaller`/`ReflectionWorker` already rethrew correctly — the rest of the codebase did not. | grep sweep for catch blocks with no `CancellationException` branch | **FIXED** — 8 sites (ReflectionEngine, MemoryApplier, SkillSynthesizer, PersonaReconcileWorker, WatchSync ×3, WearChatClient) now rethrow. `PersonaApplier` was already correct |
+
+### The pattern worth naming
+
+Both CRITICAL-class findings in this pass were **"works on the dev machine, impossible on the
+device"**: a subprocess binary that exists on Windows and not on Android, and a test suite whose
+platform made the bug invisible. Neither could be found by reading the code, and neither was found
+by the tests that existed. Both were found by running the thing on the real target.
+
+### Optimisation (one real, two measured-and-rejected)
+
+| Change | Verdict |
+|---|---|
+| **`OkHttpClient` was rebuilt per question** — `send()` constructs a `WearChatClient` each call, and each held its own connection pool and dispatcher threads. On a 2 GB watch that is a leak that surfaces as latency. Now one shared client per process, so a follow-up question reuses the TLS session. | **DONE** |
+| Watch release APK 2.65 MB vs 39 MB debug — R8 + resource shrinking + locale filter already working; the watch module has no images, no Room, no llama.cpp. | already optimal, left alone |
+| `WearOfflineQueue` is file-backed JSON rather than Room — correct at "a few dozen short strings". | already right, documented as `ponytail:` |
+
+### Gate after Pass 3
+
+| Gate | Result |
+|---|---|
+| `:app:testFdroidDebugUnitTest` | **PASS** 2,533 tests, 0 failures |
+| `:app:testPlayDebugUnitTest` | **PASS** 2,516 tests, 0 failures |
+| `:wear:testDebugUnitTest` | **PASS** 31 tests, 0 failures (was 14) |
+| `:app:connectedFdroidDebugAndroidTest` | **PASS** 12/12 on BOTH `hermes_x86_64` and `hermes_wear5` (was 6) |
+| `:app:assembleFdroidDebug` / `:app:assemblePlayDebug` / `:wear:assembleRelease` | **PASS** — 65,860,308 B / 65,799,760 B / 2,652,736 B |
+| `touchpoint_guard.sh` | **PASS** |
+
+### Still open, honestly
+
+| Item | Why |
+|---|---|
+| Live provider call (reflection round-trip, watch voice loop, P6 output-token measurement) | needs a real API key (HS2, owner-deferred). No number in any report is estimated |
+| Phone↔watch Data Layer transfer end-to-end | both sides implemented and the watch's independent paths verified on a real API-34 image, but the two emulators are not Data-Layer-paired (HS4) |
+
+---
+
 ## Honest summary
 
 The code in Phases 3–5 arrived in good shape. Phases 6 and 7 — the ones built in this session — did

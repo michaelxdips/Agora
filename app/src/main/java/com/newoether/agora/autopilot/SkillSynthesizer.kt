@@ -1,6 +1,7 @@
 package com.newoether.agora.autopilot
 
 import com.newoether.agora.util.DebugLog
+import kotlinx.coroutines.CancellationException
 
 /**
  * Phase 5 — writes a synthesized skill draft through `SkillManager`, with full snapshot/rollback
@@ -54,6 +55,8 @@ class SkillSynthesizer(
                 sourceSessionId = sourceSessionId,
                 timestamp = now,
             )
+        } catch (cancelled: CancellationException) {
+            throw cancelled   // a cancelled pass is not a rejected draft; see ReflectionEngine
         } catch (error: Exception) {
             // A name collision or an invalid skill name must not break the pass.
             DebugLog.w(TAG, "skill draft rejected (${draft.name}): ${error.message}")

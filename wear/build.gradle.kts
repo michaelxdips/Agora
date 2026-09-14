@@ -16,6 +16,12 @@ android {
     namespace = "com.newoether.agora.wear"
     compileSdk = 36
 
+    // OkHttp's platform detection calls `android.util.Log.isLoggable` at class-init. Without this the
+    // whole client is unusable from a JVM unit test ("Method isLoggable in android.util.Log not
+    // mocked"), which is why WearChatClient had no tests at all until now. Returning default values
+    // lets the real OkHttp code path run off-device; the device-side tests still run it for real.
+    testOptions.unitTests.isReturnDefaultValues = true
+
     defaultConfig {
         // Data Layer requires the phone and watch apps to share an applicationId. Same keystore too,
         // or the phone and watch installs are not the same identity and the Data Layer refuses to

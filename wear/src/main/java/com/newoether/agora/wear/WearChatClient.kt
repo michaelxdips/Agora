@@ -1,6 +1,7 @@
 package com.newoether.agora.wear
 
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -29,10 +30,24 @@ import java.util.concurrent.TimeUnit
  */
 class WearChatClient(private val config: WearConfig) {
 
-    private val http = OkHttpClient.Builder()
-        .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
-        .build()
+    /**
+     * Shared, not per-instance. The first version built a new `OkHttpClient` per `WearChatClient`,
+     * and `send()` constructs one client per question — so every question allocated a fresh
+     * connection pool and dispatcher thread pool that OkHttp keeps alive until the client is
+     * garbage-collected. On a 2 GB watch that is a leak that shows up as latency, not as a crash.
+     *
+     * A single client is also what OkHttp's own documentation asks for: it shares the connection
+     * pool and the thread pool, so a follow-up question reuses the TLS session instead of
+     * renegotiating it on a watch CPU.
+     */
+    private companion object {
+        val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
+
+        val http: OkHttpClient = OkHttpClient.Builder()
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .build()
+    }
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
@@ -74,20 +89,34 @@ class WearChatClient(private val config: WearConfig) {
             .post(body.toString().toRequestBody(JSON_MEDIA_TYPE))
             .build()
 
-        return runCatching {
+        return try {
             http.newCall(request).execute().use { response ->
                 val text = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {
                     // Status only — the body can echo the key in a proxy error page.
                     throw WearChatException("HTTP ${response.code}")
                 }
-                parseContent(text) ?: throw WearChatException("unreadable response")
+                Result.success(parseContent(text) ?: throw WearChatException("unreadable response"))
             }
-        }.recoverCatching { error ->
-            throw when (error) {
-                is WearChatException -> error
-                else -> WearChatException(error.javaClass.simpleName)
-            }
+        } catch (cancelled: CancellationException) {
+            // Cooperative cancellation is not a failure to report. `runCatching`/`recoverCatching`
+            // would have caught this (CancellationException is an Exception) and converted it into a
+            // Result.failure, so a cancelled ask would look like a transport error — and the caller
+            // holds the question as "offline" instead of unwinding. The phone side already rethrows
+            // it (ReflectionCaller, ReflectionWorker); this brings the watch in line.
+            throw cancelled
+        } catch (error: WearChatException) {
+            // Already the user-safe shape. Returned as a failure, not thrown: `ask`'s contract is
+            // "never throws", and the caller does `result.fold(...)` — the first version threw, so
+            // every failure crashed straight past the offline-queue path instead of holding the
+            // question. The specific message ("HTTP 401") is kept rather than replaced by a class
+            // name, which tells the user nothing.
+            Result.failure(error)
+        } catch (error: Throwable) {
+            // Anything else (ConnectException, SocketTimeoutException, JSON errors) is summarised by
+            // class name on purpose: those messages carry the full URL, and this string is rendered
+            // on the watch screen.
+            Result.failure(WearChatException(error.javaClass.simpleName))
         }
     }
 
@@ -106,9 +135,6 @@ class WearChatClient(private val config: WearConfig) {
         return runCatching { content.content }.getOrNull()?.takeIf { it.isNotBlank() }
     }
 
-    private companion object {
-        val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
-    }
 }
 
 /** A watch-side failure that is safe to show the user: no URL, no key, no response body. */

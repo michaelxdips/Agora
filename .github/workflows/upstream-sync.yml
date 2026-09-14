@@ -1,0 +1,48 @@
+name: upstream-sync
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Resolve in a throwaway worktree only'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "hermes-bot"
+          git config user.email "bot@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/newo-ether/Agora.git || true
+
+      - name: Run sync script
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SYNC_DRY_RUN: ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '1' || '0' }}
+        run: |
+          git checkout main
+          bash scripts/upstream_sync.sh
+
+      - name: Push main + tags
+        if: success() && (github.event_name != 'workflow_dispatch' || !inputs.dry_run)
+        run: git push origin main --tags

@@ -186,6 +186,8 @@ dependencies {
     implementation(libs.material.color.utilities)
     implementation(libs.lottie.compose)
     implementation(libs.work.runtime.ktx)
+    // HERMES INTEGRATION POINT: Phase 7 watch sync (Data Layer, phone side).
+    implementation(libs.play.services.wearable)
     implementation(libs.jsch)
     implementation(libs.commons.compress)
     debugImplementation(libs.androidx.compose.ui.tooling)

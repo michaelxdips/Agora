@@ -1,0 +1,10 @@
+[
+    {
+        "merged": "com.newoether.agora.wear-debug-46:/drawable_hermes_wear_foreground.xml.flat",
+        "source": "com.newoether.agora.wear-main-48:/drawable/hermes_wear_foreground.xml"
+    },
+    {
+        "merged": "com.newoether.agora.wear-debug-46:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "com.newoether.agora.wear-main-48:/mipmap-anydpi-v26/ic_launcher.xml"
+    }
+]

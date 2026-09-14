@@ -1,0 +1,8 @@
+com.newoether.agora.wear-pngs-0 C:\Users\Michael\Documents\Chatapp\Agora\wear\build\generated\res\pngs\debug
+com.newoether.agora.wear-updated_navigation_xml-1 C:\Users\Michael\Documents\Chatapp\Agora\wear\build\generated\updated_navigation_xml\debug
+com.newoether.agora.wear-packageDebugResources-2 C:\Users\Michael\Documents\Chatapp\Agora\wear\build\intermediates\incremental\debug\packageDebugResources\merged.dir
+com.newoether.agora.wear-packageDebugResources-3 C:\Users\Michael\Documents\Chatapp\Agora\wear\build\intermediates\incremental\debug\packageDebugResources\stripped.dir
+com.newoether.agora.wear-debug-4 C:\Users\Michael\Documents\Chatapp\Agora\wear\build\intermediates\merged_res\debug\mergeDebugResources
+com.newoether.agora.wear-debug-5 C:\Users\Michael\Documents\Chatapp\Agora\wear\src\debug\res
+com.newoether.agora.wear-main-6 C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\res
+gradleHome-0 C:\Users\Michael\.gradle

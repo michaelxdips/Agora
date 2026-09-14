@@ -32,4 +32,15 @@
     <string name="hermes_persona_edit_label">Rule text</string>
     <string name="hermes_persona_save">Save</string>
     <string name="hermes_persona_cancel">Cancel</string>
+    <!-- HERMES: Phase 7 watch setup (phone side). -->
+    <string name="hermes_watch_setup">Watch setup</string>
+    <string name="hermes_watch_setup_desc">Send the provider URL, API key and model to the paired watch once. The watch then works standalone — it does not need this phone to answer.</string>
+    <string name="hermes_watch_connected">Watches connected: %1$d</string>
+    <string name="hermes_watch_base_url">Base URL</string>
+    <string name="hermes_watch_model">Model</string>
+    <string name="hermes_watch_send">Send to watch</string>
+    <string name="hermes_watch_pushed">Sent. The watch is standalone now.</string>
+    <string name="hermes_watch_config_only">Config sent; the memory snapshot will follow when the watch is reachable.</string>
+    <string name="hermes_watch_push_failed">No watch reachable — open the app on the watch and try again.</string>
+    <string name="hermes_watch_no_key">No API key configured for the selected model. Set it in Providers first.</string>
 </resources>

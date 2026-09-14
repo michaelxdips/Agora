@@ -54,7 +54,10 @@ fun SettingsWatchSetupPage(
     LaunchedEffect(Unit) {
         val modelId = settings.selectedModel.value.orEmpty()
         val providerName = if (modelId.isBlank()) "" else providers.providerForModel(modelId)
-        baseUrl = if (providerName.isBlank()) "" else providers.getEffectiveBaseUrl(providerName)
+        // `getEffectiveBaseUrl` is nullable: a provider with no configured base URL resolves to null,
+        // and a watch config with a null URL is invalid. Fall back to empty so `WearConfig.isValid()`
+        // rejects it on the watch instead of the field silently holding "null".
+        baseUrl = if (providerName.isBlank()) "" else providers.getEffectiveBaseUrl(providerName).orEmpty()
         model = modelId
         watchCount = withContext(Dispatchers.IO) { WatchSync.connectedWatchCount(context) }
     }

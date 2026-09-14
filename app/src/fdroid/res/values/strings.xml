@@ -1,24 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- HERMES: fdroid-flavor resource overlay. Overrides upstream app_name without editing
-     app/src/main/res/values/strings.xml (zero upstream file modifications).
+<!-- HERMES: fdroid-flavor resource overlay, Hermes-only strings.
 
-     Upstream defines app_name in the default values/ plus 11 locale folders. A flavor overlay in
-     values/ alone only wins for locales that have NO upstream override, so every upstream locale
-     needs a matching overlay entry or the launcher falls back to "Agora" there. This file carries
-     the full set; upstream stays untouched. -->
+     These live in the FLAVOR overlays, not in main/res/values, on purpose: upstream's
+     SettingsResourceContractTest asserts every locale directory under main/res carries every key
+     defined in main/res/values. Adding 30 English-only Hermes strings to main would demand 11
+     locale translations that do not exist and should not (the autopilot/persona/watch UI is
+     English-only for now). Flavor overlays are outside that contract and are upstream-empty paths,
+     so both flavors carry one identical copy and neither can drift.
+
+     `app_name` also stays here (see the separate note at the top of this file). -->
 <resources>
     <string name="app_name">Hermes</string>
-    <!-- HERMES: autopilot Adaptation History page (Hermes-only strings; the fdroid overlay keeps
-         upstream app/src/main/res/values/strings.xml untouched). -->
+
+    <!-- Adaptation History (Phase 4) -->
     <string name="hermes_adaptation_history">Adaptation History</string>
     <string name="hermes_adaptation_history_desc">Review and undo memory changes made by Hermes</string>
     <string name="hermes_adaptation_history_empty">No adaptations yet. Hermes records every memory change here, with a one-tap undo.</string>
+
+    <!-- Autopilot controls (Phase 3) -->
     <string name="hermes_autopilot">Autopilot</string>
     <string name="hermes_autopilot_desc">Hermes updates saved memory automatically after conversations</string>
     <string name="hermes_autopilot_cap">Daily cap: %1$d adaptations</string>
     <string name="hermes_autopilot_run_now">Run reflection now</string>
-    <!-- HERMES: Phase 6 persona system (P4). Personas ride Agora's active-memory channel; these
-         strings only label the settings page. -->
+
+    <!-- Persona system (Phase 6) -->
     <string name="hermes_personas">Personas</string>
     <string name="hermes_personas_desc">Caveman controls form (terse prose), Ponytail controls judgment (the laziest sufficient solution). Both are injected through your active memory, so they can be removed without a trace.</string>
     <string name="hermes_persona_status_active">Active — block present in active memory</string>
@@ -32,7 +37,8 @@
     <string name="hermes_persona_edit_label">Rule text</string>
     <string name="hermes_persona_save">Save</string>
     <string name="hermes_persona_cancel">Cancel</string>
-    <!-- HERMES: Phase 7 watch setup (phone side). -->
+
+    <!-- Watch setup (Phase 7) -->
     <string name="hermes_watch_setup">Watch setup</string>
     <string name="hermes_watch_setup_desc">Send the provider URL, API key and model to the paired watch once. The watch then works standalone — it does not need this phone to answer.</string>
     <string name="hermes_watch_connected">Watches connected: %1$d</string>

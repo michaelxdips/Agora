@@ -396,6 +396,12 @@ emulator (384×384 round), not merely compiled.
 (the module include and the Wear/Data-Layer dependency aliases) are registered in
 `UPSTREAM_TOUCHPOINTS.md`. Guard re-run → PASS.
 
+> **Correction (Phase 8).** The first version of this row claimed `wear/` had been added to `ALLOWED`
+> when it had not — the guard caught the omission and failed on seven `wear/**` files. Fixed in
+> `scripts/touchpoint_guard.sh`; a `wear/` path is now matched, and the guard is green. The claim is
+> left visible here on purpose: a STATUS row that asserted a guard change that never happened is
+> exactly the failure mode the evidence standard exists to prevent.
+
 ### What the watch is
 
 Two setup paths, owner-mandated, both landing in the same encrypted store:

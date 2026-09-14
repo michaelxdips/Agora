@@ -23,4 +23,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "Agora"
 include(":app")
+// HERMES INTEGRATION POINT
+// The watch module. New module, added not modified.
 include(":wear")

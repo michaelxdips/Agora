@@ -1,5 +1,0 @@
-int color hermes_wear_background 0x0
-int drawable hermes_wear_foreground 0x0
-int mipmap ic_launcher 0x0
-int string app_name 0x0
-int string wear_speak_prompt 0x0

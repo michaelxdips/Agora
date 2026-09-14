@@ -27,6 +27,8 @@ android {
     defaultConfig {
         // HERMES INTEGRATION POINT (touchpoint #1): fork installs side by side with upstream Agora.
         applicationId = "com.hermes.app"
+        // HERMES INTEGRATION POINT: the instrumented autopilot tests need a runner.
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         minSdk = 26
         targetSdk = 36
         versionCode = 31
@@ -196,6 +198,10 @@ dependencies {
     testImplementation("org.robolectric:robolectric:4.16")
     testImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    // HERMES INTEGRATION POINT: instrumented verification (Phase 3 primary evidence).
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test:runner:1.5.0")
 }
 
 tasks.whenTaskAdded {

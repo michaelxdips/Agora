@@ -27,8 +27,8 @@ object AdaptationHistoryPresenter {
      * for a review list and cannot be wrong about what changed.
      */
     fun diff(entry: AdaptationEntry, maxLines: Int = 40): List<DiffLine> {
-        val before = entry.beforeSnapshot?.lines().orEmpty()
-        val after = entry.afterSnapshot?.lines().orEmpty()
+        val before = entry.beforeSnapshot?.lines().orEmpty().filter { it.isNotBlank() }
+        val after = entry.afterSnapshot?.lines().orEmpty().filter { it.isNotBlank() }
         val beforeSet = before.toSet()
         val afterSet = after.toSet()
         val removed = before.filter { it !in afterSet }.take(maxLines)

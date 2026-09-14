@@ -10,7 +10,10 @@ never remove upstream behaviour — add, don't rewrite.
 
 <!-- GUARD:DATA:START -->
 # path :: max=<changed lines allowed>
-app/build.gradle.kts :: max=12
+app/build.gradle.kts :: max=16
+settings.gradle.kts :: max=4
+gradle/libs.versions.toml :: max=10
+.gitignore :: max=6
 app/src/main/AndroidManifest.xml :: max=6
 app/src/main/res/values/strings.xml :: max=4
 app/src/main/java/com/newoether/agora/ui/settings/SettingsScreen.kt :: max=24

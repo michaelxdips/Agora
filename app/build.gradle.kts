@@ -188,6 +188,9 @@ dependencies {
     implementation(libs.work.runtime.ktx)
     // HERMES INTEGRATION POINT: Phase 7 watch sync (Data Layer, phone side).
     implementation(libs.play.services.wearable)
+    // `await()` on the Data Layer Tasks — without this the Task returned by putDataItem has no
+    // coroutine bridge and the module does not compile.
+    implementation(libs.coroutines.play.services)
     implementation(libs.jsch)
     implementation(libs.commons.compress)
     debugImplementation(libs.androidx.compose.ui.tooling)

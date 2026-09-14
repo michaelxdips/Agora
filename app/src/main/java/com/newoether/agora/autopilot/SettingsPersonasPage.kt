@@ -126,7 +126,10 @@ fun SettingsPersonasPage(onBack: () -> Unit) {
                     Row(modifier = Modifier.fillMaxWidth()) {
                         TextButton(onClick = {
                             editing = id
-                            draft = repo.effectiveText(id).orEmpty()
+                            scope.launch {
+                                // Suspend rather than block: `effectiveText` reads DataStore.
+                                draft = repo.effectiveText(id).orEmpty()
+                            }
                         }) {
                             Text(stringResource(R.string.hermes_persona_edit))
                         }

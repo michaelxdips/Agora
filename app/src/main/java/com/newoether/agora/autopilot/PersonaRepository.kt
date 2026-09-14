@@ -78,11 +78,17 @@ class PersonaRepository(
         target.writeText(text)
     }
 
-    /** The user's edited copy, or null when they never edited this persona. */
-    fun customText(id: String): String? = settings.customText(id)
+    /**
+     * The user's edited copy, or null when they never edited this persona.
+     *
+     * Suspending on purpose: the first version used `runBlocking` so the call site could stay simple,
+     * which blocks the calling thread — and the caller is a Compose click handler, i.e. the UI thread.
+     * A DataStore read on the main thread is a dropped frame at best and an ANR at worst.
+     */
+    suspend fun customText(id: String): String? = settings.customText(id)
 
     /** What the UI should show: the user's edit when present, otherwise the vendored default. */
-    fun effectiveText(id: String): String? = customText(id) ?: defaultText(id)
+    suspend fun effectiveText(id: String): String? = customText(id) ?: defaultText(id)
 
     /** "Reset to default" — drops the user's edit so the vendored upstream text wins again. */
     suspend fun resetToDefault(id: String) = settings.setCustomText(id, null)
@@ -146,11 +152,14 @@ class PersonaSettings(private val context: Context) {
     suspend fun enabledMap(): Map<String, Boolean> =
         PersonaStore.IDS.associateWith { isEnabled(it) }
 
-    fun customText(id: String): String? = runCatching {
-        kotlinx.coroutines.runBlocking {
-            context.personaDataStore.data.first()[keyCustom(id)]
-        }
-    }.getOrNull()
+    /**
+     * The user's edited text, or null when they never edited this persona.
+     *
+     * Suspending, not `runBlocking`: the callers are Compose click handlers, and blocking a DataStore
+     * read on the UI thread is a dropped frame at best and an ANR at worst.
+     */
+    suspend fun customText(id: String): String? =
+        context.personaDataStore.data.first()[keyCustom(id)]?.takeIf { it.isNotBlank() }
 
     suspend fun setCustomText(id: String, text: String?) {
         context.personaDataStore.edit { prefs ->

@@ -38,6 +38,7 @@ app/src/fdroid/jniLibs/arm64-v8a/
 signing.properties
 AGENTS.md
 
-# Hermes: module build output. Upstream's `/build` only matches the root directory, so a new Gradle
-# module's build/ tree is not ignored by it. Committed once by accident in Phase 7; this keeps it out.
+# HERMES INTEGRATION POINT
+# Module build output. Upstream's `/build` is root-anchored and `app/` has its own .gitignore, so a
+# NEW Gradle module's build tree is matched by neither — wear/build/ got committed once in Phase 7.
 build/

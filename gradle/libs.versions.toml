@@ -22,10 +22,14 @@ lottie = "6.6.2"
 work = "2.10.0"
 jsch = "0.2.23"
 commonsCompress = "1.27.1"
+# HERMES INTEGRATION POINT
+# Phase 7 watch sync: Data Layer (phone↔watch) and Task.await() for the coroutine call sites.
 playServicesWearable = "19.0.0"
+coroutinesPlayServices = "1.10.2"
 
 [libraries]
 play-services-wearable = { group = "com.google.android.gms", name = "play-services-wearable", version.ref = "playServicesWearable" }
+coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutinesPlayServices" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashscreen" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }

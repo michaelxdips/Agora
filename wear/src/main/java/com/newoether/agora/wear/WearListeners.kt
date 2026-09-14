@@ -4,7 +4,7 @@ import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.WearableListenerService
-import kotlinx.coroutines.runBlocking
+
 
 /**
  * Receives the **one-time** credential push from the phone.

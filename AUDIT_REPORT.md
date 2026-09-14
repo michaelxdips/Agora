@@ -173,6 +173,45 @@ by the tests that existed. Both were found by running the thing on the real targ
 
 ---
 
+## Recommended features — evidence-based, ranked
+
+Every item below is stated with **what exists today** (verified by grep, above) and **why the gap
+matters**. Nothing here duplicates upstream: conversation fork/regenerate/edit-message, Room,
+`SkillManager`, MCP and auto-backup already exist in the phone module and are not proposed again.
+
+### P0 — the watch is unusable offline, which is the state it is designed for
+
+| Feature | Evidence of the gap | Why it matters |
+|---|---|---|
+| **Auto-drain the offline queue on launch and on connectivity regain** | `drainQueue` has exactly **one** call site: the success branch of `send()`. Opening the app does not send anything. A question held offline waits for the user to ask a *second* question that *also* succeeds — and if it succeeds, the queued answer overwrites the visible one. | The watch's entire premise is "it loses connectivity constantly". A held question that is never auto-sent is a silently dropped question. This is the highest-value small change in the fork. |
+| **Surface the queued questions in the UI, and offer retry/discard** | the badge exists (`"$queued held offline"`) but is read-only; the queue auto-drops an entry after 3 failed attempts with only a log line. | The user cannot tell what is held or force a send. Silent loss of a question the user believes was asked is worse than a visible failure. |
+
+### P1 — the watch surface that Wear OS 5/7 expects and this app does not provide
+
+| Feature | Evidence of the gap | Why it matters |
+|---|---|---|
+| **Tile** (`SuspendingTileService` + ProtoLayout) | grep for `TileService`/`ProtoLayout`/`Glance` across `wear/src` → **zero hits**. Manifest has only the activity and two `DATA_CHANGED` listeners. | A Tile is the documented Wear OS way to make an action one swipe from the watch face. For a question-answering app the obvious Tile is a tap-to-talk button — it removes the app-launch step entirely, which on a 384 px screen is most of the interaction cost. |
+| **Complication data source** | same grep → zero hits | A complication is the documented surface for "one highly glanceable unit of information" — here: whether the watch is configured and whether anything is held offline. Also the mechanism that makes the app reachable from any watch face. |
+| **Ongoing notification + `OngoingActivity` for a long answer** | `WearChatClient` uses `readTimeout(60s)`; a watch screen times out in roughly 5–15 s. | A slow provider means the screen sleeps before the answer arrives. Wear's documented pattern for "background task visible to the user" is an ongoing notification paired with an ongoing activity; without it the app looks like it hung. |
+
+### P2 — honest numbers and continuity
+
+| Feature | Evidence of the gap | Why it matters |
+|---|---|---|
+| **Real token/usage reporting from the provider response** | the watch never parses `usage`; `WearCoreContext.estimateTokens` is a documented ~4-chars-per-token estimate. Upstream already ships `ContextTokenEstimator`, and `PersonaCostReport` deliberately reports input cost only. | The persona work leans on an HONEST-NUMBERS doctrine. A provider's reported usage is the only way to replace the estimate with a measurement — and it is the missing half of the P6 output-token measurement blocked on HS2. |
+| **Conversation history on the watch** | `WearMainActivity` holds one `answer` string in memory; nothing persists. | "Ask on the watch, continue on the phone" is what both Apple's and Google's 2026 assistants do (verified in this pass's research). Today a watch answer cannot even be re-read after a restart. |
+| **Tighter default `readTimeout`** | 60 s is longer than any watch interaction; the screen is gone long before. | Either the timeout should match the interaction window, or the ongoing-notification path above must exist. A 60 s block with no visible progress is indistinguishable from a freeze. |
+
+### Explicitly NOT recommended
+
+| Idea | Why not |
+|---|---|
+| Streaming responses on the watch | already reasoned and documented in `WearChatClient`: small screen, short answers, and a streaming connection to babysit across wrist-down events for no visible benefit. Adding it would contradict a decision that is still right. |
+| Room, llama.cpp, conversation trees, MCP, image generation on the watch | owner's standing constraint; the module is 2.65 MB release precisely because these are absent. |
+| Rotating the wear API key | `WearCrypto` documents rotation as additive once the threat model grows past "lost watch". Not justified by anything found in this scan. |
+
+---
+
 ## Honest summary
 
 The code in Phases 3–5 arrived in good shape. Phases 6 and 7 — the ones built in this session — did

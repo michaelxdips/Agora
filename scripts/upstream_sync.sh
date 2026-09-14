@@ -36,7 +36,7 @@ fi
 
 # registered touchpoints keep ours on conflict; everything else aborts
 TOUCHPOINTS="$(awk '/GUARD:DATA:START/{f=1;next} /GUARD:DATA:END/{f=0} f' UPSTREAM_TOUCHPOINTS.md \
-    | sed -n 's/^\([^#][^:]*\) *:: *max=.*/\1/p' | tr -d '[:space:]')"
+    | sed -n 's/^\([^#][^:]*\) *:: *max=.*/\1/p' | tr -d ' 	')"
 
 run_merge() {
     git merge --no-ff --no-edit "$TARGET"

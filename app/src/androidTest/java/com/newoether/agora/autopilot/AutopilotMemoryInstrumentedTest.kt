@@ -145,7 +145,8 @@ class AutopilotMemoryInstrumentedTest {
         assertFalse(fileOf(file).exists())
         assertNull(applier.snapshot(AdaptationTarget(AdaptationEntry.STORE_MEMORY, file)))
 
-        log.delete(id)
+        // JUnit4 requires a void test method: assert the cleanup result instead of returning it.
+        assertEquals(1, log.delete(id))
     }
 
     private data class Seed(val file: String, val initial: String)

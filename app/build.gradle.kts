@@ -25,7 +25,8 @@ android {
     ndkVersion = "28.2.13676358"
 
     defaultConfig {
-        applicationId = "com.newoether.agora"
+        // HERMES INTEGRATION POINT (touchpoint #1): fork installs side by side with upstream Agora.
+        applicationId = "com.hermes.app"
         minSdk = 26
         targetSdk = 36
         versionCode = 31

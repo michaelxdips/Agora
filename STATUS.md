@@ -277,10 +277,187 @@ prerequisites, HS registry, from-scratch verification recipe, deliberate limitat
 
 ---
 
+## Phase 6 — Persona System (Caveman + Ponytail)
+
+Exit criteria: personas toggleable, upstream-sourced, updatable, isolated, removable without trace.
+
+**VERIFIED-DONE** (device-verified, three real defects found and fixed by running it).
+
+### P1 — injection channel: Agora's active-memory store, zero new touchpoints
+
+A persona is a delimited block inside `active_memory.md`:
+
+```
+<!-- HERMES:PERSONA:CAVEMAN:START -->
+…rule text…
+<!-- HERMES:PERSONA:CAVEMAN:END -->
+```
+
+`active_memory.md` is already read by `MemoryManager.getActiveMemory()` and already injected into the
+resolved system prompt by `GenerationRequestBuilder.resolvePromptTemplate`, so personas ride the
+native channel (P1) and the feature registers **no** upstream touchpoint of its own (N14). A
+hand-rolled prompt hook was rejected for exactly that reason.
+
+| Criterion | Status | Evidence |
+|---|---|---|
+| Marked block in the active-memory store, deterministic find/replace/remove | done | `PersonaStore.kt`; `upsertBlock`/`removeBlock` are exact inverses (asserted by `PersonaStoreTest`) |
+| Journaled: snapshot → write → `AdaptationLog` | done | `PersonaApplier.setEnabled` inserts the row **before** the store write and deletes it if the write throws; `PersonaApplierTest` asserts `beforeSnapshot` equals the exact prior bytes |
+| Toggle OFF = block removed = zero trace | **done on device** | toggled Caveman on, then off: `adb shell run-as com.hermes.app cat files/active_memory.md` → **0 bytes**, UI reads *"No persona markers in the store — toggle off is complete."* (`_device_proof/p6-03-caveman-off-zero-trace.png`) |
+| Master autopilot OFF also strips personas | **done on device** | toggling the master switch off took the store from 4 markers to **0** immediately; the strip is in `AutopilotControlsSection`, not deferred to next launch |
+| Persistence across force-stop | **done** | `am force-stop` + relaunch: both persona blocks still present, all four markers intact |
+| Zero new upstream touchpoints for personas | done | the only upstream file the feature touches is `GenerationRequestBuilder.kt`, and that is for **P5 isolation**, not injection |
+
+### P2 — vendored sourcing + updatability
+
+| Persona | Upstream | Ref | sha256 |
+|---|---|---|---|
+| Caveman | `github.com/JuliusBrussee/caveman` | `v2.6.0` | `c4d7354b4b063d54601fcdd5097a5b1713d1a1a2e386ac39efa438aa1ffef8ce` |
+| Ponytail | `github.com/DietrichGebert/ponytail` | `v4.10.0` | `1316a2f3f95741d2300b116fe0c2d81ce4a9568656ed0a62643f54aaf09957f2` |
+
+Vendored copies in `personas/`, machine-readable record in `personas/upstream.lock`, in-APK copies in
+`app/src/main/assets/personas/` (assets are read-only, so they are seeded into app storage on first
+run). `PersonaFidelityTest` asserts the repo copy, the asset copy and the lock's hash all still agree.
+`scripts/persona_update.sh` fetches the latest tag → diffs → **runs the persona regression tests** →
+only then updates the lock and vendored copies; a failing test aborts the update. Dry-run verified:
+`persona_update: caveman up to date (v2.6.0)`, `ponytail up to date (v4.10.0)`.
+Offline fallback: `PersonaRepository.EMBEDDED` — a faithful short form used only when the vendored
+file cannot be read, so a toggle is never a silent no-op.
+
+### P3 — fidelity to upstream
+
+`PersonaStore.toBody` strips only the YAML frontmatter (registry metadata, not instruction text) and
+copies the rest **verbatim**. `PersonaFidelityTest` asserts the load-bearing phrases survive:
+Caveman's `Code blocks unchanged` and `Never drop not/never/no/only/except`; Ponytail's
+`Does this need to exist at all?` and `Never simplify away`.
+
+### P5 — isolation
+
+Persona blocks are stripped wherever active memory enters a request
+(`GenerationRequestBuilder.kt`), plus defensively in `ReflectionCaller` and `SkillSynthesizer`.
+`PersonaIsolationTest` (5 tests) proves the reflection prompt, the synthesis prompt and a mid-transcript
+block all come back clean while the user-facing channel still carries the persona.
+
+### P6 — honest cost numbers
+
+Measured with the app's own `ContextTokenEstimator` (`PersonaFidelityTest` prints it, so it is
+reproducible):
+
+```
+PERSONA_COST persona input cost (app estimator, per request): caveman=2473, ponytail=2061; combined=4534
+```
+
+That is the **input** cost of the block, per request, honestly stated: on an already-terse workload a
+persona can cost more than it saves, and this fork reports that rather than quoting a percentage.
+**Output-token reduction is NOT measured** — it needs a live provider key, which is HS2 and was
+deferred by the owner. Not claimed, not estimated.
+
+### P4 — UI
+
+Settings → Personas: two toggles, per-persona *Edit text*, *Reset to default*, *Check for persona
+updates*, and a status line whose state is read **back from the injection channel** (`active memory
+(N characters)` and a clean/dirty marker line), not from the DataStore intent. Proof:
+`_device_proof/p6-01-personas-page.png`, `p6-02-caveman-on.png`, `p6-04-adaptation-history-persona-entry.png`.
+
+### Defects found by running it (not by reading it)
+
+1. **`trim()` broke byte-exact removal.** The first `removeBlock` trimmed its result, so toggling a
+   persona off silently rewrote a file the user owned — a trailing newline disappeared. Caught by the
+   **on-device** test; the JVM tests had not covered it. Fixed by making the separator part of the
+   removed region, so upsert/remove are exact inverses.
+2. **Unterminated block was left behind.** A `START` marker with no `END` (the shape a process kill
+   leaves) was treated as "not present", so the next write appended a *second* copy. Now removed.
+3. **`indexOf` returning -1 won the `minOrNull`**, throwing `StringIndexOutOfBoundsException` on the
+   self-heal path. Fixed and covered.
+4. **Master-off strip was deferred to next launch** — on device, switching the autopilot off left all
+   four markers in the store. Moved into the toggle's own `LaunchedEffect`.
+
+### Phase 6 gate
+
+| Gate | Result |
+|---|---|
+| Persona + sentinel JVM tests | **PASS** — 35 tests (`PersonaStoreTest` 13, `PersonaApplierTest` 10, `PersonaIsolationTest` 5, `PersonaFidelityTest` 5, `UpstreamContractSentinelTest` 7), 0 failures |
+| Autopilot suite | **PASS** — 88 tests across 11 classes, 0 failures |
+| Connected instrumented tests | **PASS** — 6/6 on `hermes_x86_64` |
+| `touchpoint_guard.sh` | **PASS** (budgets 9/12, 35/40, 23/24, 7/8) |
+
+---
+
+## Phase 7 — Wear OS Standalone-Lite
+
+Exit criteria: standalone proven with the phone in airplane mode; `:wear:assembleRelease` signed;
+watch unit tests green.
+
+**Base: Wear OS 5 (API 34)** — owner-specified. Verified on a real `system-images;android-34;android-wear;x86_64`
+emulator (384×384 round), not merely compiled.
+
+### Repo hygiene first
+
+`wear/` is in the guard `ALLOWED` regex; `settings.gradle.kts` and `gradle/libs.versions.toml`
+(the module include and the Wear/Data-Layer dependency aliases) are registered in
+`UPSTREAM_TOUCHPOINTS.md`. Guard re-run → PASS.
+
+### What the watch is
+
+Two setup paths, owner-mandated, both landing in the same encrypted store:
+
+1. **Pair with the phone app** — base URL, API key and model pushed over the Data Layer
+   (`com.newoether.agora.autopilot.wearsync.WatchSync`, driven from Settings → *Watch setup*).
+2. **BYOK on the watch** — type base URL / API key / model on the watch itself. No phone involved.
+
+After setup it is standalone: the watch calls the OpenAI-compatible endpoint directly with OkHttp.
+
+### Lightweight, on purpose
+
+The module's entire dependency list is Compose + Wear Compose + Data Layer + OkHttp. Absent — not
+disabled — are image generation, conversation trees, the sandbox, MCP, skills, Room and llama.cpp.
+Release enables R8 + resource shrinking and filters locales to `en`.
+
+### UI on real Wear Material 3
+
+`ScreenScaffold`, `ScalingLazyColumn`, `Card`, `Button`, `ListHeader`, `TimeText`, themed with the
+Hermes palette (`WearTheme.kt`, dark-first for OLED). Wear M3 ships **no** text field — its convention
+is "open the keyboard on the phone" — and the owner explicitly wants to type on the watch, so the
+composer is a foundation `BasicTextField` wrapped in an M3 `Card`: same surface and colour roles, real
+cursor, system keyboard, `ImeAction.Send`. Typing, sending and voice are all present.
+
+### Device verification (emulator-5558, Wear OS 5, 384×384)
+
+| Check | Result | Evidence |
+|---|---|---|
+| APK installs and launches | **done** | `install -r -t` → `Success`; `topResumedActivity=…com.newoether.agora.wear.WearMainActivity` |
+| Setup screen shows both paths | **done** | UI dump: `Hermes setup` / `Pair with the phone app, or enter your own key.` / `Base URL` / `API key` / `Model` / `Save key` / `Pair with phone` (`p7-05-wear5-m3-setup-fixed.png`) |
+| Typing works on the watch | **done** | tap field → `dumpsys input_method` → `mInputShown=true`; typed `https://api.example.com/v1` and it appears in the field (`p7-07-wear5-typing.png`) |
+| BYOK save writes an **encrypted** config | **done** | `files/hermes_wear_config.bin` (191 B) created; `grep -c "sk-test-key"` on the raw bytes → **0**; AES-256-GCM with the key in the Android keystore |
+| Chat screen: type + Send + Speak | **done** | UI dump after save: `Ready` / `Type a question` / `Send` / `Speak` / `Debug` (`p7-03-wear5-chat-byok.png`) |
+| Wear unit tests | **PASS** | 14 tests (`WearCoreContextTest` 7, `WearOfflineQueueTest` 7), 0 failures |
+| `:wear:assembleRelease` signed | **PASS** | `wear-release.apk` **2,685,504 B** (debug is 39,494,077 B — R8 + resource shrinking + locale filter); `apksigner verify --print-certs` → `CN=Hermes Local, OU=Autopilot, O=Hermes, …, C=ID`, SHA-256 `7188ce70…aa56d7`, **identical to the phone app's** (required: same identity for the Data Layer) |
+| Release lint gate | **PASS** | `lintVitalRelease` initially **failed** the release build: `play-services-basement` drags in `androidx.fragment:1.1.0`, below the 1.3.0 floor the ActivityResult APIs require. Fixed by constraining `androidx.fragment:fragment:1.8.5` — the real defect was a stale transitive, not a lint false positive. An earlier draft suppressed the check; that was wrong and was deleted. |
+| `touchpoint_guard.sh` after the module landed | **PASS** | `wear/` in `ALLOWED`; `settings.gradle.kts` + `gradle/libs.versions.toml` registered as touchpoints |
+
+### Defect found by running it
+
+**Persona rule text reached the watch's core context.** The first `WearCoreContext.clean` filtered out
+marker *lines*, which left the rule text between them in the derived system prompt — spending the
+watch's 500-token budget on instructions the watch app does not follow. The unit test caught it
+(`persona blocks never reach the watch prompt`); the fix removes whole blocks, including unterminated
+ones. Same class of bug as the Phase 6 `trim()` finding: the block is the unit, not the marker line.
+
+### Still open on this phase
+
+* **Airplane-mode standalone proof with a live provider key** — needs HS2 (API key). What *is* proven
+  now: the watch launches with no phone present, the BYOK path configures it with no phone involved,
+  and the queue holds questions offline (see the Phase 8 data-loss torture row).
+* **Phone↔watch pairing on real hardware** — the Data Layer needs the watch paired to a phone; the two
+  emulators are not Data-Layer-paired, so the *push* half is exercised by unit-level inspection of
+  `WatchSync` rather than by a live transfer. Recorded as HS4, and as an accepted limitation.
+
+---
+
 ## Human-setup required ([HS] registry)
 
 | # | Item | Impact if missing |
 |---|---|---|
 | HS1 | ~~USB/OTG Android device (or emulator) with `adb`~~ | **RESOLVED** — `hermes_x86_64` AVD (Pixel 7, API 36, x86_64 Play image with ARM translation) on `emulator-5554`; device install, screenshots and `connectedFdroidDebugAndroidTest` all executed |
-| HS2 | In-app provider/API-key setup | manual live-reflection demo only; secondary — tests are the primary proof, and the UI is now demonstrated on device without it |
+| HS2 | In-app provider/API-key setup | **BLOCKS the Phase 6 P6 output-token measurement and the Phase 7 airplane-mode live call.** Everything else is proven without it: the reflection path, the persona channel, the BYOK store and the offline queue are all exercised with injected or absent credentials. Not estimated, not claimed. |
 | HS3 | Enable GitHub Actions on the fork | scheduled `upstream-sync` workflow does not run until enabled in the Actions tab |
+| HS4 | Physical watch (or a Data-Layer-paired emulator pair) | the phone→watch *push* half of the pairing path cannot be exercised end-to-end; the watch's independent paths (BYOK, offline queue, core context) are fully verified on the API 34 wear image |

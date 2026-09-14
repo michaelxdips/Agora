@@ -164,7 +164,45 @@ by the tests that existed. Both were found by running the thing on the real targ
 | `:app:assembleFdroidDebug` / `:app:assemblePlayDebug` / `:wear:assembleRelease` | **PASS** — 65,860,308 B / 65,799,760 B / 2,652,736 B |
 | `touchpoint_guard.sh` | **PASS** |
 
-### Still open, honestly
+### Verified on the minimum supported device — API 30 / Wear OS 3
+
+The `hermes_wear` AVD is **API 30 (Wear OS 3, Android 11)**, which is exactly the module's `minSdk`.
+Nothing had ever been run there; every wear check until now used API 34. Ran the signed **release**
+APK on it:
+
+| Check | Result |
+|---|---|
+| `:wear:assembleRelease` APK installs on API 30 | **Success** |
+| App launches | `am start` OK, **no crash** — `logcat` clean of `FATAL EXCEPTION`, `NoClassDefFoundError`, `NoSuchMethodError`, `VerifyError` |
+| Wear M3 layout renders | `Hermes setup` → `Base URL` → `Tap to type`, same bounds as API 34 |
+| BYOK driven end-to-end through the real UI | **3/3 fields OK** → Save key → chat screen (`Hermes`, `Type a question`, `Send`) |
+| Chat controls reachable | scroll → `Send`, `Speak`, `Debug` |
+| Design review | "Proper Material Wear OS style. Uses Material 3 Wear OS design tokens" |
+
+One false alarm worth recording, because it recurred: the screenshot review claimed the `Send`
+button was "clipped by the circular screen edge". It is not — `Send` occupies `[69,301][139,335]`,
+whose furthest corner is **189 px** from the centre against a **192 px** radius, i.e. inside the
+round area, and scrolling reaches `Speak` and `Debug` below it. **Screenshot review has now twice
+reported a scroll fold as clipping.** Trust `uiautomator` bounds over the vision pass for layout
+questions; the vision pass is useful for colour, surface and typography, not for geometry.
+
+The first BYOK run on this AVD reported `Base URL: NOT LANDED` and a field containing
+`By by by by…`. That was **timing**, not a bug: the script typed while the freshly booted emulator
+was still settling. Manual typing of `abc`, then `:/.-`, then the full URL each landed exactly, and
+re-running the script gave 3/3.
+
+### Coverage limitation found while adding API 30 (documented, not hidden)
+
+`:app:connectedFdroidDebugAndroidTest` **cannot run on the API-30 wear AVD.** The app module pins
+`abiFilters += listOf("arm64-v8a")` (it carries the llama.cpp and proot native libs), while
+`hermes_wear` is a 32-bit `sdk_gwear_x86` image, so the instrumented APK is filtered out and Gradle
+silently reports only the other two devices. The **wear** module has no `abiFilters` and no native
+code, which is why the release APK installs there fine.
+
+Consequence, stated plainly: the connected suite covers **API 34 (wear) and API 36 (phone)**, and
+API 30 is covered by the manual release-APK run above — not by the automated gate. An arm64 wear
+image for API 30 does exist on the host but has not been exercised; on an arm64 host it would close
+this gap.
 
 | Item | Why |
 |---|---|

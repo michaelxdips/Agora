@@ -34,7 +34,6 @@ import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
-import androidx.wear.compose.material3.TimeText
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
 import kotlinx.coroutines.launch
@@ -71,18 +70,21 @@ fun WearSetupScreen(
             state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = contentPadding,
-            // Wear M3 scales items toward the edges of the round screen; without this the first and
-            // last items sit at full size under the bezel and get clipped.
-            autoCentering = androidx.wear.compose.foundation.lazy.AutoCenteringParams(
-                itemIndex = 0,
-                itemOffset = 0,
-            ),
             verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(
                 space = 6.dp,
                 alignment = androidx.compose.ui.Alignment.CenterVertically,
             ),
         ) {
-            item { TimeText() }
+            // No `autoCentering` here, and no explicit TimeText item.
+            //
+            // `autoCentering = AutoCenteringParams(itemIndex = 0, itemOffset = 0)` pins ITEM 0 to the
+            // exact centre of the screen and lays everything else out below it — on a 384 px watch
+            // that pushed the header, the three fields and both buttons off the bottom edge. It is
+            // meant for one-item-per-screen pickers (a confirm/cancel pair), not for a scrolling form.
+            //
+            // ScreenScaffold already draws the system TimeText at the top inset itself, so a
+            // `item { TimeText() }` is a second copy; it was also item 0, which is what autoCentering
+            // was centring.
             item { ListHeader { Text("Hermes setup") } }
             item {
                 Text(

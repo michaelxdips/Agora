@@ -15,10 +15,10 @@ untracked `HANDOVER.md` (inspected, coherent, committed as part of this session)
 
 | Phase | Verdict at reconstruction | What was missing |
 |---|---|---|
-| 0 — Environment & First Build | **VERIFIED-DONE**, except the device half | JDK 21.0.12.1, SDK `platforms;android-36` / `build-tools;36.0.0` / `ndk;28.2.13676358` / `cmake;3.22.1` all installed and listed by `sdkmanager --list_installed`; `thirdparty/llama.cpp` (58 entries), `thirdparty/proot` (10), `thirdparty/talloc` (4) non-empty; `assembleFdroidDebug` green. APK-install-on-device proof: **[HS1]**, no device on this host |
-| 1 — Fork Hygiene, Rebrand, Sync Automation | **VERIFIED-DONE**, except the coexistence half | `applicationId = "com.hermes.app"` (`app/build.gradle.kts:29`, touchpoint #1); 4 overlay files under `app/src/fdroid/res/`; keystore + `local.properties` present and git-excluded; both GitHub labels live (`upstream-sync E11D48`, `contract-change F59E0B`); sync dry-run exit 0. Side-by-side install: **[HS1]** |
+| 0 — Environment & First Build | **VERIFIED-DONE** | JDK 21.0.12.1, SDK `platforms;android-36` / `build-tools;36.0.0` / `ndk;28.2.13676358` / `cmake;3.22.1` all installed; `thirdparty/llama.cpp` (58), `thirdparty/proot` (10), `thirdparty/talloc` (4) non-empty; `assembleFdroidDebug` green; APK installed **and launched** on the `hermes_x86_64` emulator with screenshot proof |
+| 1 — Fork Hygiene, Rebrand, Sync Automation | **VERIFIED-DONE** | `applicationId = "com.hermes.app"` (touchpoint #1); 15 overlay files under `app/src/fdroid/res/` (all 12 upstream `app_name` locales covered); keystore + `local.properties` git-excluded; both labels live; sync dry-run exit 0; Hermes and upstream Agora installed and launched side by side on the emulator |
 | 2 — GAP_ANALYSIS.md | **VERIFIED-DONE** | Nothing. `GAP_ANALYSIS.md` exists and every cited path was re-verified against the tree this session |
-| 3 — Autopilot Memory v1 | **VERIFIED-DONE** for code + JVM tests; **INCOMPLETE** for the on-device half | Sources, worker triggers, notifier, caps, provenance all present; 48 autopilot JVM tests green; `androidTest` compiles and packages. `connectedFdroidDebugAndroidTest` cannot run: **[HS1]** |
+| 3 — Autopilot Memory v1 | **VERIFIED-DONE** | Sources, triggers, notifier, caps, provenance present; 48 autopilot JVM tests green; **3/3 instrumented tests pass on the emulator**, including the primary verification (facts land in the real Agora store, undo restores byte-for-byte) |
 | 4 — Adaptation History + Auto-Rollback | **VERIFIED-DONE** | Nothing. UI page, presenter, correction heuristic, retention constants and circuit-breaker test all present and green |
 | 5 — Autopilot Skills v1 | **VERIFIED-DONE** | Nothing. Candidate detector, synthesizer, `SkillManager` write path and 9 tests present and green |
 | 6 — Sync Stress-Test + Handover | **INCOMPLETE at reconstruction** | No `sync-*` tag and `STATUS.md` still said `_pending._` for Phases 2–6. `main` itself was green. Redone in this session — see the Phase 6 section, which also records a **real defect** found in `scripts/upstream_sync.sh` |
@@ -47,7 +47,16 @@ Two reconstruction findings worth naming explicitly:
 | GitHub auth | available via Git Credential Manager (repo + workflow scope) | `git credential fill host=github.com` → user `michaelxdips` |
 | Fork | created | `michaelxdips/Agora`, `fork=true`, parent `newo-ether/Agora` |
 | Upstream clone + submodules | present | `thirdparty/llama.cpp` 151M, `thirdparty/proot` 1.9M, `thirdparty/talloc` 146K |
-| Device / emulator (`adb`) | **absent** | `adb devices` → `List of devices attached` (empty); host is `x86_64`, app is arm64-v8a only, so no local emulator |
+| Device / emulator (`adb`) | **available** — `hermes_x86_64` AVD (Pixel 7, API 36, `google_apis_playstore`, x86_64) on `emulator-5554` | `adb devices` → `emulator-5554 device`; `ro.dalvik.vm.native.bridge=libndk_translation.so`, `ro.product.cpu.abilist=x86_64,arm64-v8a` |
+
+**Why x86_64 and not arm64.** The app is `arm64-v8a` only, so the obvious move is an arm64 AVD. The
+emulator refuses it: `Avd's CPU Architecture 'arm64' is not supported by the QEMU2 emulator on
+x86_64 host. System image must match the host architecture.` (emulator 37.1.11, host AMD64; no
+override exists — the string is a hard `FATAL` in `emulator.exe`, and no `ANDROID_EMULATOR_*` escape
+hatch is present in the binary). The working path is an **x86_64 Play image**, which ships ARM
+translation (`libndk_translation.so`); the arm64 APK installs and runs on it unmodified. This needed
+no repo change at all — no ABI added, no upstream file touched.
+
 
 **Tooling paths used locally (never committed):** `_tools/` (JDK, SDK, keystore) on the machine that
 runs the builds; `local.properties` supplies `sdk.dir` + the signing aliases.
@@ -84,7 +93,7 @@ Exit criteria: `fdroidDebug` APK installed and launching on device (screenshot p
 |---|---|---|
 | SDK packages + licences accepted | done | `sdkmanager --licenses` accepted; packages listed in Step Zero |
 | `assembleFdroidDebug` green | _see build log tail below_ | `./gradlew assembleFdroidDebug` |
-| APK installed + launching on device | **[HS]** blocked: no device/emulator on this machine | — |
+| APK installed + launched on device, screenshot proof | **done** | `adb -s emulator-5554 install -r -t app-fdroid-debug.apk` → `Success`; launched → `topResumedActivity=ActivityRecord{… com.hermes.app/com.newoether.agora.MainActivity}`; no crash in `logcat -b crash`. Proof: `evidence/phase0-6/01-hermes-launched.png`, `04-hermes-relaunched.png` |
 
 Upstream was **not** patched to make it build; any build failure is handled as an environment issue
 or reported instead (per phase instruction).
@@ -102,7 +111,7 @@ Exit criteria: rebranded APK coexists with original Agora; sync dry-run passes g
 | Release keystore wiring (`local.properties`) | **done** | `_tools/hermes-release.jks`; `assembleFdroidRelease` green; `apksigner verify --print-certs` → `CN=Hermes Local, OU=Autopilot, O=Hermes, L=Loning, ST=Jawa Tengah, C=ID`, SHA-256 `7188ce700b7407485e4a588cc1ef779fba4bd47c635338b05f61d5fc90aa56d7` |
 | GitHub labels `upstream-sync`, `contract-change` | **done** | `GET /repos/michaelxdips/Agora/labels` → `upstream-sync E11D48`, `contract-change F59E0B` |
 | Sync dry-run clean | **done** | `SYNC_DRY_RUN=1 bash scripts/upstream_sync.sh` → `touchpoint_guard: PASS`, `SYNC_EXIT=0` |
-| Both APKs coexist on device | **[HS1]** blocked: no device | — |
+| Both APKs coexist on device | **done** | upstream `app-release.apk` (v2.1.0) and our `app-fdroid-debug.apk` installed together: `pm list packages` → `package:com.hermes.app` + `package:com.newoether.agora`. Launcher drawer shows both icons — "Agora" (white, stylised A) and "Hermes" (dark-green adaptive icon, white H + terracotta corner). Proof: `evidence/phase0-6/05-app-drawer.png` |
 
 Guard fix required during Phase 1: the bootstrap `ALLOWED` regex did not list
 `app/src/fdroid/res/`, so the first dry-run correctly failed with
@@ -158,7 +167,21 @@ Exit criteria: `androidTest` green; UI demo after human's in-app setup (non-bloc
 | Master toggle ON, daily cap 5, provenance tag | done | `AutopilotSettings.kt:60 DEFAULT_DAILY_CAP = 5`; `ReflectionProtocol.kt:16 PROVENANCE_TAG = "<!-- hermes:autopilot -->"` |
 | JVM tests green | **done** | `:app:testFdroidDebugUnitTest` + `:app:testPlayDebugUnitTest` **--rerun-tasks** → `BUILD SUCCESSFUL in 5m 15s`, `EXIT=0`; 2487 + 2470 tests, 0 failures, 0 errors. Autopilot subset: 48 tests (`MemoryApplierTest` 10, `ReflectionProtocolTest` 12, `CircuitBreakerTest` 9, `SkillSynthesizerTest` 9, `AdaptationHistoryPresenterTest` 5, `AutopilotTriggerObserverTest` 3) |
 | `androidTest` compiles + packages | done | `:app:assembleFdroidDebugAndroidTest` → `app/build/outputs/apk/androidTest/fdroid/debug/app-fdroid-debug-androidTest.apk` (382,847 B) |
-| `androidTest` **runs** on device | **[HS1]** blocked | `adb devices -l` → `List of devices attached` (empty); host is `x86_64`, app is arm64-v8a only, so no local emulator can run it. Test code is written and packaged: `AutopilotMemoryInstrumentedTest.kt` (3 tests: seeded facts land in the real store; undo restores byte-for-byte; circuit breaker rolls back on device) |
+| `androidTest` **runs** on device | **done** | `./gradlew :app:connectedFdroidDebugAndroidTest` → `Starting 3 tests on hermes_x86_64(AVD) - 16` / `Finished 3 tests` / `BUILD SUCCESSFUL in 18s`, `EXIT=0`. Report `app/build/outputs/androidTest-results/connected/debug/flavors/fdroid/TEST-hermes_x86_64(AVD) - 16-_app-fdroid.xml` → `tests=3 failures=0 errors=0`: `threeSeededConversationsProduceFactsInTheAgoraStoreAndUndoRestoresBytes` 0.106s, `theCircuitBreakerRollsBackABadAdaptationOnDevice` 0.073s, `undoOfANewlyCreatedFileRemovesItFromTheStore` 0.004s |
+| UI demo after in-app setup | **[HS2]** deferred (non-blocking) | Reflection needs a provider/API key. The debug trigger is present and tappable (`Run reflection now`) and the app stays alive with no crash when tapped — reflection skips silently, as designed |
+
+**Defect found by running the tests (why the device run mattered).** The whole class failed to
+initialise with `Method undoOfANewlyCreatedFileRemovesItFromTheStore() should be void`. Its last
+statement was `log.delete(id)`, and `AdaptationLogDao.delete(id: Long): Int` makes the method's
+inferred return type `Int`, which JUnit4 rejects for the entire class. Fixed by asserting the cleanup
+result: `assertEquals(1, log.delete(id))` — commit `2452cb48`. A JVM-only run could not have caught
+this: the test is `androidTest`-only, so it had never executed anywhere.
+
+Also found on device: `aapt2 dump badging` showed `application-label-ar:'Agora'` while the other 86
+labels were `Hermes` — upstream defines `app_name` in `values/` plus 11 locale folders, and a
+default-only overlay loses in those locales. Fixed by adding the matching overlay entry per locale
+(commit `c9aa48ea`); all 87 labels now read `Hermes`, upstream files untouched.
+
 
 ---
 
@@ -175,7 +198,8 @@ Exit criteria: circuit breaker demonstrably rolls back a bad adaptation (test pr
 | Notification tap wired to the screen | done | `MainActivity.kt` touchpoint (`openAdaptationHistory` flag), budget 32/34 lines |
 | Correction heuristic: 2 flags → auto-rollback + `needs_revision` | done | `CircuitBreaker.kt:21 recordCorrection(sessionId)`, `:30 if (updated.feedbackFlags < FLAGS_BEFORE_ROLLBACK) continue`; `AdaptationLog.kt:93 UPDATE adaptation_log SET feedbackFlags = feedbackFlags + 1` |
 | Retention 50 versions per file or 30 days | done | `CircuitBreaker.kt:74 MAX_VERSIONS_PER_FILE = 50`, `:75 MAX_AGE_MILLIS = 30L * 24 * 60 * 60 * 1000`; pruned on the reflection cadence (`ReflectionWorker.kt:74-75`) |
-| Test proof: circuit breaker rolls back a bad adaptation | **done** | `CircuitBreakerTest` 9 tests, 0 failures (JVM); the same scenario also exists as an on-device test `theCircuitBreakerRollsBackABadAdaptationOnDevice` |
+| Test proof: circuit breaker rolls back a bad adaptation | **done** | JVM `CircuitBreakerTest` 9 tests, 0 failures **and** on device `theCircuitBreakerRollsBackABadAdaptationOnDevice` passed in the `connectedFdroidDebugAndroidTest` run |
+| Screen reachable + rendered on device | **done** | Settings → **Memory & Data** → `Adaptation History` → page shows `Autopilot` / `Hermes updates saved memory automatically after conversations` / `Daily cap: 5 adaptations` / `Run reflection now` / `No adaptations yet…`. The master toggle reads `checked="true"` (default ON). Proof: `evidence/phase0-6/07-settings-memory.png`, `08-adaptation-history.png`, `09-reflection-trigger.png` |
 
 ---
 
@@ -257,5 +281,6 @@ prerequisites, HS registry, from-scratch verification recipe, deliberate limitat
 
 | # | Item | Impact if missing |
 |---|---|---|
-| HS1 | USB/OTG Android device (or emulator) with `adb` | device install, screenshots, androidTest execution |
-| HS2 | Android Studio / on-device demo session | manual UI demo (secondary; tests are primary proof) |
+| HS1 | ~~USB/OTG Android device (or emulator) with `adb`~~ | **RESOLVED** — `hermes_x86_64` AVD (Pixel 7, API 36, x86_64 Play image with ARM translation) on `emulator-5554`; device install, screenshots and `connectedFdroidDebugAndroidTest` all executed |
+| HS2 | In-app provider/API-key setup | manual live-reflection demo only; secondary — tests are the primary proof, and the UI is now demonstrated on device without it |
+| HS3 | Enable GitHub Actions on the fork | scheduled `upstream-sync` workflow does not run until enabled in the Actions tab |

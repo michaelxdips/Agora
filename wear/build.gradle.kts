@@ -85,6 +85,12 @@ dependencies {
     // Data Layer only: the one-time credential push and the read-only memory snapshot.
     implementation(libs.play.services.wearable)
 
+    // play-services-basement drags in androidx.fragment:1.1.0, which is below the 1.3.0 floor the
+    // ActivityResult APIs require (lintVitalRelease fails the release build without this). Constrained
+    // rather than lint-suppressed: the real defect is a stale transitive version, and pinning the floor
+    // fixes it for every consumer of this module instead of muting the check.
+    implementation("androidx.fragment:fragment:1.8.5")
+
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)
 

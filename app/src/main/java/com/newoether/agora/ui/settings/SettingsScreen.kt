@@ -266,6 +266,8 @@ private val baseSettingsGroups = listOf(
     SettingsGroupData(titleRes = R.string.settings_group_memory_data, items = listOf(
         SettingsCategory("memory", R.string.settings_memory, R.string.settings_memory_desc, Icons.Default.Description),
         SettingsCategory("skills", R.string.settings_skills, R.string.settings_skills_desc, Icons.Default.Extension),
+        // HERMES INTEGRATION POINT: autopilot Adaptation History entry (Phase 4).
+        SettingsCategory("adaptation", R.string.hermes_adaptation_history, R.string.hermes_adaptation_history_desc, Icons.Default.History),
         SettingsCategory("datacontrol", R.string.settings_data_control, R.string.settings_data_control_desc, Icons.Default.Storage),
     )),
     SettingsGroupData(titleRes = R.string.settings_group_appearance_language, items = listOf(
@@ -295,8 +297,16 @@ private val aboutSettingsGroup = SettingsGroupData(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(viewModel: ChatViewModel, onBack: () -> Unit) {
+fun SettingsScreen(
+    viewModel: ChatViewModel,
+    onBack: () -> Unit,
+    // HERMES INTEGRATION POINT: lets the autopilot notification open a specific settings page.
+    initialCategory: String? = null,
+) {
     var selectedCategory by rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(initialCategory) {
+        if (initialCategory != null) selectedCategory = initialCategory
+    }
     val developerOptionsEnabled by viewModel.settings.developerOptionsEnabled.collectAsState()
     val settingsGroups = remember(developerOptionsEnabled) {
         buildList {
@@ -338,6 +348,10 @@ fun SettingsScreen(viewModel: ChatViewModel, onBack: () -> Unit) {
                 "search" -> SettingsSearchPage(viewModel, onBack = { selectedCategory = null })
                 "memory" -> SettingsMemoryPage(viewModel, onBack = { selectedCategory = null })
                 "skills" -> SettingsSkillsPage(viewModel, onBack = { selectedCategory = null })
+                // HERMES INTEGRATION POINT: autopilot Adaptation History page (Phase 4).
+                "adaptation" -> com.newoether.agora.autopilot.SettingsAdaptationHistoryPage(
+                    onBack = { selectedCategory = null },
+                )
                 "datacontrol" -> SettingsDataControlPage(viewModel, onBack = { selectedCategory = null })
                 "appearance" -> SettingsAppearancePage(viewModel, onBack = { selectedCategory = null })
                 "developer" -> SettingsDeveloperPage(

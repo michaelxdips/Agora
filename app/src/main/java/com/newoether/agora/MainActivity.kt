@@ -61,6 +61,9 @@ class MainActivity : ComponentActivity() {
 
     private val notificationConversationId = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
 
+    /** HERMES INTEGRATION POINT: set when the autopilot notification asked for Adaptation History. */
+    private val openAdaptationHistory = kotlinx.coroutines.flow.MutableStateFlow(false)
+
     companion object {
         const val EXTRA_CONVERSATION_ID = "com.newoether.agora.extra.CONVERSATION_ID"
     }
@@ -232,6 +235,7 @@ class MainActivity : ComponentActivity() {
                                 onNotificationConversationConsumed = { expectedId ->
                                     consumeNotificationTarget(notificationConversationId, expectedId)
                                 },
+                                openAdaptationHistory = openAdaptationHistory,
                             )
                         }
                     }
@@ -265,9 +269,14 @@ class MainActivity : ComponentActivity() {
             ?: intent?.data?.takeIf { uri ->
                 uri.scheme == "agora" && uri.host == "conversation"
             }?.lastPathSegment?.takeIf { it.isNotBlank() }
+        // HERMES INTEGRATION POINT: autopilot notification → Adaptation History. A separate flag is
+        // used instead of a conversation id, so the ordinary conversation-target path is untouched.
+        openAdaptationHistory.value = intent?.getBooleanExtra(
+            com.newoether.agora.autopilot.AutopilotNotifier.EXTRA_OPEN_ADAPTATION_HISTORY,
+            false,
+        ) == true
     }
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainNavigation(
@@ -275,6 +284,8 @@ fun MainNavigation(
     settingsManager: SettingsManager,
     notificationConversationId: kotlinx.coroutines.flow.StateFlow<String?>,
     onNotificationConversationConsumed: (String) -> Unit,
+    // HERMES INTEGRATION POINT: autopilot notification target (Adaptation History).
+    openAdaptationHistory: kotlinx.coroutines.flow.MutableStateFlow<Boolean>,
 ) {
     val appContext = LocalContext.current.applicationContext
     val motionPolicy = LocalAgoraMotionPolicy.current
@@ -326,6 +337,15 @@ fun MainNavigation(
         isSwitching = isConversationSwitching,
     )
     val notificationTarget by notificationConversationId.collectAsState()
+    // HERMES INTEGRATION POINT: autopilot notification → Settings (pre-selected on Adaptation
+    // History). Runs before the conversation-target effect and never changes its behaviour.
+    val adaptationHistoryRequested by openAdaptationHistory.collectAsState()
+    LaunchedEffect(adaptationHistoryRequested) {
+        if (!adaptationHistoryRequested) return@LaunchedEffect
+        showSettings = true
+        topLevelPresentation.present(TopLevelPresentation.SETTINGS)
+        openAdaptationHistory.value = false
+    }
     LaunchedEffect(notificationTarget) {
         val id = notificationTarget ?: return@LaunchedEffect
         try {
@@ -517,6 +537,8 @@ fun MainNavigation(
             ) {
                 SettingsScreen(
                     viewModel = viewModel,
+                    // HERMES INTEGRATION POINT: the autopilot notification requests this page.
+                    initialCategory = if (adaptationHistoryRequested) "adaptation" else null,
                     onBack = {
                         showSettings = false
                     }

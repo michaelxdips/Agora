@@ -2,6 +2,10 @@
 
 Status legend: `[x]` done (evidence in `STATUS.md`), `[~]` blocked on human setup, `[ ]` todo.
 
+Device verification runs on the `hermes_x86_64` AVD (Pixel 7, API 36, x86_64 Play image with ARM
+translation) — the arm64-v8a APK installs and runs there unmodified; see `STATUS.md` for why an
+arm64 AVD is impossible on this x86_64 host.
+
 Every `[x]` below was re-verified against the working tree during the resume/verify session — none
 was ticked on the strength of a previous claim. `STATUS.md` carries the STATE REPORT and the
 evidence table for each phase.
@@ -13,7 +17,7 @@ evidence table for each phase.
 - [x] Fork + clone `--recurse-submodules`; `upstream` remote; `thirdparty/llama.cpp`,
       `thirdparty/proot` non-empty
 - [x] `./gradlew assembleFdroidDebug` green (environment fixes only)
-- [~] APK installed + launched on device, screenshot proof (needs **HS1**: physical device)
+- [x] APK installed + launched on device, screenshot proof (`evidence/phase0-6/01-hermes-launched.png`)
 
 ## Phase 1 — Fork Hygiene, Rebrand, Sync Automation
 - [x] `applicationId` → `com.hermes.app` (touchpoint #1)
@@ -21,7 +25,7 @@ evidence table for each phase.
 - [x] Release keystore wired through `local.properties`; `assembleFdroidRelease` signs
 - [x] `upstream-sync` + `contract-change` labels exist on the fork (N14)
 - [x] Local sync dry-run clean (`scripts/upstream_sync.sh`)
-- [~] Both Agora-original and Hermes APKs installed side by side (needs **HS1**)
+- [x] Both Agora-original and Hermes APKs installed side by side (`evidence/phase0-6/05-app-drawer.png`)
 
 ## Phase 2 — Gap Analysis & System Mapping
 - [x] Every claim cites an existing file path + signature
@@ -35,8 +39,8 @@ evidence table for each phase.
 - [x] `MemoryApplier`: snapshot → write → insert into `AdaptationLog`
 - [x] Notifier ("N memories updated") + POST_NOTIFICATIONS request
 - [x] Controls: master toggle (default ON), daily cap 5, provenance tag in facts
-- [~] `androidTest` green: 3 seeded conversations → facts present; undo restores file byte-for-byte
-      — test written and packaged; execution needs **HS1** (JVM half of the same verification is green)
+- [x] `androidTest` green: 3 seeded conversations → facts present; undo restores file byte-for-byte
+      (3/3 pass on the emulator; `connectedFdroidDebugAndroidTest` exit 0)
 
 ## Phase 4 — Adaptation History + Auto-Rollback
 - [x] Settings → Adaptation History (list, before/after diff, per-entry Undo, status chips)

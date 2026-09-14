@@ -22,8 +22,10 @@ lottie = "6.6.2"
 work = "2.10.0"
 jsch = "0.2.23"
 commonsCompress = "1.27.1"
+playServicesWearable = "19.0.0"
 
 [libraries]
+play-services-wearable = { group = "com.google.android.gms", name = "play-services-wearable", version.ref = "playServicesWearable" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashscreen" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }

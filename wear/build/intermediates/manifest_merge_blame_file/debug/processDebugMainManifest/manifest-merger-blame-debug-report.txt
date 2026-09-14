@@ -1,0 +1,248 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.hermes.app"
+4    android:versionCode="31"
+5    android:versionName="2.1.0" >
+6
+7    <uses-sdk
+7-->INJECTED
+8        android:minSdkVersion="30"
+8-->INJECTED
+9        android:targetSdkVersion="36" />
+9-->INJECTED
+10
+11    <uses-feature android:name="android.hardware.type.watch" />
+11-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:4:5-64
+11-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:4:19-61
+12
+13    <uses-permission android:name="android.permission.INTERNET" />
+13-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:6:5-67
+13-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:6:22-64
+14    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+14-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:7:5-71
+14-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:7:22-68
+15    <!-- Data Layer discovery: the watch must see the phone at setup time only. -->
+16    <uses-permission android:name="com.google.android.permission.PROVIDE_BACKGROUND" />
+16-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:9:5-88
+16-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:9:22-85
+17
+18    <permission
+18-->[androidx.core:core:1.18.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\9f13ddf75e86e96200d383f9864830d4\transformed\core-1.18.0\AndroidManifest.xml:22:5-24:47
+19        android:name="com.hermes.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+19-->[androidx.core:core:1.18.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\9f13ddf75e86e96200d383f9864830d4\transformed\core-1.18.0\AndroidManifest.xml:23:9-81
+20        android:protectionLevel="signature" />
+20-->[androidx.core:core:1.18.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\9f13ddf75e86e96200d383f9864830d4\transformed\core-1.18.0\AndroidManifest.xml:24:9-44
+21
+22    <uses-permission android:name="com.hermes.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+22-->[androidx.core:core:1.18.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\9f13ddf75e86e96200d383f9864830d4\transformed\core-1.18.0\AndroidManifest.xml:26:5-97
+22-->[androidx.core:core:1.18.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\9f13ddf75e86e96200d383f9864830d4\transformed\core-1.18.0\AndroidManifest.xml:26:22-94
+23
+24    <application
+24-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:11:5-61:19
+25        android:allowBackup="false"
+25-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:12:9-36
+26        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+26-->[androidx.core:core:1.18.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\9f13ddf75e86e96200d383f9864830d4\transformed\core-1.18.0\AndroidManifest.xml:28:18-86
+27        android:debuggable="true"
+28        android:extractNativeLibs="false"
+28-->INJECTED
+29        android:icon="@mipmap/ic_launcher"
+29-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:13:9-43
+30        android:label="@string/app_name"
+30-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:14:9-41
+31        android:supportsRtl="true"
+31-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:15:9-35
+32        android:theme="@android:style/Theme.DeviceDefault" >
+32-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:16:9-59
+33        <uses-library
+33-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:18:9-20:40
+34            android:name="com.google.android.wearable"
+34-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:19:13-55
+35            android:required="false" />
+35-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:20:13-37
+36
+37        <meta-data
+37-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:22:9-24:36
+38            android:name="com.google.android.wearable.standalone"
+38-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:23:13-66
+39            android:value="true" />
+39-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:24:13-33
+40
+41        <activity
+41-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:26:9-34:20
+42            android:name="com.newoether.agora.wear.WearMainActivity"
+42-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:27:13-69
+43            android:exported="true"
+43-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:28:13-36
+44            android:label="@string/app_name" >
+44-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:29:13-45
+45            <intent-filter>
+45-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:30:13-33:29
+46                <action android:name="android.intent.action.MAIN" />
+46-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:31:17-69
+46-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:31:25-66
+47
+48                <category android:name="android.intent.category.LAUNCHER" />
+48-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:32:17-77
+48-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:32:27-74
+49            </intent-filter>
+50        </activity>
+51
+52        <!-- Receives the one-time credentials pushed by the phone over the Data Layer. -->
+53        <service
+53-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:37:9-47:19
+54            android:name="com.newoether.agora.wear.ConfigListenerService"
+54-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:38:13-74
+55            android:exported="true" >
+55-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:39:13-36
+56            <intent-filter>
+56-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:40:13-46:29
+57                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+57-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:41:17-87
+57-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:41:25-84
+58
+59                <data
+59-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:42:17-45:59
+60                    android:host="*"
+60-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:44:21-37
+61                    android:pathPrefix="/hermes/config"
+61-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:45:21-56
+62                    android:scheme="wear" />
+62-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:43:21-42
+63            </intent-filter>
+64        </service>
+65
+66        <!-- Receives the read-only active-memory snapshot the phone pushes when reachable. -->
+67        <service
+67-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:50:9-60:19
+68            android:name="com.newoether.agora.wear.MemoryListenerService"
+68-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:51:13-74
+69            android:exported="true" >
+69-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:52:13-36
+70            <intent-filter>
+70-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:53:13-59:29
+71                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+71-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:41:17-87
+71-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:41:25-84
+72
+73                <data
+73-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:42:17-45:59
+74                    android:host="*"
+74-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:44:21-37
+75                    android:pathPrefix="/hermes/memory"
+75-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:45:21-56
+76                    android:scheme="wear" />
+76-->C:\Users\Michael\Documents\Chatapp\Agora\wear\src\main\AndroidManifest.xml:43:21-42
+77            </intent-filter>
+78        </service>
+79
+80        <uses-library
+80-->[androidx.wear.compose:compose-foundation:1.6.2] C:\Users\Michael\.gradle\caches\9.5.1\transforms\4e2db8a4558a6a649f69825cb81c87bf\transformed\compose-foundation-1.6.2\AndroidManifest.xml:23:9-25:40
+81            android:name="wear-sdk"
+81-->[androidx.wear.compose:compose-foundation:1.6.2] C:\Users\Michael\.gradle\caches\9.5.1\transforms\4e2db8a4558a6a649f69825cb81c87bf\transformed\compose-foundation-1.6.2\AndroidManifest.xml:24:13-36
+82            android:required="false" />
+82-->[androidx.wear.compose:compose-foundation:1.6.2] C:\Users\Michael\.gradle\caches\9.5.1\transforms\4e2db8a4558a6a649f69825cb81c87bf\transformed\compose-foundation-1.6.2\AndroidManifest.xml:25:13-37
+83
+84        <activity
+84-->[com.google.android.gms:play-services-base:18.5.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\1746937693d9a61215f0d92273d9fc93\transformed\play-services-base-18.5.0\AndroidManifest.xml:5:9-173
+85            android:name="com.google.android.gms.common.api.GoogleApiActivity"
+85-->[com.google.android.gms:play-services-base:18.5.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\1746937693d9a61215f0d92273d9fc93\transformed\play-services-base-18.5.0\AndroidManifest.xml:5:19-85
+86            android:exported="false"
+86-->[com.google.android.gms:play-services-base:18.5.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\1746937693d9a61215f0d92273d9fc93\transformed\play-services-base-18.5.0\AndroidManifest.xml:5:146-170
+87            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+87-->[com.google.android.gms:play-services-base:18.5.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\1746937693d9a61215f0d92273d9fc93\transformed\play-services-base-18.5.0\AndroidManifest.xml:5:86-145
+88
+89        <meta-data
+89-->[com.google.android.gms:play-services-basement:18.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\b236b13f110e386ab4be1bcec87ba270\transformed\play-services-basement-18.4.0\AndroidManifest.xml:6:9-122
+90            android:name="com.google.android.gms.version"
+90-->[com.google.android.gms:play-services-basement:18.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\b236b13f110e386ab4be1bcec87ba270\transformed\play-services-basement-18.4.0\AndroidManifest.xml:6:20-65
+91            android:value="@integer/google_play_services_version" />
+91-->[com.google.android.gms:play-services-basement:18.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\b236b13f110e386ab4be1bcec87ba270\transformed\play-services-basement-18.4.0\AndroidManifest.xml:6:66-119
+92
+93        <uses-library
+93-->[androidx.window:window:1.5.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\4784303936508b7a5436c4c268fb81af\transformed\window-1.5.0\AndroidManifest.xml:23:9-25:40
+94            android:name="androidx.window.extensions"
+94-->[androidx.window:window:1.5.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\4784303936508b7a5436c4c268fb81af\transformed\window-1.5.0\AndroidManifest.xml:24:13-54
+95            android:required="false" />
+95-->[androidx.window:window:1.5.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\4784303936508b7a5436c4c268fb81af\transformed\window-1.5.0\AndroidManifest.xml:25:13-37
+96        <uses-library
+96-->[androidx.window:window:1.5.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\4784303936508b7a5436c4c268fb81af\transformed\window-1.5.0\AndroidManifest.xml:26:9-28:40
+97            android:name="androidx.window.sidecar"
+97-->[androidx.window:window:1.5.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\4784303936508b7a5436c4c268fb81af\transformed\window-1.5.0\AndroidManifest.xml:27:13-51
+98            android:required="false" />
+98-->[androidx.window:window:1.5.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\4784303936508b7a5436c4c268fb81af\transformed\window-1.5.0\AndroidManifest.xml:28:13-37
+99
+100        <provider
+100-->[androidx.emoji2:emoji2:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\bcd8f5728030917d9e59999e036cca87\transformed\emoji2-1.4.0\AndroidManifest.xml:24:9-32:20
+101            android:name="androidx.startup.InitializationProvider"
+101-->[androidx.emoji2:emoji2:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\bcd8f5728030917d9e59999e036cca87\transformed\emoji2-1.4.0\AndroidManifest.xml:25:13-67
+102            android:authorities="com.hermes.app.androidx-startup"
+102-->[androidx.emoji2:emoji2:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\bcd8f5728030917d9e59999e036cca87\transformed\emoji2-1.4.0\AndroidManifest.xml:26:13-68
+103            android:exported="false" >
+103-->[androidx.emoji2:emoji2:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\bcd8f5728030917d9e59999e036cca87\transformed\emoji2-1.4.0\AndroidManifest.xml:27:13-37
+104            <meta-data
+104-->[androidx.emoji2:emoji2:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\bcd8f5728030917d9e59999e036cca87\transformed\emoji2-1.4.0\AndroidManifest.xml:29:13-31:52
+105                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+105-->[androidx.emoji2:emoji2:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\bcd8f5728030917d9e59999e036cca87\transformed\emoji2-1.4.0\AndroidManifest.xml:30:17-75
+106                android:value="androidx.startup" />
+106-->[androidx.emoji2:emoji2:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\bcd8f5728030917d9e59999e036cca87\transformed\emoji2-1.4.0\AndroidManifest.xml:31:17-49
+107            <meta-data
+107-->[androidx.lifecycle:lifecycle-process:2.9.4] C:\Users\Michael\.gradle\caches\9.5.1\transforms\27cc187db816638b78ce07d55e21cd3a\transformed\lifecycle-process-2.9.4\AndroidManifest.xml:29:13-31:52
+108                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+108-->[androidx.lifecycle:lifecycle-process:2.9.4] C:\Users\Michael\.gradle\caches\9.5.1\transforms\27cc187db816638b78ce07d55e21cd3a\transformed\lifecycle-process-2.9.4\AndroidManifest.xml:30:17-78
+109                android:value="androidx.startup" />
+109-->[androidx.lifecycle:lifecycle-process:2.9.4] C:\Users\Michael\.gradle\caches\9.5.1\transforms\27cc187db816638b78ce07d55e21cd3a\transformed\lifecycle-process-2.9.4\AndroidManifest.xml:31:17-49
+110            <meta-data
+110-->[com.squareup.okhttp3:okhttp-android:5.3.2] C:\Users\Michael\.gradle\caches\9.5.1\transforms\89723fc493cdac8aba888ac166a6e3c9\transformed\okhttp-release\AndroidManifest.xml:16:13-18:52
+111                android:name="okhttp3.internal.platform.PlatformInitializer"
+111-->[com.squareup.okhttp3:okhttp-android:5.3.2] C:\Users\Michael\.gradle\caches\9.5.1\transforms\89723fc493cdac8aba888ac166a6e3c9\transformed\okhttp-release\AndroidManifest.xml:17:17-77
+112                android:value="androidx.startup" />
+112-->[com.squareup.okhttp3:okhttp-android:5.3.2] C:\Users\Michael\.gradle\caches\9.5.1\transforms\89723fc493cdac8aba888ac166a6e3c9\transformed\okhttp-release\AndroidManifest.xml:18:17-49
+113            <meta-data
+113-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\74209a407d0a3992bef7b28dfcf53e7a\transformed\profileinstaller-1.4.0\AndroidManifest.xml:29:13-31:52
+114                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+114-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\74209a407d0a3992bef7b28dfcf53e7a\transformed\profileinstaller-1.4.0\AndroidManifest.xml:30:17-85
+115                android:value="androidx.startup" />
+115-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\74209a407d0a3992bef7b28dfcf53e7a\transformed\profileinstaller-1.4.0\AndroidManifest.xml:31:17-49
+116        </provider>
+117
+118        <receiver
+118-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\74209a407d0a3992bef7b28dfcf53e7a\transformed\profileinstaller-1.4.0\AndroidManifest.xml:34:9-52:20
+119            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+119-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\74209a407d0a3992bef7b28dfcf53e7a\transformed\profileinstaller-1.4.0\AndroidManifest.xml:35:13-76
+120            android:directBootAware="false"
+120-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\74209a407d0a3992bef7b28dfcf53e7a\transformed\profileinstaller-1.4.0\AndroidManifest.xml:36:13-44
+121            android:enabled="true"
+121-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\74209a407d0a3992bef7b28dfcf53e7a\transformed\profileinstaller-1.4.0\AndroidManifest.xml:37:13-35
+122            android:exported="true"
+122-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\74209a407d0a3992bef7b28dfcf53e7a\transformed\profileinstaller-1.4.0\AndroidManifest.xml:38:13-36
+123            android:permission="android.permission.DUMP" >
+123-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\74209a407d0a3992bef7b28dfcf53e7a\transformed\profileinstaller-1.4.0\AndroidManifest.xml:39:13-57
+124            <intent-filter>
+124-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\74209a407d0a3992bef7b28dfcf53e7a\transformed\profileinstaller-1.4.0\AndroidManifest.xml:40:13-42:29
+125                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+125-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\74209a407d0a3992bef7b28dfcf53e7a\transformed\profileinstaller-1.4.0\AndroidManifest.xml:41:17-91
+125-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\74209a407d0a3992bef7b28dfcf53e7a\transformed\profileinstaller-1.4.0\AndroidManifest.xml:41:25-88
+126            </intent-filter>
+127            <intent-filter>
+127-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\74209a407d0a3992bef7b28dfcf53e7a\transformed\profileinstaller-1.4.0\AndroidManifest.xml:43:13-45:29
+128                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+128-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\74209a407d0a3992bef7b28dfcf53e7a\transformed\profileinstaller-1.4.0\AndroidManifest.xml:44:17-85
+128-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\74209a407d0a3992bef7b28dfcf53e7a\transformed\profileinstaller-1.4.0\AndroidManifest.xml:44:25-82
+129            </intent-filter>
+130            <intent-filter>
+130-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\74209a407d0a3992bef7b28dfcf53e7a\transformed\profileinstaller-1.4.0\AndroidManifest.xml:46:13-48:29
+131                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+131-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\74209a407d0a3992bef7b28dfcf53e7a\transformed\profileinstaller-1.4.0\AndroidManifest.xml:47:17-88
+131-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\74209a407d0a3992bef7b28dfcf53e7a\transformed\profileinstaller-1.4.0\AndroidManifest.xml:47:25-85
+132            </intent-filter>
+133            <intent-filter>
+133-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\74209a407d0a3992bef7b28dfcf53e7a\transformed\profileinstaller-1.4.0\AndroidManifest.xml:49:13-51:29
+134                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+134-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\74209a407d0a3992bef7b28dfcf53e7a\transformed\profileinstaller-1.4.0\AndroidManifest.xml:50:17-95
+134-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Michael\.gradle\caches\9.5.1\transforms\74209a407d0a3992bef7b28dfcf53e7a\transformed\profileinstaller-1.4.0\AndroidManifest.xml:50:25-92
+135            </intent-filter>
+136        </receiver>
+137    </application>
+138
+139</manifest>

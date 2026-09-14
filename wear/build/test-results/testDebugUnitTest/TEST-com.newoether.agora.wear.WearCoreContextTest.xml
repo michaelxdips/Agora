@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.newoether.agora.wear.WearCoreContextTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-09-14T18:04:18.866Z" hostname="DESKTOP-KNHM6KL" time="0.076">
+  <properties/>
+  <testcase name="an oversized snapshot is truncated inside the budget and says so" classname="com.newoether.agora.wear.WearCoreContextTest" time="0.058"/>
+  <testcase name="empty snapshot produces an empty prompt" classname="com.newoether.agora.wear.WearCoreContextTest" time="0.001"/>
+  <testcase name="a short snapshot passes through unchanged" classname="com.newoether.agora.wear.WearCoreContextTest" time="0.001"/>
+  <testcase name="truncation keeps whole lines, never a half fact" classname="com.newoether.agora.wear.WearCoreContextTest" time="0.006"/>
+  <testcase name="token estimate is monotonic and zero for empty" classname="com.newoether.agora.wear.WearCoreContextTest" time="0.0"/>
+  <testcase name="crlf and blank-line runs are normalised" classname="com.newoether.agora.wear.WearCoreContextTest" time="0.003"/>
+  <testcase name="persona blocks never reach the watch prompt" classname="com.newoether.agora.wear.WearCoreContextTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

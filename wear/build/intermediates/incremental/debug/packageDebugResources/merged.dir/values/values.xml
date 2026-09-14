@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <color name="hermes_wear_background">#123E25</color>
-    <string name="app_name">Hermes</string>
-    <string name="wear_speak_prompt">Ask Hermes</string>
-</resources>

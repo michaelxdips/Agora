@@ -1,7 +1,0 @@
-R_DEF: Internal format may change without notice
-local
-color hermes_wear_background
-drawable hermes_wear_foreground
-mipmap ic_launcher
-string app_name
-string wear_speak_prompt

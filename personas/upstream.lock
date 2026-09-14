@@ -1,0 +1,26 @@
+{
+  "note": "Vendored persona rule texts. Pinned by tag; sha256 is over the vendored file as committed. Update only via scripts/persona_update.sh, which refuses to write unless the persona regression tests pass.",
+  "personas": [
+    {
+      "id": "caveman",
+      "repo": "https://github.com/JuliusBrussee/caveman",
+      "ref": "v2.6.0",
+      "source_path": "skills/caveman/SKILL.md",
+      "vendored_path": "personas/caveman/SKILL.md",
+      "sha256": "c4d7354b4b063d54601fcdd5097a5b1713d1a1a2e386ac39efa438aa1ffef8ce",
+      "license": "MIT",
+      "license_scope": "skills/ (outside the BSL-1.1 engine directories listed in LICENSING.md)",
+      "fetched": "2026-09-14"
+    },
+    {
+      "id": "ponytail",
+      "repo": "https://github.com/DietrichGebert/ponytail",
+      "ref": "v4.10.0",
+      "source_path": "skills/ponytail/SKILL.md",
+      "vendored_path": "personas/ponytail/SKILL.md",
+      "sha256": "1316a2f3f95741d2300b116fe0c2d81ce4a9568656ed0a62643f54aaf09957f2",
+      "license": "MIT",
+      "fetched": "2026-09-14"
+    }
+  ]
+}

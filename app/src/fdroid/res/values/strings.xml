@@ -17,4 +17,19 @@
     <string name="hermes_autopilot_desc">Hermes updates saved memory automatically after conversations</string>
     <string name="hermes_autopilot_cap">Daily cap: %1$d adaptations</string>
     <string name="hermes_autopilot_run_now">Run reflection now</string>
+    <!-- HERMES: Phase 6 persona system (P4). Personas ride Agora's active-memory channel; these
+         strings only label the settings page. -->
+    <string name="hermes_personas">Personas</string>
+    <string name="hermes_personas_desc">Caveman controls form (terse prose), Ponytail controls judgment (the laziest sufficient solution). Both are injected through your active memory, so they can be removed without a trace.</string>
+    <string name="hermes_persona_status_active">Active — block present in active memory</string>
+    <string name="hermes_persona_status_inactive">Off — no block in active memory</string>
+    <string name="hermes_persona_edit">Edit text</string>
+    <string name="hermes_persona_reset">Reset to default</string>
+    <string name="hermes_persona_channel">Injection channel: active_memory.md (%1$d characters)</string>
+    <string name="hermes_persona_store_clean">No persona markers in the store — toggle off is complete.</string>
+    <string name="hermes_persona_store_dirty">Persona markers present in the store.</string>
+    <string name="hermes_persona_check_updates">Check for persona updates</string>
+    <string name="hermes_persona_edit_label">Rule text</string>
+    <string name="hermes_persona_save">Save</string>
+    <string name="hermes_persona_cancel">Cancel</string>
 </resources>

@@ -24,6 +24,9 @@ class FakeAdaptationLogDao : AdaptationLogDao {
 
     override suspend fun find(id: Long): AdaptationEntry? = entries[id]
 
+    /** All rows, for assertions in tests that do not care about ordering. */
+    val rows: List<AdaptationEntry> get() = entries.values.toList()
+
     override suspend fun all(): List<AdaptationEntry> = entries.values.sortedWith(order)
 
     override fun observe(): Flow<List<AdaptationEntry>> =

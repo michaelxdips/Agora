@@ -14,7 +14,8 @@ app/build.gradle.kts :: max=12
 app/src/main/AndroidManifest.xml :: max=6
 app/src/main/res/values/strings.xml :: max=4
 app/src/main/java/com/newoether/agora/ui/settings/SettingsScreen.kt :: max=18
-app/src/main/java/com/newoether/agora/MainActivity.kt :: max=34
+app/src/main/java/com/newoether/agora/MainActivity.kt :: max=40
+app/src/main/java/com/newoether/agora/viewmodel/GenerationRequestBuilder.kt :: max=8
 <!-- GUARD:DATA:END -->
 
 ## Registry
@@ -24,8 +25,9 @@ app/src/main/java/com/newoether/agora/MainActivity.kt :: max=34
 | 1 | `app/build.gradle.kts` | `applicationId` → `com.hermes.app`; `testInstrumentationRunner`; androidTest deps for the instrumented verification | 1, 3 |
 | 2 | `app/src/main/AndroidManifest.xml` | only if the fdroid overlay cannot carry a manifest change | 1 |
 | 3 | `app/src/main/res/values/strings.xml` | only if the fdroid resource overlay cannot carry `app_name` | 1 |
-| 4 | `app/src/main/java/com/newoether/agora/ui/settings/SettingsScreen.kt` | Adaptation History entry + `"adaptation"` dispatch + `initialCategory` | 4 |
-| 5 | `app/src/main/java/com/newoether/agora/MainActivity.kt` | notification tap → Settings/Adaptation History (`openAdaptationHistory` flag) | 4 |
+| 4 | `app/src/main/java/com/newoether/agora/ui/settings/SettingsScreen.kt` | Adaptation History entry + `"adaptation"` dispatch + `initialCategory`; Phase 6 persona entry + `"personas"` dispatch |
+| 5 | `app/src/main/java/com/newoether/agora/MainActivity.kt` | notification tap → Settings/Adaptation History (`openAdaptationHistory` flag); Phase 6 persona startup (`PersonaStartup.run`) |
+| 6 | `app/src/main/java/com/newoether/agora/viewmodel/GenerationRequestBuilder.kt` | Phase 6 P5 isolation: persona blocks are stripped where active memory enters a request (reflection/synthesis must never see them) |
 
 Each edit site is marked `// HERMES INTEGRATION POINT`; the guard enforces both the budget and the
 marker. Upstream behaviour is added to, never removed.

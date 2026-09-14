@@ -344,6 +344,9 @@ fun MainNavigation(
     LaunchedEffect(viewModel, autopilotScope) {
         com.newoether.agora.autopilot.AutopilotTriggerObserver(appContext, autopilotScope)
             .start(viewModel.generatingConversationIds)
+        // Phase 6 P1/P2: seed vendored persona files + reconcile the persona channel. One line, so
+        // the persona feature needs no integration point of its own.
+        com.newoether.agora.autopilot.PersonaStartup.run(appContext)
     }
     // HERMES INTEGRATION POINT: autopilot notification → Settings (pre-selected on Adaptation
     // History). Runs before the conversation-target effect and never changes its behaviour.

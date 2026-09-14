@@ -268,6 +268,8 @@ private val baseSettingsGroups = listOf(
         SettingsCategory("skills", R.string.settings_skills, R.string.settings_skills_desc, Icons.Default.Extension),
         // HERMES INTEGRATION POINT: autopilot Adaptation History entry (Phase 4).
         SettingsCategory("adaptation", R.string.hermes_adaptation_history, R.string.hermes_adaptation_history_desc, Icons.Default.History),
+        // HERMES INTEGRATION POINT: persona system entry (Phase 6 P4).
+        SettingsCategory("personas", R.string.hermes_personas, R.string.hermes_personas_desc, Icons.Default.RecordVoiceOver),
         SettingsCategory("datacontrol", R.string.settings_data_control, R.string.settings_data_control_desc, Icons.Default.Storage),
     )),
     SettingsGroupData(titleRes = R.string.settings_group_appearance_language, items = listOf(
@@ -351,6 +353,10 @@ fun SettingsScreen(
                 // HERMES INTEGRATION POINT: autopilot Adaptation History page (Phase 4).
                 "adaptation" -> com.newoether.agora.autopilot.SettingsAdaptationHistoryPage(
                     viewModel = viewModel,
+                    onBack = { selectedCategory = null },
+                )
+                // HERMES INTEGRATION POINT: persona system page (Phase 6 P4).
+                "personas" -> com.newoether.agora.autopilot.SettingsPersonasPage(
                     onBack = { selectedCategory = null },
                 )
                 "datacontrol" -> SettingsDataControlPage(viewModel, onBack = { selectedCategory = null })

@@ -59,4 +59,25 @@ evidence table for each phase.
       `sync-2026-09-14-stress` → `e360491c`; `upstream/master` itself was already an ancestor of `main`)
 - [x] `main` fully green: unit tests + both flavor debug builds + touchpoint guard + contract check
 - [x] `ROADMAP.md` / `STATUS.md` finalised; HANDOVER section for the future Wear OS phase
-- [ ] When the Wear OS `wear/` module lands, add it to the touchpoint guard `ALLOWED` regex
+## Phase 6 — Persona System (Caveman + Ponytail)
+
+### P2 — vendored sourcing (pinned)
+
+| Persona | Upstream | Ref | Vendored | sha256 |
+|---|---|---|---|---|
+| Caveman | `github.com/JuliusBrussee/caveman` | `v2.6.0` | `personas/caveman/SKILL.md` | `c4d7354b4b063d54601fcdd5097a5b1713d1a1a2e386ac39efa438aa1ffef8ce` |
+| Ponytail | `github.com/DietrichGebert/ponytail` | `v4.10.0` | `personas/ponytail/SKILL.md` | `1316a2f3f95741d2300b116fe0c2d81ce4a9568656ed0a62643f54aaf09957f2` |
+
+Both are MIT at the vendored path (`skills/`; Caveman's `engine/`, `proxy/`, `rewriter/`, `browse/`,
+`mcp/`, `shrink/`, `shared/platform/` are BSL-1.1 per its `LICENSING.md` and are **not** vendored).
+Machine-readable record: `personas/upstream.lock`. Update only through `scripts/persona_update.sh`,
+which refuses to write unless the persona regression tests pass.
+
+### Phase 7 — Wear OS Standalone-Lite
+
+- [ ] `wear/` module: applicationId identical to the phone app, same keystore, minSdk 30, Compose for
+      Wear OS, voice-first Q&A + read-only memory snapshot
+- [ ] One-time credential transfer over the Data Layer; standalone thereafter (proof: API call with
+      the phone in airplane mode)
+- [ ] Repo hygiene: `wear/` in the guard `ALLOWED`; `settings.gradle.kts` +
+      `gradle/libs.versions.toml` registered in `UPSTREAM_TOUCHPOINTS.md`

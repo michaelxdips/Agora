@@ -59,12 +59,20 @@ class AutopilotMemoryInstrumentedTest {
         }
         val beforeBytes = seeded.associate { it.file to fileOf(it.file).readBytes() }
 
+        // The daily cap counts EVERY row in the app's real adaptation_log, and the rows this test
+        // writes persist. Without a baseline the test is non-hermetic: run 1 passes, run 2 applies
+        // only 2 of 3 ops, and runs 3+ apply 0 — a device that has used the app normally fails on
+        // the first run. Take the baseline once and let the stub measure only this test's own rows.
+        val baseline = log.countSince(AutopilotSettings.startOfToday(System.currentTimeMillis()))
+
         var applied = 0
         seeded.forEachIndexed { index, seed ->
             val engine = engine(
                 reply = """{"ops":[{"op":"update","target_file":"${seed.file}","content":""" +
                     """"${seed.initial.trim()}\n- fact ${index + 1} $PROVENANCE_TAG\n","category":"c",""" +
                     """"confidence":0.95,"source_quote":"quote ${index + 1}"}]}"""
+                ,
+                baselineCount = baseline,
             )
             val outcome = engine.run(
                 transcript = "USER: seeded conversation ${index + 1}",
@@ -97,7 +105,10 @@ class AutopilotMemoryInstrumentedTest {
             )
         }
 
-        // cleanup: the instrumented run must not leave test memories behind
+        // cleanup: the instrumented run must not leave test memories OR test log rows behind — the
+        // rows would otherwise consume the real daily cap for the rest of the day.
+        entries.forEach { log.delete(it.id) }
+        assertEquals(baseline, log.countSince(AutopilotSettings.startOfToday(System.currentTimeMillis())))
         seeded.forEach { deleteIfPresent(it.file) }
     }
 
@@ -158,7 +169,7 @@ class AutopilotMemoryInstrumentedTest {
     }
 
     /** The production engine with the model call replaced by a fixed reply (no API key needed). */
-    private fun engine(reply: String) = ReflectionEngine(
+    private fun engine(reply: String, baselineCount: Int = 0) = ReflectionEngine(
         reflect = { _, _ -> reply },
         applier = applier,
         log = log,
@@ -166,7 +177,7 @@ class AutopilotMemoryInstrumentedTest {
             override suspend fun isEnabled() = true
             override suspend fun currentDailyCap() = AutopilotSettings.DEFAULT_DAILY_CAP
             override suspend fun underDailyCap(log: AdaptationLogDao, sinceMillis: Long) =
-                log.countSince(sinceMillis) < AutopilotSettings.DEFAULT_DAILY_CAP
+                log.countSince(sinceMillis) - baselineCount < AutopilotSettings.DEFAULT_DAILY_CAP
         },
     )
 }

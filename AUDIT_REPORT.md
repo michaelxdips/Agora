@@ -23,6 +23,8 @@ but narrower case. **LOW** = polish, dead weight, or a documented limitation.
 | 7 | **HIGH** | `:wear:assembleRelease` failed. `lintVitalRelease` reported `InvalidFragmentVersionForActivityResult`: `play-services-basement:18.4.0` (via `play-services-wearable`) drags in `androidx.fragment:1.1.0`, below the 1.3.0 floor the ActivityResult APIs require. | `./gradlew :wear:assembleRelease` | **FIXED** — constrained `androidx.fragment:fragment:1.8.5`. See "A dismissed mistake" below |
 | 8 | **LOW** | `WearCoreContext` normalised the core context but the watch's `Debug` panel read the **raw** snapshot length, so the two numbers described different things. | reading the debug path against its own comment | open, cosmetic — the panel is a debug surface and the numbers are both labelled |
 
+| 15 | **HIGH** | The primary Phase 3 instrumented verification was **non-hermetic**: it used the app's real `adaptation_log`, and the engine's daily cap counts every row written today. Rows it wrote persisted, so each run ate real budget: `RUN 1 OK` → `expected:<3> but was:<2>` → `<0>` → `<0>`. A device where the app had actually been used failed on the first run, and the suite only failed once the log had accumulated — an isolated run passed. | re-ran the same test 4× with `am instrument` on an unchanged device (no wipe, no reinstall) | **FIXED** — baseline the day's row count, measure only this test's rows, delete them in cleanup and assert the count returns to baseline. Re-verified **5/5 OK** on the same device data |
+
 ### Phase 6 defects (found and fixed inside that phase, listed here for the audit trail)
 
 | # | Severity | Finding | How it was found | Status |
@@ -77,7 +79,36 @@ what it found:
 
 ---
 
-## Definition-of-Done check
+## Gate results (Phase 8, all re-run today on this machine)
+
+| Gate | Result | Evidence |
+|---|---|---|
+| `:app:testFdroidDebugUnitTest` | **PASS** 2,527 tests, 0 failures, 0 errors (389 classes; 3 skipped are upstream's own) | `app/build/test-results/testFdroidDebugUnitTest/*.xml` |
+| `:app:testPlayDebugUnitTest` | **PASS** 2,510 tests, 0 failures, 0 errors (385 classes) | flavor parity: the play tree compiles and runs the shared Hermes code |
+| `:wear:testDebugUnitTest` | **PASS** 14 tests, 0 failures | `wear/build/test-results/testDebugUnitTest/*.xml` |
+| `:app:connectedFdroidDebugAndroidTest` | **PASS** 6/6 tests on `hermes_x86_64(AVD) - 16` (real device, real `filesDir`, real Room DB) | `Starting 6 tests … Finished 6 tests … BUILD SUCCESSFUL` |
+| Instrumented stability | **PASS** 5/5 consecutive runs on the SAME device data | was `OK → 2 → 0 → 0` before the fix; see finding #15 |
+| Unit-test stability | **PASS** 5/5 consecutive `--rerun-tasks` runs, no flake | 5m57s / 4m28s / 4m10s / 4m13s / 5m10s, all `BUILD SUCCESSFUL` |
+| `:app:assembleFdroidDebug` | **PASS** | `app-fdroid-debug.apk` 65,285,032 B |
+| `:app:assemblePlayDebug` | **PASS** | `app-play-debug.apk` 65,224,484 B |
+| `:wear:assembleRelease` signed | **PASS** | `wear-release.apk` 2,685,504 B; `apksigner verify --print-certs` → `CN=Hermes Local` |
+| `touchpoint_guard.sh` | **PASS** | 7/7 registered touchpoints within budget; `PASS (914e7c8…)` |
+| `upstream_sync.sh --dry-run` | **PASS** | `already up to date with upstream/master — nothing to merge` |
+| Secrets in git history | **PASS** | guard §3; watch config blob holds no plaintext key |
+
+### Finding #15 — the instrumented test was non-hermetic (found by repeat-running it)
+
+`AutopilotMemoryInstrumentedTest` used the app's **real** `adaptation_log`, and the engine's daily cap
+counts every row written today, globally. Rows the test wrote persisted, so each run permanently ate
+budget. The sequence, on one unchanged device: `RUN 1 OK (1 test)` → `expected:<3> but was:<2>` →
+`expected:<3> but was:<0>` → `<0>`. Isolated runs passed; the suite only failed once the log had
+accumulated.
+
+This is a **test** defect, not a product one — the cap behaved exactly as designed — but it meant the
+primary Phase 3 verification could not be trusted on any device where the app had actually been used.
+The fix: take the day's row count as a baseline before the pass, have the stub measure only the rows
+it caused, and delete those rows in cleanup with `assertEquals(baseline, countSince(...))` asserting
+the log is left as found. Re-verified: **5/5 OK with no wipe and no reinstall between runs**.
 
 | Requirement | State |
 |---|---|

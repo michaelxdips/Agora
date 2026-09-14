@@ -44,7 +44,14 @@ run_merge() {
 
 resolve_conflicts() {
     local conflicted any_unregistered=0
-    conflicted="$(git diff --name-only --diff-filter=U)"
+    # A merge that failed for a non-conflict reason (bad ref, unusable worktree, dirty index) leaves
+    # NO unmerged paths at all. Without this guard the caller reads "no conflicts" as "resolved" and
+    # reports a false PASS. MERGE_HEAD only exists while a merge is genuinely in progress.
+    if [ ! -e "$(git rev-parse --git-dir 2>/dev/null)/MERGE_HEAD" ]; then
+        log "no merge in progress — refusing to report the failure as resolved"
+        return 2
+    fi
+    conflicted="$(git diff --name-only --diff-filter=U)" || return 2
     [ -z "$conflicted" ] && return 0
     while read -r f; do
         [ -z "$f" ] && continue
@@ -60,17 +67,29 @@ resolve_conflicts() {
 }
 
 if [ "$DRY_RUN" = "1" ]; then
+    # git worktree records the path it is given verbatim. An MSYS path like /tmp/x is a valid path to
+    # bash but not to native git, which would create the worktree under C:/tmp and then fail every
+    # command run from the (nonexistent) /tmp/x. Normalise to a native path when cygpath is present.
     WORKTREE="$(mktemp -d "${TMPDIR:-/tmp}/hermes-sync-XXXXXX")"
+    if command -v cygpath >/dev/null 2>&1; then
+        WORKTREE="$(cygpath -m "$WORKTREE")"
+    fi
     trap 'git worktree remove --force "$WORKTREE" >/dev/null 2>&1; rm -rf "$WORKTREE"' EXIT
     git worktree add --detach "$WORKTREE" HEAD >/dev/null || exit 1
     if ( cd "$WORKTREE" && git merge --no-ff --no-edit "$TARGET" >/dev/null 2>&1 ); then
         log "DRY-RUN: merge is clean. Branch unchanged."
         exit 0
     fi
-    ( cd "$WORKTREE" && resolve_conflicts ) && {
+    ( cd "$WORKTREE" && resolve_conflicts )
+    resolved=$?
+    if [ "$resolved" -eq 0 ]; then
         log "DRY-RUN: conflicts auto-resolved in registered touchpoints only. Branch unchanged."
         exit 0
-    }
+    fi
+    if [ "$resolved" -eq 2 ]; then
+        log "DRY-RUN: merge could not be evaluated (not a conflict-resolution failure). Branch unchanged."
+        exit 1
+    fi
     log "DRY-RUN: merge needs human attention (conflict outside registered touchpoints). Branch unchanged."
     exit 1
 fi

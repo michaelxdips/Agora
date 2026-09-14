@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- HERMES: fdroid-flavor resource overlay. Overrides upstream app_name without editing
-     app/src/main/res/values/strings.xml (zero upstream file modifications). -->
+     app/src/main/res/values/strings.xml (zero upstream file modifications).
+
+     Upstream defines app_name in the default values/ plus 11 locale folders. A flavor overlay in
+     values/ alone only wins for locales that have NO upstream override, so every upstream locale
+     needs a matching overlay entry or the launcher falls back to "Agora" there. This file carries
+     the full set; upstream stays untouched. -->
 <resources>
     <string name="app_name">Hermes</string>
     <!-- HERMES: autopilot Adaptation History page (Hermes-only strings; the fdroid overlay keeps

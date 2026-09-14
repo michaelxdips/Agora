@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- HERMES: fdroid-flavor resource overlay. Overrides upstream app_name without editing
-     app/src/main/res/values/strings.xml (zero upstream file modifications). -->
+<!-- HERMES: play-flavor resource overlay. Mirrors the fdroid overlay so the shared
+     com.newoether.agora.autopilot code compiles in BOTH flavors, and so the play build carries the
+     same "Hermes" name (applicationId is global, in defaultConfig).
+     Upstream carries zero files under app/src/play/res/, so this is a Hermes-only path. -->
 <resources>
     <string name="app_name">Hermes</string>
-    <!-- HERMES: autopilot Adaptation History page (Hermes-only strings; the fdroid overlay keeps
-         upstream app/src/main/res/values/strings.xml untouched). -->
     <string name="hermes_adaptation_history">Adaptation History</string>
     <string name="hermes_adaptation_history_desc">Review and undo memory changes made by Hermes</string>
     <string name="hermes_adaptation_history_empty">No adaptations yet. Hermes records every memory change here, with a one-tap undo.</string>

@@ -337,6 +337,14 @@ fun MainNavigation(
         isSwitching = isConversationSwitching,
     )
     val notificationTarget by notificationConversationId.collectAsState()
+    // HERMES INTEGRATION POINT: autopilot session-idle trigger. Started here (not in the 800-line
+    // budgeted ChatViewModel) and reads only the already-public generatingConversationIds flow, so
+    // no generation-lifecycle file is touched. The composition scope cancels it with the UI.
+    val autopilotScope = rememberCoroutineScope()
+    LaunchedEffect(viewModel, autopilotScope) {
+        com.newoether.agora.autopilot.AutopilotTriggerObserver(appContext, autopilotScope)
+            .start(viewModel.generatingConversationIds)
+    }
     // HERMES INTEGRATION POINT: autopilot notification → Settings (pre-selected on Adaptation
     // History). Runs before the conversation-target effect and never changes its behaviour.
     val adaptationHistoryRequested by openAdaptationHistory.collectAsState()

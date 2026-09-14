@@ -31,6 +31,12 @@ TARGET="$UPSTREAM_REMOTE/$UPSTREAM_BRANCH"
 if git merge-base --is-ancestor "$TARGET" HEAD; then
     log "already up to date with $TARGET — nothing to merge."
     bash scripts/touchpoint_guard.sh "$TARGET" || exit 1
+    # Gate 4 still runs: an already-merged upstream can have moved the contracts in an earlier sync.
+    CONTRACT_FILES="$(git diff --name-only "$(git merge-base "$TARGET" HEAD)" HEAD -- development ARCHITECTURE.md 2>/dev/null)"
+    if [ -n "$CONTRACT_FILES" ]; then
+        log "CONTRACT CHANGE since the merge base: $CONTRACT_FILES"
+        log "N10 requires re-reading these before further feature work; record it in STATUS.md."
+    fi
     exit 0
 fi
 
@@ -112,4 +118,44 @@ fi
 
 log "running touchpoint guard"
 bash scripts/touchpoint_guard.sh "$TARGET" || { log "GUARD FAILED after merge"; exit 1; }
+
+# ── gate 3: unit tests + fdroidDebug build ───────────────────────────────────
+# A merge that compiles but breaks the autopilot contracts must not reach main. These are the same
+# gates the mandate names, run in the merged tree so the result is evidence about what is about to be
+# promoted — not about the branch that existed before the merge.
+if [ "${SYNC_SKIP_BUILD:-0}" != "1" ]; then
+    log "running unit tests + fdroidDebug build"
+    # `testFdroidDebugUnitTest` includes UpstreamContractSentinelTest, which asserts the upstream
+    # memory/skill APIs, the active-memory injection site and the settings attach points by symbol.
+    # That is what makes upstream API drift fail loudly here instead of silently at runtime.
+    export JAVA_HOME="${JAVA_HOME:-C:/Users/Michael/Documents/Chatapp/_tools/jdk21/jdk-21.0.12.1+1}"
+    export ANDROID_HOME="${ANDROID_HOME:-C:/Users/Michael/Documents/Chatapp/_tools/sdk}"
+    export ANDROID_SDK_ROOT="$ANDROID_HOME"
+    export PATH="$JAVA_HOME/bin:$PATH"
+    if ! ./gradlew :app:testFdroidDebugUnitTest :app:assembleFdroidDebug --console=plain \
+        > "${SYNC_BUILD_LOG:-/tmp/hermes-sync-build.log}" 2>&1; then
+        log "TESTS/BUILD FAILED after merge — main untouched. See ${SYNC_BUILD_LOG:-/tmp/hermes-sync-build.log}"
+        exit 1
+    fi
+    log "tests + build green"
+else
+    log "SYNC_SKIP_BUILD=1 — skipping the test/build gate (documented dry-run only)"
+fi
+
+# ── gate 4: contract-change detector ────────────────────────────────────────
+# N10: an upstream change to the contracts Hermes builds on must be re-read before further feature
+# work. Detected, not silently absorbed.
+CONTRACT_FILES="$(git diff --name-only "$(git merge-base "$TARGET" HEAD)" HEAD -- development ARCHITECTURE.md 2>/dev/null)"
+if [ -n "$CONTRACT_FILES" ]; then
+    log "CONTRACT CHANGE: $CONTRACT_FILES"
+    log "N10 requires re-reading these before further feature work; record it in STATUS.md."
+    if command -v gh >/dev/null 2>&1; then
+        gh issue create --label contract-change \
+            --title "Upstream contract change in $UPSTREAM_BRANCH" \
+            --body "Files: $CONTRACT_FILES" >/dev/null 2>&1 \
+            && log "contract-change issue opened" \
+            || log "contract-change issue could not be opened — recorded here instead"
+    fi
+fi
+
 log "OK: $BRANCH now contains $TARGET."

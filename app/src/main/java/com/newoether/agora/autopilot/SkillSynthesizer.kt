@@ -32,7 +32,9 @@ class SkillSynthesizer(
             return null
         }
         val reply = reflect(
-            SkillSynthesisProtocol.synthesisPrompt(transcript, existingSkills),
+            // HERMES P5 ISOLATION: same rule as reflection — persona blocks never reach synthesis,
+            // so the synthesized skill draft is written in normal style and parses as a draft.
+            SkillSynthesisProtocol.synthesisPrompt(PersonaStore.stripAll(transcript), existingSkills),
             existingSkills,
         ) ?: return null
         val draft = SkillSynthesisProtocol.parse(reply) ?: return null

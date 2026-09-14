@@ -64,7 +64,11 @@ class ReflectionCaller(
         )
         val prompt = listOf(
             ChatMessage(
-                text = ReflectionProtocol.extractionPrompt(transcript, existingFiles),
+                // HERMES P5 ISOLATION: the reflection path is its own request (systemPrompt = null),
+                // and any persona block that reached the text is stripped here as well. Personas
+                // shape the user's replies; they must never reach the extraction contract, or the
+                // JSON would come back compressed and unparseable.
+                text = ReflectionProtocol.extractionPrompt(PersonaStore.stripAll(transcript), existingFiles),
                 participant = Participant.USER,
                 status = MessageStatus.SUCCESS,
             )

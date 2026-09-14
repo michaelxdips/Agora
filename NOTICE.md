@@ -14,3 +14,21 @@ Bundled third-party components keep their own licences, unchanged from upstream:
 
 No upstream file is relicensed by this fork. Modified upstream files are listed, with reasons, in
 `UPSTREAM_TOUCHPOINTS.md`.
+
+## Persona rule texts (Phase 6)
+
+The Caveman and Ponytail persona rule texts are vendored, unmodified apart from dropping the upstream
+YAML frontmatter (registry metadata, not instruction text). Vendored copies live in `personas/`, with
+the pinned ref and file hash recorded in `personas/upstream.lock`.
+
+* **Caveman** — <https://github.com/JuliusBrussee/caveman>, © Julius Brussee, **MIT License**.
+  Vendored from tag `v2.6.0`, path `skills/caveman/SKILL.md`.
+  Only the skill rule text is used. The repository also ships engine-linked directories
+  (`engine/`, `proxy/`, `rewriter/`, `browse/`, `mcp/`, `shrink/`, `shared/platform/`) under the
+  **Business Source License 1.1**; **none of those are vendored, linked, or executed** by this fork.
+* **Ponytail** — <https://github.com/DietrichGebert/ponytail>, © DietrichGebert, **MIT License**.
+  Vendored from tag `v4.10.0`, path `skills/ponytail/SKILL.md`.
+
+Both texts are injected into the user's own active-memory file as delimited blocks and are removed
+without trace when the persona is switched off. `NOTICE` is updated by
+`scripts/persona_update.sh`'s flow whenever a vendored ref is bumped.

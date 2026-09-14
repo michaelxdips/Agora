@@ -22,6 +22,7 @@ import com.newoether.agora.model.ModelId
 import com.newoether.agora.model.ContextBudget
 import com.newoether.agora.model.OpenAiServiceTiers
 import com.newoether.agora.model.apiModelName
+import com.newoether.agora.autopilot.PersonaStore
 import com.newoether.agora.util.Constants
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -573,7 +574,10 @@ class GenerationRequestBuilder(
             val includeActiveMemory = settings.accessActiveMemory.value
             val includeSkillCatalog = settings.accessSkills.value
             val activeMemoryDeferred = async(Dispatchers.IO) {
-                if (includeActiveMemory) memoryManager.getActiveMemory() else ""
+                // HERMES P5 ISOLATION: persona blocks live in active memory (that is the injection
+                // channel) but must never reach the reflection/synthesis request path. Stripping
+                // here, at the single place active memory enters a request, covers both callers.
+                if (includeActiveMemory) PersonaStore.stripAll(memoryManager.getActiveMemory()) else ""
             }
             val skillCatalogDeferred = async {
                 if (includeSkillCatalog) skillManager.catalog() else ""

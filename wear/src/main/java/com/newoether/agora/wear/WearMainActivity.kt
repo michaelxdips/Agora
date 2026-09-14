@@ -42,7 +42,6 @@ import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
-import androidx.wear.compose.material3.TimeText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -249,18 +248,13 @@ private fun WearChatScreen(
             state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = contentPadding,
-            // Wear M3 scales items toward the edges of the round screen; without this the first and
-            // last items sit at full size under the bezel and get clipped.
-            autoCentering = androidx.wear.compose.foundation.lazy.AutoCenteringParams(
-                itemIndex = 0,
-                itemOffset = 0,
-            ),
+            // See WearSetupScreen: `autoCentering` pins item 0 to the screen centre, which pushed
+            // the whole composer off the bottom edge. ScreenScaffold draws TimeText itself.
             verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(
                 space = 6.dp,
                 alignment = androidx.compose.ui.Alignment.CenterVertically,
             ),
         ) {
-            item { TimeText() }
             item { ListHeader { Text("Hermes") } }
 
             if (answer.isNotBlank()) {

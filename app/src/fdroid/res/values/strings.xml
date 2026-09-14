@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- HERMES: fdroid-flavor resource overlay. Overrides upstream app_name without editing
+     app/src/main/res/values/strings.xml (zero upstream file modifications). -->
+<resources>
+    <string name="app_name">Hermes</string>
+</resources>

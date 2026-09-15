@@ -3,5 +3,18 @@
      this overlay wins for that locale so the rebranded launcher label holds. Upstream file
      is never edited (rebrand = applicationId + resource overlay only). -->
 <resources>
+
     <string name="app_name">Hermes X</string>
+
+    <!-- HERMES: product name in upstream copy (values-es). Only "Agora" -> "Hermes X"; the upstream translation is otherwise untouched. -->
+    <string name="agora_responded">Hermes X respondió</string>
+    <string name="ask_agora">Pregunta lo que quieras a Hermes X...</string>
+    <string name="welcome_to_agora">Bienvenido a Hermes X.</string>
+    <string name="database_incompatible_desc">La base de datos es incompatible con esta versión de Hermes X. Borra la base de datos y reinicia la aplicación.</string>
+    <string name="about_available_body">Hay una nueva versión de Hermes X disponible en GitHub.</string>
+    <string name="rating_title">Valorar Hermes X</string>
+    <string name="import_from">Exportado el %1$s\nDesde Hermes X v%2$s</string>
+    <string name="onboarding_welcome_title">Bienvenido a Hermes X</string>
+    <string name="crash_title">Hermes X se cerró inesperadamente</string>
+    <string name="developer_options_export_share_title">Compartir paquete de diagnóstico de Hermes X</string>
 </resources>

@@ -42,3 +42,7 @@ AGENTS.md
 # Module build output. Upstream's `/build` is root-anchored and `app/` has its own .gitignore, so a
 # NEW Gradle module's build tree is matched by neither — wear/build/ got committed once in Phase 7.
 build/
+
+# Work logs at the repo root (build/test/gate output written by the agent session).
+# Kept out of git: they are scratch evidence, not artifacts the repo should carry.
+_*.log

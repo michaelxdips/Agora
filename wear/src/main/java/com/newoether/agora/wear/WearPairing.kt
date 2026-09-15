@@ -76,7 +76,12 @@ class WearPairingTransport(private val context: Context) : PairingTransport {
             WearLog.w("pairing: capability query failed: ${error.javaClass.simpleName}")
             return@withContext PairingSend.FAILED
         }
-        if (nodes.isEmpty()) return@withContext PairingSend.NO_PHONE
+        if (nodes.isEmpty()) {
+            // Logged because the honest "no phone" outcome is otherwise invisible on the device: the
+            // UI shows it, but a log line is what a future investigation reads first.
+            WearLog.w("pairing: no node advertises $PHONE_CAPABILITY")
+            return@withContext PairingSend.NO_PHONE
+        }
 
         var sent = 0
         for (node in nodes) {

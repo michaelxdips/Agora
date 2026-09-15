@@ -1,0 +1,64 @@
+> Task :build-logic:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :build-logic:compileKotlin UP-TO-DATE
+> Task :build-logic:compileJava NO-SOURCE
+> Task :build-logic:pluginDescriptors UP-TO-DATE
+> Task :build-logic:processResources UP-TO-DATE
+> Task :build-logic:classes UP-TO-DATE
+> Task :build-logic:jar UP-TO-DATE
+
+> Task :verifyKotlinFileSize
+Kotlin source size verified: 1010 files, maximum 800 lines at app/src/test/java/com/newoether/agora/viewmodel/ConversationSelectionControllerTest.kt, 0 temporary baseline entries
+
+> Task :wear:preBuild
+> Task :wear:preDebugBuild
+> Task :wear:generateDebugResources UP-TO-DATE
+> Task :wear:packageDebugResources UP-TO-DATE
+> Task :wear:processDebugNavigationResources UP-TO-DATE
+> Task :wear:parseDebugLocalResources UP-TO-DATE
+> Task :wear:generateDebugRFile UP-TO-DATE
+> Task :wear:compileDebugKotlin UP-TO-DATE
+> Task :wear:javaPreCompileDebug UP-TO-DATE
+> Task :wear:compileDebugJavaWithJavac NO-SOURCE
+> Task :wear:checkDebugAarMetadata UP-TO-DATE
+> Task :wear:mapDebugSourceSetPaths UP-TO-DATE
+> Task :wear:compileDebugNavigationResources UP-TO-DATE
+> Task :wear:mergeDebugResources UP-TO-DATE
+> Task :wear:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :wear:extractDeepLinksDebug UP-TO-DATE
+> Task :wear:processDebugMainManifest UP-TO-DATE
+> Task :wear:processDebugManifest UP-TO-DATE
+> Task :wear:processDebugManifestForPackage UP-TO-DATE
+> Task :wear:processDebugResources UP-TO-DATE
+> Task :wear:preDebugUnitTestBuild
+> Task :wear:processDebugJavaRes UP-TO-DATE
+> Task :wear:javaPreCompileDebugUnitTest
+> Task :wear:bundleDebugClassesToRuntimeJar
+> Task :wear:bundleDebugClassesToCompileJar
+
+> Task :wear:compileDebugUnitTestKotlin
+w: file:///C:/Users/Michael/Documents/Chatapp/Agora/wear/src/test/java/com/newoether/agora/wear/WearMainThreadSentinelTest.kt:31:24 Java type mismatch: inferred type is 'String?', but 'String' was expected.
+
+> Task :wear:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :wear:processDebugUnitTestJavaRes
+
+> Task :wear:testDebugUnitTest FAILED
+
+WearChatClientTest > aNullContentBecomesAFailureNotTheWordNull FAILED
+    java.lang.AssertionError at WearChatClientTest.kt:203
+
+WearChatClientTest > anExplicitJsonNullIsNeverTreatedAsText FAILED
+    java.lang.AssertionError at WearChatClientTest.kt:220
+
+20 tests completed, 2 failed
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':wear:testDebugUnitTest'.
+> There were failing tests. See the report at: file:///C:/Users/Michael/Documents/Chatapp/Agora/wear/build/reports/tests/testDebugUnitTest/index.html
+
+* Try:
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+
+BUILD FAILED in 9s
+29 actionable tasks: 7 executed, 22 up-to-date

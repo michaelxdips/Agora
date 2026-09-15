@@ -13,7 +13,7 @@ never remove upstream behaviour — add, don't rewrite.
 app/build.gradle.kts :: max=16
 settings.gradle.kts :: max=4
 gradle/libs.versions.toml :: max=10
-.gitignore :: max=6
+.gitignore :: max=9
 app/src/main/AndroidManifest.xml :: max=6
 app/src/main/res/values/strings.xml :: max=4
 app/src/main/java/com/newoether/agora/ui/settings/SettingsScreen.kt :: max=32
@@ -34,6 +34,7 @@ app/src/main/java/com/newoether/agora/viewmodel/GenerationRequestBuilder.kt :: m
 | 6 | `app/src/main/java/com/newoether/agora/viewmodel/GenerationRequestBuilder.kt` | Phase 6 P5 isolation: persona blocks are stripped where active memory enters a request (reflection/synthesis must never see them) |
 | 7 | `app/src/main/java/com/newoether/agora/ui/settings/SettingsScreen.kt` (raised 24 → 32) | Phase 12: Watch setup entry + `"watch"` dispatch. Budget raised because the page existed but no user could open it (dead code); 6 lines for the row, 4 for the dispatch, 2 for the marker comments |
 | 8 | `app/src/main/java/com/newoether/agora/ui/settings/SettingsAboutPage.kt` | Phase 12: fork identity row on About (product name, maintainer, upstream + fork URLs) — the owner asked for the maintainer to be visible in the app, not only in comments |
+| 9 | `.gitignore` (raised 6 → 9) | Phase 12: `_*.log` — the gate/build logs an agent session writes at the repo root. The previous session committed a build tree once because a pattern was missing; this closes the same hole for scratch logs before it happens |
 
 Each edit site is marked `// HERMES INTEGRATION POINT`; the guard enforces both the budget and the
 marker. Upstream behaviour is added to, never removed.

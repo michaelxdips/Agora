@@ -1,5 +1,8 @@
 package com.newoether.agora.wear
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
 /**
  * Sends one question. The drainer does not know how — that is what makes it testable.
  *
@@ -55,9 +58,9 @@ object WearQueueDrainer {
         coreContext: String,
         showResult: Boolean,
         onFailure: (String) -> Unit = {},
-    ): DrainReport {
+    ): DrainReport = withContext(Dispatchers.IO) {
         val pending = queue.all()
-        if (pending.isEmpty()) return DrainReport(0, null, null)
+        if (pending.isEmpty()) return@withContext DrainReport(0, null, null)
         var delivered = 0
         var lastAnswer: String? = null
         var droppedText: String? = null
@@ -75,6 +78,6 @@ object WearQueueDrainer {
                 break
             }
         }
-        return DrainReport(delivered = delivered, droppedText = droppedText, lastAnswer = lastAnswer)
+        DrainReport(delivered = delivered, droppedText = droppedText, lastAnswer = lastAnswer)
     }
 }

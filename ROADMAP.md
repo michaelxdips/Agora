@@ -59,7 +59,11 @@ evidence table for each phase.
       `sync-2026-09-14-stress` → `e360491c`; `upstream/master` itself was already an ancestor of `main`)
 - [x] `main` fully green: unit tests + both flavor debug builds + touchpoint guard + contract check
 - [x] `ROADMAP.md` / `STATUS.md` finalised; HANDOVER section for the future Wear OS phase
-## Phase 6 — Persona System (Caveman + Ponytail)
+## Phase 6b — Persona System (Caveman + Ponytail)
+
+> The "Phase 6" label is used twice in this repo's history — this section and the Sync/Handover one
+> above were both written as Phase 6 by different sessions. Renamed here to 6b so the numbering is
+> unambiguous; the code comments that say "Phase 6 P1/P2/P4/P5/P6" refer to *this* section.
 
 ### P2 — vendored sourcing (pinned)
 
@@ -73,11 +77,38 @@ Both are MIT at the vendored path (`skills/`; Caveman's `engine/`, `proxy/`, `re
 Machine-readable record: `personas/upstream.lock`. Update only through `scripts/persona_update.sh`,
 which refuses to write unless the persona regression tests pass.
 
-### Phase 7 — Wear OS Standalone-Lite
+## Phase 7 — Wear OS Standalone-Lite
 
-- [ ] `wear/` module: applicationId identical to the phone app, same keystore, minSdk 30, Compose for
-      Wear OS, voice-first Q&A + read-only memory snapshot
-- [ ] One-time credential transfer over the Data Layer; standalone thereafter (proof: API call with
-      the phone in airplane mode)
-- [ ] Repo hygiene: `wear/` in the guard `ALLOWED`; `settings.gradle.kts` +
+- [x] `wear/` module: `applicationId = "com.hermes.app"` (identical to the phone app), same keystore,
+      `minSdk = 30`, Compose for Wear OS, voice-first Q&A + read-only memory snapshot
+      (`wear/build.gradle.kts`; `wear/src/main/java/com/newoether/agora/wear/`)
+- [~] One-time credential transfer over the Data Layer; standalone thereafter. The transfer and the
+      offline queue are implemented and unit-tested; the **live airplane-mode API call needs a real
+      provider key** (HS2 registry) and two Data-Layer-paired devices (HS4), neither of which exists
+      here. Not claimed.
+- [x] Repo hygiene: `wear/` in the guard `ALLOWED`; `settings.gradle.kts` +
       `gradle/libs.versions.toml` registered in `UPSTREAM_TOUCHPOINTS.md`
+      (`scripts/touchpoint_guard.sh` → PASS)
+
+## Phase 8–11 — (not used; numbering jumps to Phase 12 in `STATUS.md`)
+
+## Phase 12 — Rename, the three critical findings, and the Wear rebuild
+- [x] Launcher label "Hermes X" in every locale; maintainer visible on About (phone) and Debug (watch)
+- [x] `SettingsWatchSetupPage` reachable from Settings; real pairing request + ack
+- [x] Watch UI told about an incoming config via `WearSignals` (no polling)
+- [x] Drain-regression tripwire (`WearMainThreadSentinelTest`)
+- See `STATUS.md` §Phase 12 for the evidence table.
+
+## Phase 13 — Update checker, adversarial device audit, and the `content: null` answer
+- [x] Update check repointed at the fork (`michaelxdips/Agora`), numeric-segment ordering
+- [x] `content: null` no longer rendered as the word "null"
+- [x] About links point at the fork's tracker, not upstream's
+- See `STATUS.md` §Phase 13 for the evidence table.
+
+## Open (audit v2.1 — see `AUDIT_PLAN.md` §2.6 and `V2_BACKLOG.md`)
+
+- Persona updates: the lock file is shipped in assets and is now seeded into `filesDir`
+  (`PersonaRepository.seedLockFromAssets`) so the in-app check can read it.
+- Wire the circuit breaker's `recordInjection`/`recordCorrection` and `SkillSynthesizer` into the
+  production path, or move them out of the shipped feature list — they currently have no caller.
+- Push the memory snapshot when it changes, not only at setup (`WatchSync.pushMemorySnapshot`).

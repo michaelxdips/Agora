@@ -355,8 +355,16 @@ deferred by the owner. Not claimed, not estimated.
 
 Settings → Personas: two toggles, per-persona *Edit text*, *Reset to default*, *Check for persona
 updates*, and a status line whose state is read **back from the injection channel** (`active memory
-(N characters)` and a clean/dirty marker line), not from the DataStore intent. Proof:
-`_device_proof/p6-01-personas-page.png`, `p6-02-caveman-on.png`, `p6-04-adaptation-history-persona-entry.png`.
+(N characters)` and a clean/dirty marker line), not from the DataStore intent.
+
+> **Correction (audit v2.1, A-016).** This row cited `_device_proof/p6-01-personas-page.png`,
+> `p6-02-caveman-on.png` and `p6-04-adaptation-history-persona-entry.png`. **None of those files, and
+> no `_device_proof/` directory, exists anywhere in the working tree or in git history**
+> (`find . -name 'p6-*.png'` → nothing; `git log --all --name-only -- _device_proof` → nothing). The
+> three screenshot citations are therefore withdrawn, and the three `p7-*.png` citations below with
+> them. What still stands on its own is the command output quoted alongside each claim — the
+> `run-as … cat files/active_memory.md` reading of 0 bytes for toggle-off, which is reproducible from
+> the repo. Anything that was only ever "proved" by a missing image is now marked UNVERIFIED.
 
 ### Defects found by running it (not by reading it)
 
@@ -436,7 +444,14 @@ is "open the keyboard on the phone" — and the owner explicitly wants to type o
 composer is a foundation `BasicTextField` wrapped in an M3 `Card`: same surface and colour roles, real
 cursor, system keyboard, `ImeAction.Send`. Typing, sending and voice are all present.
 
-### Device verification (emulator-5558, Wear OS 5, 384×384)
+### Device verification (Wear OS 5, 384×384)
+
+> **Correction (audit v2.1, A-017).** This heading said `emulator-5558`. No such device exists or
+> ever existed on this machine (`adb devices` reports only `emulator-5554` and `emulator-5556`), and
+> the same phantom serial is hardcoded in `_tools/wear_byok_drive.py`. The serial is removed from the
+> heading rather than guessed at. The four `p7-*.png` citations in the table below are withdrawn for
+> the same reason as A-016: the files are not in the tree. The `adb`/`apksigner`/`gradle` outputs
+> quoted in the same rows are unaffected — they are commands, not images.
 
 | Check | Result | Evidence |
 |---|---|---|

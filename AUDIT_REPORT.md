@@ -674,9 +674,37 @@ And the 8-second slow response resolves correctly once the wait is long enough:
   final queue: ok []
 ```
 
-**The pattern, and it is the fifth instance of the same one:** a measurement that returns "nothing"
+**The pattern, and it is the sixth instance of the same one:** a measurement that returns "nothing"
 and a real defect look identical. `run-as` on a release APK, `input text` with 4000 characters in one
-argument, BACK pressed to dismiss an IME, a screen dumped without asserting the foreground, and now a
-pipe masking an install failure — five different ways this session's harness produced a plausible
-wrong answer. The rule that catches all five: **before believing a measurement, prove the measurement
-works.**
+argument, BACK pressed to dismiss an IME, a screen dumped without asserting the foreground, a pipe
+masking an install failure, and — found last, by re-reading an old proof script — a certificate table
+that printed **nothing at all**:
+
+```
+########## C. signing certificates (all three) ##########
+app-fdroid-debug.apk         app-play-debug.apk           wear-debug.apk               wear-release.apk
+```
+
+Six blank columns, and the script carried on to section D. Cause: `_p2_device_proof.sh` never exported
+`JAVA_HOME`, and **`apksigner.bat` exits 0 when it cannot find Java**, so the failure was invisible to
+a script with no `set -e`. The section was reported here as if it had checked signatures; it had not.
+
+Re-measured with the environment set, and the script now prints `NO DIGEST — ... treat this section as
+UNVERIFIED` rather than a blank:
+
+| APK | SHA-256 of the signing certificate |
+|---|---|
+| `app-fdroid-debug.apk` | `41eb79427970604acbcfb14710454de77cbae99ea14f4d5febecc48180029bce` |
+| `app-play-debug.apk` | `41eb79427970604acbcfb14710454de77cbae99ea14f4d5febecc48180029bce` |
+| `wear-debug.apk` | `41eb79427970604acbcfb14710454de77cbae99ea14f4d5febecc48180029bce` |
+| `wear-release.apk` | `7188ce700b7407485e4a588cc1ef779fba4bd47c635338b05f61d5fc90aa56d7` |
+
+The three debug APKs share the Android Debug keystore; the release APK carries `hermes-release.jks`
+(`CN=Hermes Local`). That is the expected split, and it is the reason `install -r` of a release APK
+over a debug install fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE` — a finding already in this
+report, now with the digests behind it. What the Data Layer actually requires is that the **phone and
+the watch share an identity**, which holds for both pairs: debug phone ↔ debug watch, release phone ↔
+release watch.
+
+**The rule that catches all six: before believing a measurement, prove the measurement works — and
+prefer a check that fails loudly over one that can print nothing.**

@@ -42,14 +42,20 @@ class SkillSynthesizer(
 
         // A draft is a NEW skill. Overwriting an existing skill would silently destroy user-authored
         // content, so a name collision is refused instead of applied (never lose user data).
-        if (existingSkills.any { it.equals(draft.name, ignoreCase = true) }) {
-            DebugLog.w(TAG, "skill draft rejected: '${draft.name}' already exists")
+        //
+        // Both sides are normalised: `existingSkills` holds **file names** from `SkillManager` (with
+        // the `.md` suffix) while the draft carries a bare name, so the previous comparison asked
+        // whether "taken" equals "taken.md" — never true, and a synthesized draft with a colliding
+        // name went straight over the user's skill.
+        val draftName = draft.name.removeSuffix(".md")
+        if (existingSkills.any { it.removeSuffix(".md").equals(draftName, ignoreCase = true) }) {
+            DebugLog.w(TAG, "skill draft rejected: '$draftName' already exists")
             return null
         }
 
         return try {
             applier.apply(
-                target = AdaptationTarget(AdaptationEntry.STORE_SKILL, draft.name),
+                target = AdaptationTarget(AdaptationEntry.STORE_SKILL, draftName),
                 after = draft.toMarkdown(),
                 reason = "skill draft: ${draft.trigger.take(120)}",
                 sourceSessionId = sourceSessionId,

@@ -226,7 +226,8 @@ class ReflectionProtocolTest {
             override suspend fun isEnabled() = enabled
             override suspend fun currentDailyCap() = dailyCap
             override suspend fun underDailyCap(log: AdaptationLogDao, sinceMillis: Long): Boolean =
-                dailyCap > 0 && log.countSince(sinceMillis) < dailyCap
+                dailyCap > 0 &&
+                log.countAutopilotSince(sinceMillis, AdaptationEntry.STORE_ACTIVE_MEMORY) < dailyCap
         }
         return Harness(
             filesDir = filesDir,

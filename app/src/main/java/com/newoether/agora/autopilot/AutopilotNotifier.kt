@@ -28,7 +28,6 @@ import androidx.core.content.ContextCompat
 object AutopilotNotifier {
 
     const val CHANNEL_ID = "hermes_autopilot"
-    const val EXTRA_ADAPTATION_COUNT = "hermes.adaptation.count"
 
     /** HERMES INTEGRATION POINT: intent flag that opens Settings → Adaptation History on tap. */
     const val EXTRA_OPEN_ADAPTATION_HISTORY = "hermes.open.adaptation.history"
@@ -49,7 +48,6 @@ object AutopilotNotifier {
 
         val intent = Intent(context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            .putExtra(EXTRA_ADAPTATION_COUNT, count)
             .putExtra(EXTRA_OPEN_ADAPTATION_HISTORY, true)
         val pendingIntent = PendingIntent.getActivity(
             context,

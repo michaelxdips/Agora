@@ -9,6 +9,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.newoether.agora.AgoraApplication
 import com.newoether.agora.data.local.MessageContextTopology
+import com.newoether.agora.model.MessageStatus
 import com.newoether.agora.model.Participant
 import com.newoether.agora.util.DebugLog
 import kotlinx.coroutines.CancellationException
@@ -57,7 +58,18 @@ class ReflectionWorker(
                 settings = settings,
             )
 
-            val transcript = transcriptFor(container, conversationId)
+            // Phase 4 auto-rollback, given the caller it never had (audit A-008). A model answer the
+            // user asked again under the same parent is a rejection; each one counts at most once,
+            // ledger-backed, so a re-run cannot inflate the flags.
+            val topology = container.conversationRepository.getMessageTopologySnapshot(conversationId)
+            val breaker = CircuitBreaker(log, applier)
+            val rejections = rejectedAnswerIds(topology)
+            if (rejections.isNotEmpty()) {
+                val rolledBack = breaker.recordCorrections(conversationId, rejections)
+                DebugLog.d(TAG, "corrections=$rejections rolledBack=${rolledBack.size}")
+            }
+
+            val transcript = transcriptFor(container, conversationId, topology)
                 ?: return@withContext Result.success()
 
             val outcome = engine.run(
@@ -68,11 +80,40 @@ class ReflectionWorker(
             DebugLog.d(TAG, "reflection for $conversationId -> applied=${outcome.applied} " +
                 "skipped=${outcome.skippedReason}")
 
+            // Phase 5 Skills v1, given the caller it never had (audit A-009). `SkillSynthesizer` and
+            // `SkillCandidateDetector` had zero production callers, so "≥3 chained tool calls OR ≥2
+            // corrections → draft skill" only ever ran inside its own tests: the feature was shipped
+            // as code and never as behaviour. The signals are both readable from the same durable
+            // topology the trigger already loads.
+            val toolCalls = chainedToolCalls(topology)
+            if (SkillCandidateDetector.isCandidate(
+                    chainedToolCalls = toolCalls,
+                    userCorrections = rejections.size,
+                    succeeded = outcome.didApply,
+                )
+            ) {
+                val caller = ReflectionCaller(
+                    settings = container.settingsRepository,
+                    providers = container.providerRegistry,
+                )
+                val draftId = SkillSynthesizer(applier, log, settings).synthesize(
+                    transcript = transcript,
+                    existingSkills = container.skillManager.listFiles().map { it.name },
+                    reflect = caller::reflect,
+                    sourceSessionId = conversationId,
+                )
+                DebugLog.d(
+                    TAG,
+                    "skill candidate (${SkillCandidateDetector.reason(toolCalls, rejections.size)}) " +
+                        "-> draft=${draftId ?: "none"}",
+                )
+            }
+
             if (outcome.didApply) {
                 AutopilotNotifier.notifyMemoriesUpdated(applicationContext, outcome.applied)
             }
             // Phase 4 retention runs on the same cadence as reflection.
-            CircuitBreaker(log, applier).pruneRetention()
+            breaker.pruneRetention()
             Result.success()
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -92,21 +133,67 @@ class ReflectionWorker(
     private suspend fun transcriptFor(
         container: com.newoether.agora.di.AppContainer,
         conversationId: String,
+        topology: List<MessageContextTopology>,
     ): String? {
-        val topology: List<MessageContextTopology> =
-            container.conversationRepository.getMessageTopologySnapshot(conversationId)
         val conversational = topology.filter {
             it.participant == Participant.USER || it.participant == Participant.MODEL
         }
         if (conversational.size < MESSAGES_PER_REFLECTION) return null
 
         val recent = conversational.takeLast(TRANSCRIPT_MESSAGE_LIMIT)
-        val texts = container.conversationRepository.getMessagesByIds(recent.map { it.id })
-            .mapNotNull { entity -> entity.text.takeIf { it.isNotBlank() } }
-        return texts.joinToString("\n\n").ifBlank { null }
+        val requested = recent.map { it.id }
+        val texts = container.conversationRepository.getMessagesByIds(requested)
+            // `getMessagesByIds` has no ORDER BY, so its result order is whatever the query planner
+            // returns — and a transcript in the wrong order reads as a different conversation to the
+            // extraction prompt. Re-ordered here, in Hermes-owned code, rather than by editing the
+            // upstream DAO (N8: no upstream touchpoint for a fix this small).
+            .associateBy { it.id }
+        return requested.mapNotNull { id -> texts[id]?.text?.takeIf { it.isNotBlank() } }
+            .joinToString("\n\n")
+            .ifBlank { null }
     }
 
     companion object {
+        /**
+         * The ids of model answers the user rejected by asking again under the same parent.
+         *
+         * Regenerating an answer (the `regenerate` action in the chat UI) creates a second MODEL row with
+         * the same `parentId` as the first. That is a durable, upstream-visible signal of "this answer was
+         * not what I wanted", and it is what gives the circuit breaker a correction to count. A sibling is
+         * attributed to the first answer, because that is the one the user rejected.
+         *
+         * Pure and static so it is unit-testable on the JVM without Room or WorkManager.
+         */
+        internal fun rejectedAnswerIds(topology: List<MessageContextTopology>): List<String> =
+            topology.filter { it.participant == Participant.MODEL }
+                .groupBy { it.parentId }
+                .filterKeys { it != null }
+                .values
+                .filter { siblings -> siblings.size > 1 }
+                .mapNotNull { siblings -> siblings.minByOrNull { it.timestamp }?.id }
+
+        /**
+         * The longest run of consecutive tool-calling rows in the session.
+         *
+         * A tool call is durable: Agora stores the answer row as `MessageStatus.TOOL_CALLING` while the
+         * model is chaining tools, so "the agent did real multi-step work here" is readable from the same
+         * topology `SkillCandidateDetector` already expects — no upstream counter to add. The **longest
+         * run**, not the total, because four isolated single calls are not a procedure; three in a row are.
+         */
+        internal fun chainedToolCalls(topology: List<MessageContextTopology>): Int {
+            var longest = 0
+            var current = 0
+            topology.sortedWith(compareBy({ it.timestamp }, { it.id })).forEach { row ->
+                if (row.participant == Participant.MODEL && row.status == MessageStatus.TOOL_CALLING) {
+                    current += 1
+                    if (current > longest) longest = current
+                } else {
+                    current = 0
+                }
+            }
+            return longest
+        }
+
         private const val TAG = "AutopilotWorker"
         private const val KEY_CONVERSATION_ID = "conversationId"
         private const val UNIQUE_WORK_NAME = "hermes_autopilot_reflection"

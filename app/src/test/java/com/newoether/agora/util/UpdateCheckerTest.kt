@@ -9,6 +9,9 @@ import org.junit.Test
 /**
  * The update check, proved against its real inputs.
  *
+ * HERMES INTEGRATION POINT: this test covers an upstream file the fork modifies — see
+ * `UPSTREAM_TOUCHPOINTS.md` entry #12 for the budget and the reason.
+ *
  * Before this file there was **no test at all** for the version comparison or the repository the check
  * queries, which is how the fork ended up advertising a fix it can never receive: see
  * [the fork must not offer the upstream project's releases].

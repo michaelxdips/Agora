@@ -191,6 +191,37 @@ class WearChatClientTest {
     }
 
     @Test
+    fun aNullContentBecomesAFailureNotTheWordNull() {
+        // Found on the device: with `content: null` the watch displayed the literal string "null".
+        // `JsonNull` IS a `JsonPrimitive` in kotlinx.serialization, so the `as? JsonPrimitive` cast
+        // succeeded, `.content` returned the text "null", and `takeIf { it.isNotBlank() }` passed
+        // because "null" is not blank. The user asked a question and was answered with the word
+        // "null" — a wrong answer, which is worse than an honest failure.
+        serve(200, """{"choices":[{"message":{"role":"assistant","content":null}}]}""")
+        val result = clientForCurrentPort().ask("q", "")
+
+        assertTrue("a null content must be a failure, got: ${result.getOrNull()}", result.isFailure)
+        assertEquals("unreadable response", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun aMissingContentBecomesAFailure() {
+        serve(200, """{"choices":[{"message":{"role":"assistant"}}]}""")
+        assertTrue(clientForCurrentPort().ask("q", "").isFailure)
+    }
+
+    @Test
+    fun anExplicitJsonNullIsNeverTreatedAsText() {
+        // The general rule behind the two cases above: no JSON null anywhere in the response may
+        // become the string "null".
+        serve(200, """{"choices":[{"message":{"content":null},"text":null}]}""")
+        val result = clientForCurrentPort().ask("q", "")
+
+        assertTrue(result.isFailure)
+        assertFalse("the word null reached the caller", result.getOrNull() == "null")
+    }
+
+    @Test
     fun anEmptyChoicesArrayBecomesAFailure() {
         serve(200, """{"choices":[]}""")
         assertTrue(clientForCurrentPort().ask("q", "").isFailure)

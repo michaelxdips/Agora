@@ -230,7 +230,7 @@ fun SettingsAboutPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                             modifier = Modifier.size(18.dp),
                         )
                     },
-                    modifier = Modifier.clickable { openUrl("https://github.com/newo-ether/Agora") }
+                    modifier = Modifier.clickable { openUrl("https://github.com/michaelxdips/Agora") }
                 )
             }, {
                 SettingsItem(
@@ -243,7 +243,7 @@ fun SettingsAboutPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                             modifier = Modifier.size(18.dp),
                         )
                     },
-                    modifier = Modifier.clickable { openUrl("https://github.com/newo-ether/Agora/issues") }
+                    modifier = Modifier.clickable { openUrl("https://github.com/michaelxdips/Agora/issues") }
                 )
             }, {
                 SettingsItem(
@@ -256,7 +256,7 @@ fun SettingsAboutPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                             modifier = Modifier.size(18.dp),
                         )
                     },
-                    modifier = Modifier.clickable { openUrl("https://github.com/newo-ether/Agora/pulls") }
+                    modifier = Modifier.clickable { openUrl("https://github.com/michaelxdips/Agora/pulls") }
                 )
             }, {
                 SettingsItem(
@@ -269,7 +269,7 @@ fun SettingsAboutPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                             modifier = Modifier.size(18.dp),
                         )
                     },
-                    modifier = Modifier.clickable { openUrl("https://github.com/newo-ether/Agora/blob/master/PRIVACY.md") }
+                    modifier = Modifier.clickable { openUrl("https://github.com/michaelxdips/Agora/blob/main/PRIVACY.md") }
                 )
             }))
 

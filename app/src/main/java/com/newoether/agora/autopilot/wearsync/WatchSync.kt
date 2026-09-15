@@ -1,7 +1,6 @@
 package com.newoether.agora.autopilot.wearsync
 
 import android.content.Context
-import com.google.android.gms.wearable.CapabilityClient
 import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
 import com.newoether.agora.data.MemoryManager
@@ -44,8 +43,16 @@ object WatchSync {
     /** The last transfer result, for the setup screen. Null until the first attempt this process. */
     val lastPushOutcome = MutableStateFlow<PushOutcome?>(null)
 
-    /** What a transfer attempt did. [ok] is false only when nothing reached the watch. */
-    data class PushOutcome(val ok: Boolean, val message: String)
+    /**
+     * What a transfer attempt did.
+     *
+     * [reason] is an enum so the screen can resolve a translatable resource and the wire ack can carry
+     * text — see [PushReason] for why those have to differ.
+     */
+    data class PushOutcome(val ok: Boolean, val reason: PushReason) {
+        /** The sentence for the watch: the phone's resources are not reachable from the watch. */
+        val wireText: String get() = reason.wireText
+    }
 
     /**
      * Pushes the credential payload.
@@ -125,7 +132,7 @@ object WatchSync {
 
     /**
      * One full transfer: resolve the key the user already configured, push config, push memory, and
-     * return a sentence that is true of what happened.
+     * return what happened.
      *
      * Shared by the settings screen's button and by [PairingListenerService] — the watch's request must
      * run the *same* code, or the two paths could disagree about what "sent" means.
@@ -149,17 +156,17 @@ object WatchSync {
         }
         val outcome = when {
             baseUrl.isBlank() || modelId.isBlank() ->
-                PushOutcome(false, NO_ENDPOINT)
-            key.isBlank() -> PushOutcome(false, NO_KEY)
+                PushOutcome(false, PushReason.NO_ENDPOINT)
+            key.isBlank() -> PushOutcome(false, PushReason.NO_KEY)
             else -> {
                 val pushed = withContext(Dispatchers.IO) {
                     pushConfig(context, baseUrl, key, modelId)
                 }
                 if (!pushed) {
-                    PushOutcome(false, PUSH_FAILED)
+                    PushOutcome(false, PushReason.PUSH_FAILED)
                 } else {
                     val memory = withContext(Dispatchers.IO) { pushMemorySnapshot(context) }
-                    PushOutcome(true, if (memory) PUSHED else CONFIG_ONLY)
+                    PushOutcome(true, if (memory) PushReason.PUSHED else PushReason.CONFIG_ONLY)
                 }
             }
         }
@@ -167,15 +174,9 @@ object WatchSync {
         return outcome
     }
 
-    internal const val NO_ENDPOINT = "No base URL or model selected. Configure a provider first."
-    internal const val NO_KEY = "No API key configured for the selected model. Set it in Providers first."
-    internal const val PUSH_FAILED = "No watch reachable — open the app on the watch and try again."
-    internal const val CONFIG_ONLY =
-        "Config sent; the memory snapshot will follow when the watch is reachable."
-    internal const val PUSHED = "Sent. The watch is standalone now."
-
-    /** Human sentence for a capability/node query failure, used by the pairing listener. */
-    internal const val UNREACHABLE = "The phone could not reach the watch to send the config."
+    /** Sentence for a capability/node query failure, used by the pairing listener. */
+    internal const val UNREACHABLE =
+        "The phone could not reach the watch to send the config."
 
     private const val TAG = "AutopilotWearSync"
 }

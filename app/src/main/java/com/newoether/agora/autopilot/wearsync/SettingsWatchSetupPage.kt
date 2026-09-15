@@ -55,7 +55,7 @@ fun SettingsWatchSetupPage(
     var providers by remember { mutableStateOf<ProviderRegistry?>(null) }
     var baseUrl by remember { mutableStateOf("") }
     var model by remember { mutableStateOf("") }
-    var status by remember { mutableStateOf("") }
+    var status by remember { mutableStateOf<String?>(null) }
     var watchCount by remember { mutableStateOf(0) }
 
     LaunchedEffect(Unit) {
@@ -76,7 +76,7 @@ fun SettingsWatchSetupPage(
         watchCount = withContext(Dispatchers.IO) { WatchSync.connectedWatchCount(context) }
         // A pairing request that arrived while this page was closed is reported here instead of
         // being lost — the phone is the one that knows whether the push actually worked.
-        WatchSync.lastPushOutcome.value?.let { status = it.message }
+        WatchSync.lastPushOutcome.value?.let { status = context.getString(it.reason.stringRes) }
     }
 
     CollapsingSettingsLazyScaffold(
@@ -115,22 +115,26 @@ fun SettingsWatchSetupPage(
                         val settingsRepo = settings ?: return@Button
                         val registry = providers ?: return@Button
                         scope.launch {
-                            status = "…"
-                            status = withContext(Dispatchers.IO) {
+                            status = null
+                            val outcome = withContext(Dispatchers.IO) {
                                 WatchSync.sendConfigToWatch(context, settingsRepo, registry, baseUrl, model)
-                                    .message
                             }
+                            // Resolved from resources here, on the phone: the enum is the source of
+                            // truth and the sentence stays translatable.
+                            status = context.getString(outcome.reason.stringRes)
                             watchCount = withContext(Dispatchers.IO) { WatchSync.connectedWatchCount(context) }
                         }
                     },
                     modifier = Modifier.padding(top = 12.dp),
                 ) { Text(stringResource(R.string.hermes_watch_send)) }
 
-                Text(
-                    text = status,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
+                status?.let { message ->
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
             }
         }
     }

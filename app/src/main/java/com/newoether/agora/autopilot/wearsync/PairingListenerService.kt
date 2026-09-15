@@ -29,6 +29,10 @@ import kotlinx.coroutines.tasks.await
  *    authenticate, and the phone does not accept a credential *from* the watch;
  *  * it never puts the key, the base URL or the ack body into a log. Only exception class names.
  *
+ * The ack text comes from [PushReason.wireText], not from `strings.xml`: the watch has no access to the
+ * phone's resources, so the sentence has to travel as text. The *screen* resolves the same reason
+ * through its resource, so there is one decision and two renderings rather than two copies.
+ *
  * The `hermes_phone` capability the watch looks for is declared in `res/values/wear.xml` of both
  * flavors, not added here at runtime: a capability that only exists after the first request cannot be
  * used to find the phone for that first request.
@@ -52,7 +56,7 @@ class PairingListenerService : WearableListenerService() {
             val ack = runCatching { handle(application) }
                 .getOrElse { error ->
                     DebugLog.w(TAG, "pairing failed: ${error.javaClass.simpleName}")
-                    WatchSync.UNREACHABLE
+                    UNREACHABLE
                 }
             reply(event.sourceNodeId, ack)
         }
@@ -60,7 +64,7 @@ class PairingListenerService : WearableListenerService() {
 
     private suspend fun handle(application: AgoraApplication): String {
         val container = application.awaitContainer()
-            ?: return STARTING_UP
+            ?: return PushReason.STARTING_UP.wireText
         val settings = container.settingsRepository
         val registry = container.providerRegistry
         val modelId = settings.selectedModel.value.orEmpty()
@@ -78,7 +82,7 @@ class PairingListenerService : WearableListenerService() {
             model = modelId,
         )
         DebugLog.d(TAG, "pairing push ok=${outcome.ok}")
-        return outcome.message
+        return outcome.wireText
     }
 
     private suspend fun reply(nodeId: String, ack: String) {
@@ -94,7 +98,13 @@ class PairingListenerService : WearableListenerService() {
     companion object {
         const val REQUEST_PATH = "/hermes/pair"
         const val ACK_PATH = "/hermes/pair/ack"
-        const val STARTING_UP = "The phone is still starting up. Try again in a moment."
+
+        /**
+         * A Data Layer failure that is not one of [PushReason]'s outcomes: the push itself never got a
+         * chance to run. Kept as text because it is wire-only — the phone screen never shows it.
+         */
+        const val UNREACHABLE = "The phone could not reach the watch to send the config."
+
         private const val TAG = "AutopilotWearPairing"
     }
 }

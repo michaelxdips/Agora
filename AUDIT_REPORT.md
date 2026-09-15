@@ -573,8 +573,8 @@ Other attacks, all survived:
 | No config at all | setup screen, no crash |
 | Corrupted `hermes_wear_config.bin` | back to setup, no crash |
 | Empty / garbage `hermes_wear_queue.json` | queue reads as 0, no crash |
-| API key canary in the config file | not present in plaintext (encrypted) |
-| API key canary in logcat, before and after a real request | **0 occurrences** |
+| API key canary in the config file | not present in plaintext (encrypted) — **re-measured, see the correction below** |
+| API key canary in logcat, before and after a real request | **0 occurrences** — re-measured and still 0 |
 
 ## 4. Two harness traps found and disproved (recorded so nobody chases them)
 
@@ -625,3 +625,58 @@ The recommended-feature list (§9) was **not** implemented. In priority order, s
 The time in this pass went to proving the update feature and the watch's failure paths, because those
 are defects in shipped behaviour rather than absent features. That was the right order, and the
 remaining items are honestly listed as not done.
+
+### Correction (Pass 6 re-verification) — two of these rows were measured through a broken read
+
+The audit above was run with `adb install ... | tail -1 && python _audit_device.py`. In a pipeline,
+`$?` is the exit status of the **last** command, so the `&&` saw `tail`'s success even when the install
+had failed. The install did fail (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`: the release APK was already
+installed and carries a different certificate), the debug APK was therefore never installed, and
+`run-as` returned nothing for every file read — because a release APK is not debuggable.
+
+Two rows were affected, and one of them was reported as a **pass**:
+
+| Row | What the audit said | What it actually measured |
+|---|---|---|
+| `canary in the config file` | `encrypted (0 bytes, no plaintext)` | a **failed read**. Zero bytes is not evidence of encryption; it is evidence of no data |
+| `queue 0->0` on the held-question cases | nothing was wrong | also a failed read |
+
+Re-measured with the debug APK installed and the read proven first
+(`evidence/audit_canary_recheck.py`, `evidence/audit_open_questions.py`):
+
+```
+  files after a save:
+  -rw------- 1 u0_a123 u0_a123 172 15:42 hermes_wear_config.bin
+  config file size: 173 bytes
+  canary in the file: False
+  file looks like plaintext JSON: False
+  first 24 bytes: b'\xed<H\x138\xee\x93/r\x9e[\x12\xa2\xb8\x05P/X\xa8\x18$:\xa7V'
+  canary in the whole log buffer after a real request: False
+```
+
+So the conclusion survives — the key is not readable in the file, the file is not plaintext JSON, and
+the key never reaches logcat — but it now rests on a measurement that can be trusted, and the earlier
+"0 bytes" is corrected rather than left standing.
+
+**The held-question data-loss scare was also the read failing.** With the read proven, an offline
+question is on disk:
+
+```
+  queue after: ok [{'id': 1, 'text': 'held-proof-alpha', 'createdAt': 1789461343789}]
+  screen: ['Hermes X', 'Offline — held', 'Type a question', 'Send']
+```
+
+And the 8-second slow response resolves correctly once the wait is long enough:
+
+```
+  t+10s  queue=ok:1  answer=False  status=[]
+  t+15s  queue=ok:0  answer=True   status=[]
+  final queue: ok []
+```
+
+**The pattern, and it is the fifth instance of the same one:** a measurement that returns "nothing"
+and a real defect look identical. `run-as` on a release APK, `input text` with 4000 characters in one
+argument, BACK pressed to dismiss an IME, a screen dumped without asserting the foreground, and now a
+pipe masking an install failure — five different ways this session's harness produced a plausible
+wrong answer. The rule that catches all five: **before believing a measurement, prove the measurement
+works.**

@@ -607,8 +607,8 @@ wire ack uses `reason.wireText`.
 | Watch PSS | **27,255 KB** | `dumpsys meminfo` |
 | Phone cold start | **5,279 ms** median (4,829–7,523, n=3) | `am start -W` |
 | Phone PSS | **246,226 KB** | `dumpsys meminfo` |
-| API-key canary in logcat, before and after a real request | **0 occurrences** | `logcat -d` grep |
-| API-key canary in `hermes_wear_config.bin` | not present in plaintext | `run-as cat` grep |
+| API-key canary in logcat, before and after a real request | **0 occurrences** | `logcat -d` grep, with the debug APK installed so the read works — see the Pass-6 correction in `AUDIT_REPORT.md` |
+| API-key canary in `hermes_wear_config.bin` | not present in plaintext; file is 173 bytes of ciphertext | `run-as cat` on the debug APK, after proving the read returns the file |
 
 The 60 s `readTimeout` is **not** exercised (the mock's slow mode is 8 s; measuring the timeout would
 cost 60 s per run). Recorded as not measured rather than claimed.

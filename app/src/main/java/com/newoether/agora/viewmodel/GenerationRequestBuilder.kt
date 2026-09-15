@@ -22,7 +22,6 @@ import com.newoether.agora.model.ModelId
 import com.newoether.agora.model.ContextBudget
 import com.newoether.agora.model.OpenAiServiceTiers
 import com.newoether.agora.model.apiModelName
-import com.newoether.agora.autopilot.PersonaStore
 import com.newoether.agora.util.Constants
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -574,11 +573,12 @@ class GenerationRequestBuilder(
             val includeActiveMemory = settings.accessActiveMemory.value
             val includeSkillCatalog = settings.accessSkills.value
             val activeMemoryDeferred = async(Dispatchers.IO) {
-                // HERMES INTEGRATION POINT: P5 isolation — persona blocks live in active memory
-                // (that is the injection channel) but must never reach the reflection/synthesis
-                // request path. Stripping here, at the single place active memory enters a request,
-                // covers both callers.
-                if (includeActiveMemory) PersonaStore.stripAll(memoryManager.getActiveMemory()) else ""
+                // HERMES INTEGRATION POINT: persona blocks live in active memory — that IS the
+                // injection channel, so they belong in this prompt. Reflection/synthesis never read
+                // active memory (ReflectionCaller builds its own prompt with systemPrompt = null and
+                // strips the transcript), so isolation is enforced there, not by removing the
+                // persona from the one prompt it exists to shape.
+                if (includeActiveMemory) memoryManager.getActiveMemory() else ""
             }
             val skillCatalogDeferred = async {
                 if (includeSkillCatalog) skillManager.catalog() else ""

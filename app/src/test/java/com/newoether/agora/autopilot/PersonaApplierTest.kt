@@ -87,7 +87,11 @@ class PersonaApplierTest {
         )
 
         val entry = log.rows.single()
-        assertEquals(AdaptationEntry.STORE_MEMORY, entry.store)
+        // Must be the active-memory store, not STORE_MEMORY: `MemoryManager` resolves every
+        // STORE_MEMORY name under `memory_db/`, so journaling the singleton as a memory file sent
+        // Undo at a different file — silently failing, or overwriting the user's own
+        // `memory_db/active_memory.md` with a persona snapshot.
+        assertEquals(AdaptationEntry.STORE_ACTIVE_MEMORY, entry.store)
         assertEquals("active_memory.md", entry.targetFile)
         assertEquals(original, entry.beforeSnapshot)
         assertTrue(entry.afterSnapshot!!.contains("caveman rules"))

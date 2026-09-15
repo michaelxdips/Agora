@@ -16,6 +16,32 @@ class PersonaStoreTest {
 
     private val body = "Respond terse. All technical substance stay."
 
+
+    @Test
+    fun `a marker mentioned inside prose is not treated as a block`() {
+        // A user's own note about the marker format used to be indistinguishable from a real block:
+        // `removeBlock` matched the raw substring and, finding no END, cut everything from the mention
+        // to the end of the file — the user's memory, deleted by the startup reconcile (audit A-040).
+        val text = "- user lives in Pemalang\n" +
+            "note: the persona block is wrapped in <!-- HERMES:PERSONA:CAVEMAN:START --> markers\n" +
+            "- user writes Kotlin\n"
+
+        val cleaned = PersonaStore.removeBlock(text, PersonaStore.ID_CAVEMAN)
+
+        assertEquals(text, cleaned)
+        assertTrue(PersonaStore.blocks(text).isEmpty())
+    }
+
+    @Test
+    fun `a real block on its own lines is still removed`() {
+        val text = "- user lives in Pemalang\n\n" +
+            PersonaStore.block(PersonaStore.ID_CAVEMAN, "Respond terse.") + "\n"
+
+        val cleaned = PersonaStore.removeBlock(text, PersonaStore.ID_CAVEMAN)
+
+        assertEquals("- user lives in Pemalang\n", cleaned)
+    }
+
     private fun context(): android.content.Context {
         val dir = java.nio.file.Files.createTempDirectory("persona-test").toFile()
         val context = io.mockk.mockk<android.content.Context>(relaxed = true)

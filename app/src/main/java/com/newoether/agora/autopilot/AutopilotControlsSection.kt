@@ -30,7 +30,12 @@ fun AutopilotControlsSection() {
     val context = LocalContext.current.applicationContext
     val settings = remember(context) { AutopilotSettings(context) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
-    val enabled by settings.enabled.collectAsState(initial = true)
+    // Null until the stored value is known. `collectAsState(initial = true)` made the effect below run
+    // once with a *guess* of ON while the real value was OFF: the applier then wrote the persona blocks
+    // into active memory and stripped them again in the next pass, spending journal rows and a daily-cap
+    // slot on nothing — and a process death inside that window left a persona active with the autopilot
+    // switched off (audit A-025).
+    val enabled by settings.enabled.collectAsState(initial = null)
     val cap by settings.dailyCap.collectAsState(initial = AutopilotSettings.DEFAULT_DAILY_CAP)
     val repo = remember(context) { PersonaRepository(context) }
     val applier = remember(context) {
@@ -48,13 +53,21 @@ fun AutopilotControlsSection() {
      * before this, toggling off left all four markers in `active_memory.md`.
      */
     LaunchedEffect(enabled) {
+        val master = enabled ?: return@LaunchedEffect   // no guess: see the note on `collectAsState`
         val bodies = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { repo.bodies() }
-        applier.reconcile(
-            masterEnabled = enabled,
-            enabled = PersonaSettings(context).enabledMap(),
-            bodies = bodies,
-            reason = if (enabled) "autopilot enabled" else "autopilot disabled — personas stripped",
-        )
+        // A rejected write (disk full, revoked permission) must not take the settings screen down with
+        // it: `reconcile` rethrows on IO failure, and an uncaught throw inside a LaunchedEffect is an
+        // app crash on the one screen where the user could have fixed it (audit A-026).
+        runCatching {
+            applier.reconcile(
+                masterEnabled = master,
+                enabled = PersonaSettings(context).enabledMap(),
+                bodies = bodies,
+                reason = if (master) "autopilot enabled" else "autopilot disabled — personas stripped",
+            )
+        }.onFailure { error ->
+            com.newoether.agora.util.DebugLog.w("AutopilotPersonas", "persist failed: ${error.javaClass.simpleName}")
+        }
     }
 
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
@@ -71,7 +84,7 @@ fun AutopilotControlsSection() {
                 )
             }
             Switch(
-                checked = enabled,
+                checked = enabled == true,
                 onCheckedChange = { value -> scope.launch { settings.setEnabled(value) } },
             )
         }

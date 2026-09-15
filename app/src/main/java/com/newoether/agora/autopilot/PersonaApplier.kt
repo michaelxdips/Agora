@@ -95,7 +95,7 @@ class PersonaApplier(
         val id = log.insert(
             AdaptationEntry(
                 timestamp = timestamp,
-                store = AdaptationEntry.STORE_MEMORY,
+                store = AdaptationEntry.STORE_ACTIVE_MEMORY,
                 targetFile = activeMemoryName,
                 beforeSnapshot = current,
                 afterSnapshot = desired,

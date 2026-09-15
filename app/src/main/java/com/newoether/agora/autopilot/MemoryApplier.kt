@@ -8,10 +8,10 @@ import kotlinx.coroutines.CancellationException
 /**
  * One addressable file inside an Agora-owned store.
  *
- * v1 scope: **saved** memory files (`memory_db/<name>.md`) and skill files (`skill_db/<name>.md`). The
- * singleton `active_memory.md` is deliberately excluded — Agora's `MemoryManager` exposes no
- * create/delete primitive for it, so adapting it would require a second, parallel write path
- * (prohibited by N4: no custom formats, no parallel pipelines).
+ * v1 scope: **saved** memory files (`memory_db/<name>.md`), skill files (`skill_db/<name>.md`), and
+ * the singleton active-memory file ([AdaptationEntry.STORE_ACTIVE_MEMORY]). The singleton needs its
+ * own store id because `MemoryManager` resolves every other name under `memory_db/` — see the
+ * constant's KDoc for the data loss that caused.
  *
  * Maintainer: Michael — this file belongs to the Hermes fork of Agora (see NOTICE.md).
  */
@@ -20,7 +20,11 @@ data class AdaptationTarget(
     val fileName: String,
 ) {
     init {
-        require(store == AdaptationEntry.STORE_MEMORY || store == AdaptationEntry.STORE_SKILL)
+        require(
+            store == AdaptationEntry.STORE_MEMORY ||
+                store == AdaptationEntry.STORE_SKILL ||
+                store == AdaptationEntry.STORE_ACTIVE_MEMORY
+        )
         require(fileName.isNotBlank())
     }
 }
@@ -118,13 +122,35 @@ class MemoryApplier(
 
     // ── store adapters ──────────────────────────────────────────────────────
 
-    private fun read(target: AdaptationTarget): String = when (target.store) {
+    /**
+     * The store a target really lives in.
+     *
+     * Rows written by the shipped persona code used `store = STORE_MEMORY, targetFile =
+     * "active_memory.md"`, which resolves under `memory_db/`. Undoing one of those rows would hit the
+     * wrong file, so the legacy pair is mapped to the active-memory store here rather than left to
+     * data loss. New rows carry [AdaptationEntry.STORE_ACTIVE_MEMORY] directly.
+     */
+    private fun effectiveStore(store: String, fileName: String): String =
+        if (store == AdaptationEntry.STORE_MEMORY && fileName == ACTIVE_MEMORY_NAME) {
+            AdaptationEntry.STORE_ACTIVE_MEMORY
+        } else {
+            store
+        }
+
+    private fun read(target: AdaptationTarget): String = when (
+        effectiveStore(target.store, target.fileName)
+    ) {
+        AdaptationEntry.STORE_ACTIVE_MEMORY -> memoryManager.getActiveMemory()
         AdaptationEntry.STORE_MEMORY -> memoryManager.readFile(target.fileName)
         else -> skillManager.readFile(target.fileName)
     }
 
     private fun write(target: AdaptationTarget, content: String, existedBefore: Boolean) {
-        when (target.store) {
+        when (effectiveStore(target.store, target.fileName)) {
+            // The active-memory file is a singleton with no create/delete primitive upstream, and
+            // `getActiveMemory()` reports "" for a missing file — so an empty write is the exact
+            // inverse of "there was nothing here".
+            AdaptationEntry.STORE_ACTIVE_MEMORY -> memoryManager.updateActiveMemory(content)
             AdaptationEntry.STORE_MEMORY -> if (existedBefore) {
                 memoryManager.editFile(name = target.fileName, content = content)
             } else {
@@ -139,7 +165,10 @@ class MemoryApplier(
     }
 
     private fun delete(target: AdaptationTarget) {
-        when (target.store) {
+        when (effectiveStore(target.store, target.fileName)) {
+            // No delete primitive for the singleton: clearing it is the closest exact inverse, and
+            // `getActiveMemory()` cannot tell an empty file from an absent one.
+            AdaptationEntry.STORE_ACTIVE_MEMORY -> memoryManager.updateActiveMemory("")
             AdaptationEntry.STORE_MEMORY -> memoryManager.deleteFile(target.fileName)
             else -> skillManager.deleteFile(target.fileName)
         }
@@ -147,5 +176,8 @@ class MemoryApplier(
 
     private companion object {
         const val TAG = "AutopilotApplier"
+
+        /** The singleton active-memory file name, as Agora's own Memory UI shows it. */
+        const val ACTIVE_MEMORY_NAME = "active_memory.md"
     }
 }

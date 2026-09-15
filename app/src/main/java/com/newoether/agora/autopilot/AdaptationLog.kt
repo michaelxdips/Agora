@@ -9,7 +9,6 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import kotlinx.coroutines.flow.Flow
 
 /**
  * Autopilot's own Room database.
@@ -23,7 +22,7 @@ import kotlinx.coroutines.flow.Flow
 data class AdaptationEntry(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     val timestamp: Long,
-    /** Which Agora store owns [targetFile]: [STORE_MEMORY] or [STORE_SKILL]. */
+    /** Which Agora store owns [targetFile]: [STORE_MEMORY], [STORE_SKILL] or [STORE_ACTIVE_MEMORY]. */
     val store: String,
     /** File name inside the store (e.g. `user-preferences.md`). */
     val targetFile: String,
@@ -37,7 +36,7 @@ data class AdaptationEntry(
     val feedbackFlags: Int = 0,
 ) {
     init {
-        require(store == STORE_MEMORY || store == STORE_SKILL)
+        require(store == STORE_MEMORY || store == STORE_SKILL || store == STORE_ACTIVE_MEMORY)
         require(status in ALL_STATUSES)
         require(feedbackFlags >= 0)
         require(beforeSnapshot != afterSnapshot) { "adaptation did not change $targetFile" }
@@ -46,6 +45,18 @@ data class AdaptationEntry(
     companion object {
         const val STORE_MEMORY = "memory"
         const val STORE_SKILL = "skill"
+
+        /**
+         * The singleton `files/active_memory.md`, which Agora's own Memory UI shows as a file.
+         *
+         * It gets its own store id because it does **not** live under `memory_db/`: `MemoryManager`
+         * resolves `memory_db/<name>.md` for every other name, so journaling a persona write as
+         * [STORE_MEMORY] with `targetFile = "active_memory.md"` made Undo resolve to a *different*
+         * file — it either failed silently (the file did not exist) or overwrote the user's own
+         * `memory_db/active_memory.md` with a persona snapshot. Persona writes are the only writer of
+         * this store, and [MemoryApplier] routes it through `getActiveMemory`/`updateActiveMemory`.
+         */
+        const val STORE_ACTIVE_MEMORY = "active_memory"
 
         const val STATUS_APPLIED = "applied"
         const val STATUS_AUTO_ROLLED_BACK = "auto_rolled_back"
@@ -86,9 +97,6 @@ interface AdaptationLogDao {
     @Query("SELECT * FROM adaptation_log ORDER BY timestamp DESC, id DESC")
     suspend fun all(): List<AdaptationEntry>
 
-    @Query("SELECT * FROM adaptation_log ORDER BY timestamp DESC, id DESC")
-    fun observe(): Flow<List<AdaptationEntry>>
-
     @Query("UPDATE adaptation_log SET status = :status WHERE id = :id")
     suspend fun updateStatus(id: Long, status: String): Int
 
@@ -103,6 +111,17 @@ interface AdaptationLogDao {
 
     @Query("SELECT COUNT(*) FROM adaptation_log WHERE timestamp >= :since")
     suspend fun countSince(since: Long): Int
+
+    /**
+     * Adaptations the **autopilot itself** produced today, which is what the daily cap limits.
+     *
+     * Persona toggles live in this table too, and they are the user's own action, not the autopilot's
+     * autonomous work. Counting them meant five persona flips spent the whole day's budget and stopped
+     * reflection until midnight — the cap punished the user for using the UI. The persona channel has
+     * its own store id, so the exclusion is exact rather than a guess.
+     */
+    @Query("SELECT COUNT(*) FROM adaptation_log WHERE timestamp >= :since AND store != :excludedStore")
+    suspend fun countAutopilotSince(since: Long, excludedStore: String): Int
 
     /** Retention (Phase 4): the ids to drop once a file exceeds its version budget. */
     @Query(

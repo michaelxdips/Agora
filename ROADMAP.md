@@ -21,7 +21,7 @@ evidence table for each phase.
 
 ## Phase 1 — Fork Hygiene, Rebrand, Sync Automation
 - [x] `applicationId` → `com.hermes.app` (touchpoint #1)
-- [x] App name "Hermes" + adaptive icon via `app/src/fdroid/res` overlay (no upstream edits)
+- [x] App name "Hermes X" (Phase 12 rename) + adaptive icon via `app/src/fdroid/res` overlay (no upstream edits)
 - [x] Release keystore wired through `local.properties`; `assembleFdroidRelease` signs
 - [x] `upstream-sync` + `contract-change` labels exist on the fork (N14)
 - [x] Local sync dry-run clean (`scripts/upstream_sync.sh`)

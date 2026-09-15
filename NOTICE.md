@@ -5,8 +5,15 @@ This repository is a **fork** of [Agora](https://github.com/newo-ether/Agora),
 
 * Upstream source: <https://github.com/newo-ether/Agora>
 * Upstream licence text: `LICENSE` (unmodified, see the file itself)
-* Fork owner: Michael (`michaelxdips`) — local rebrand to "Hermes" plus the autopilot feature set
-  described in `ROADMAP.md`.
+* Fork owner: **Michael** (`michaelxdips`) — the fork's maintainer. The product is distributed under
+  the display name **Hermes X**; "Hermes X" is a name, not a licence claim, and upstream Agora remains
+  the upstream authors' work. The autopilot feature set is described in `ROADMAP.md`, and the watch
+  module in `STATUS.md` (Phase 7 + Phase 12).
+* Fork source: <https://github.com/michaelxdips/Agora>
+
+The maintainer is surfaced in the product itself, not only here: `HermesBuildInfo` (phone) and
+`WearBuildInfo` (watch) are the single source of the display name and the maintainer, and both are
+shown on screen — Settings → About on the phone, and the Debug panel on the watch.
 
 Bundled third-party components keep their own licences, unchanged from upstream:
 `thirdparty/llama.cpp`, `thirdparty/proot`, `thirdparty/talloc` (git submodules — see

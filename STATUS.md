@@ -410,6 +410,16 @@ Two setup paths, owner-mandated, both landing in the same encrypted store:
    (`com.newoether.agora.autopilot.wearsync.WatchSync`, driven from Settings → *Watch setup*).
 2. **BYOK on the watch** — type base URL / API key / model on the watch itself. No phone involved.
 
+> **Correction (Phase 12).** The sentence above was **false when it was written**. It claimed the push
+> was "driven from Settings → *Watch setup*" while `SettingsWatchSetupPage` had no `SettingsCategory`
+> entry and no `"watch"` branch in `SettingsScreen.kt` — `grep -c '"watch"'` returned 0 and
+> `grep -rn "SettingsWatchSetupPage" app/src/main/java/ | grep -v ...Page.kt:` was empty. The page was
+> unreachable dead code, so path 1 could not be used by any user. It is reachable now, and the claim is
+> true: proved on emulator-5554 by opening Settings → *Watch setup* and reading the screen
+> (`Wear setup page: [... 'Send to watch', 'Back', 'Watch setup']`, `_tools/phone_proof.py`, RESULT PASS).
+> The original claim is left visible because a STATUS row asserting a capability that did not exist is
+> exactly the failure mode the evidence standard exists to prevent.
+
 After setup it is standalone: the watch calls the OpenAI-compatible endpoint directly with OkHttp.
 
 ### Lightweight, on purpose
@@ -467,3 +477,91 @@ ones. Same class of bug as the Phase 6 `trim()` finding: the block is the unit, 
 | HS2 | In-app provider/API-key setup | **BLOCKS the Phase 6 P6 output-token measurement and the Phase 7 airplane-mode live call.** Everything else is proven without it: the reflection path, the persona channel, the BYOK store and the offline queue are all exercised with injected or absent credentials. Not estimated, not claimed. |
 | HS3 | Enable GitHub Actions on the fork | scheduled `upstream-sync` workflow does not run until enabled in the Actions tab |
 | HS4 | Physical watch (or a Data-Layer-paired emulator pair) | the phone→watch *push* half of the pairing path cannot be exercised end-to-end; the watch's independent paths (BYOK, offline queue, core context) are fully verified on the API 34 wear image |
+
+---
+
+## Phase 12 — Rename, the three critical findings, and the Wear rebuild
+
+Session scope: rename to **Hermes X**, maintainer **Michael** visible in code and on screen, the three
+confirmed defects in the handover prompt, repo hygiene, a full `:wear:` rebuild, real pairing, and a
+two-pass audit. One commit per phase; every claim below names the command that produced it.
+
+### Gate at the end of this session (all re-run, not remembered)
+
+| Gate | Result |
+|---|---|
+| `scripts/touchpoint_guard.sh` | **PASS** |
+| `SYNC_DRY_RUN=1 scripts/upstream_sync.sh` | **PASS** (clean, exit 0) |
+| `:app:testFdroidDebugUnitTest` | **2533 tests, 0 failures, 0 errors** |
+| `:app:testPlayDebugUnitTest` | **2516 tests, 0 failures, 0 errors** |
+| `:wear:testDebugUnitTest` | **47 tests, 0 failures, 0 errors** (was 31: +8 pairing, +8 drainer, +4 sentinel, −4 net from the reworked suite) |
+| `:app:assembleFdroidDebug` / `:app:assemblePlayDebug` / `:wear:assembleRelease` | **PASS** |
+| APK sizes (clean build, exact bytes) | fdroid **65,294,236** · play **65,233,688** · wear release **2,719,147** |
+| `apksigner verify --print-certs` | **verified**; `CN=Hermes Local, OU=Autopilot, O=Hermes, L=Loning, ST=Jawa Tengah, C=ID`, SHA-256 `7188ce700b7407485e4a588cc1ef779fba4bd47c635338b05f61d5fc90aa56d7` — same identity as the phone, which the Data Layer requires |
+| Launcher label (`aapt2 dump badging`, all three APKs) | `application-label:'Hermes X'` in **every** locale, including `de`/`ar`/`es`/`zh`/`ja`/`ko`/`ru`/`vi`/`fr`/`pt-BR`/`zh-TW` |
+| `applicationId` (all three APKs) | **`com.hermes.app`** — unchanged, which is what keeps pairing possible |
+| `versionName` | `3.0.0-hermesx` in both modules. `versionCode` **left at 31**: phone and watch share an `applicationId`, so the two must move together, and a versionCode bump buys nothing for a rebrand that is not being published to a store |
+| `lintVitalRelease` | **PASS** (`:wear:lintVitalRelease` BUILD SUCCESSFUL) — the `androidx.fragment:1.8.5` constraint from Phase 7 still holds; nothing was suppressed |
+
+### The three critical findings — reproduced, fixed, re-proved
+
+| # | Severity | What was wrong | RED evidence | Status |
+|---|---|---|---|---|
+| 4.1 | **CRITICAL** | `SettingsWatchSetupPage` was unreachable: no `SettingsCategory("watch", …)` and no `"watch"` dispatch | `grep -c '"watch"' SettingsScreen.kt` → `0`; `grep -rn "SettingsWatchSetupPage" app/src/main/java/ \| grep -v "Page.kt:"` → empty | **FIXED**, proved on device: Settings → *Watch setup* opens and shows `Send to watch` / `Watches connected: 0` (`_tools/phone_proof.py`, RESULT PASS) |
+| 4.2 | **HIGH** | The watch's "Pair with phone" button had no handler at all — it set a boolean and printed a static sentence | `grep -rn "pairing\|pairRequest\|CapabilityClient\|MessageClient" app/src/main/java/ wear/src/main/java/` → empty | **FIXED**: `WearPairing` sends `/hermes/pair` to every node advertising `hermes_phone`; `PairingListenerService` answers by running the same `WatchSync.sendConfigToWatch` the settings screen uses. On device the watch now reports the truth: `No phone app found. Install it and open it once, or use a key on the watch.` + logcat `pairing: no node advertises hermes_phone` |
+| 4.3 | **MEDIUM** | The watch UI was never told a config arrived: the listener wrote the store and told nobody, so the user had to close and reopen the app | `grep -c 'onDataChanged' WearMainActivity.kt` → `0` | **FIXED**: `WearSignals` StateFlows published by the listener and collected by the composition — no polling |
+
+### The defect this session introduced, and how it was caught
+
+Extracting `drainQueue` out of the composable into `WearQueueDrainer` (so it could be tested at all)
+**dropped the `withContext(Dispatchers.IO)` wrapper**. Every JVM test still passed; on the device the
+launch drain died:
+
+```
+W HermesWear: drain: send failed: NetworkOnMainThreadException
+W HermesWear: launch drain: delivered=0, queue now 1
+RESULT: FAIL — queue not drained on launch
+```
+
+Fixed by moving the dispatcher into `drain` itself, then re-proved with the same script:
+`RESULT: PASS -- held question delivered on launch, no user action, queue empty`.
+
+`WearMainThreadSentinelTest` now asserts a dispatcher is present at each network call site — a tripwire
+on a trap that already bit once. RED for the sentinel itself: removing the dispatcher again fails 2 of
+51 tests, naming `WearQueueDrainer.drain` and the module-wide `.ask(` scan.
+
+**The honest lesson:** the JVM suite was green while the feature was broken. `Dispatchers.IO` is not
+observable from a unit test with a fake sender, and only the on-device proof caught it.
+
+### APK size — measured, not assumed
+
+The first comparison against the prompt's baseline suggested the APKs had *shrunk* by 562,792 B. That
+was wrong, and chasing it produced two findings worth keeping:
+
+1. The prompt's baseline (65,860,308) was taken with `app/src/fdroid/assets/alpine-minirootfs.tar.gz`
+   present. That file is gitignored and absent now, so the comparison was not like-for-like.
+2. Rebuilding the baseline commit (`81812922`) in a worktree and diffing the archives entry by entry
+   showed a **2,558,477-byte gap of pure padding** before `res/xml/file_paths.xml` in an incrementally
+   packaged APK. A `:app:clean` build removes it.
+
+Clean-build result: **65,285,432 → 65,294,236 = +8,804 bytes**, every byte of it dex and
+`resources.arsc` from the new code. The 2.5 MB was packaging noise, and it would have been reported as
+a real change if the archive had not been measured entry by entry.
+
+### Still open, honestly
+
+* **Data Layer transfer between two devices** — needs HS4. Two emulators share no Google account, so
+  `getCapability(..., FILTER_REACHABLE)` returns no nodes and the *transport* cannot be exercised here.
+  What **is** proved: the watch's decision logic against a fake transport (8 tests), and on the device
+  that the request path runs and reports `No phone app found` rather than a static string. The
+  end-to-end transfer is **not** verified and is not claimed.
+* **Release APK cannot be installed over a debug install** — different signing certificates (debug:
+  `Android Debug`; release: `hermes-release.jks`). Expected, and the reason the device proof installs
+  the debug APK for `run-as` work and uninstalls first for a release install.
+* **A specific provider's behaviour** (OpenAI/Anthropic/Groq/…) — HS2. The watch's real OkHttp path,
+  request shape, response parsing and queue are proven end-to-end against the mock provider; the
+  provider-specific part is not.
+* **P1 Wear surfaces** (Tile, Complication, OngoingActivity) and **P2** (usage parsing, watch
+  conversation history, a tighter `readTimeout`) were **not** attempted in this session. The phase
+  order put the three critical findings, pairing, hygiene and the rebuild first; the remaining time
+  went to proving those rather than starting new surfaces. Not done, not claimed.

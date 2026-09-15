@@ -51,6 +51,17 @@ class PairingListenerService : WearableListenerService() {
     override fun onMessageReceived(event: MessageEvent) {
         if (event.path != REQUEST_PATH) return
         DebugLog.d(TAG, "pairing request from node ${event.sourceNodeId}")
+        val request = PairingRequest.parse(
+            runCatching { String(event.data, Charsets.UTF_8) }.getOrDefault("")
+        )
+        if (request == null || !request.isSupported()) {
+            // Refuse before touching the credential. The payload used to be ignored entirely, so a
+            // watch running a different build got a config it could not use while this side reported
+            // success — a setup that looks finished and does not work.
+            DebugLog.w(TAG, "pairing refused: unsupported request (protocol=${request?.protocol})")
+            scope.launch { reply(event.sourceNodeId, PROTOCOL_MISMATCH) }
+            return
+        }
         val application = application as? AgoraApplication ?: return
         scope.launch {
             val ack = runCatching { handle(application) }
@@ -104,6 +115,13 @@ class PairingListenerService : WearableListenerService() {
          * chance to run. Kept as text because it is wire-only — the phone screen never shows it.
          */
         const val UNREACHABLE = "The phone could not reach the watch to send the config."
+
+        /**
+         * The watch asked with a request this build does not speak. Wire-only for the same reason as
+         * [UNREACHABLE]: the sentence has to travel as text, and the phone's own screen never shows it.
+         */
+        const val PROTOCOL_MISMATCH =
+            "This watch and phone app are different versions. Update both, then pair again."
 
         private const val TAG = "AutopilotWearPairing"
     }

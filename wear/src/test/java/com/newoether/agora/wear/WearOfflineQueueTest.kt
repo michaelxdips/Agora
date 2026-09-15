@@ -97,10 +97,21 @@ class WearOfflineQueueTest {
     }
 
     @Test
-    fun `clear empties the queue`() = runTest {
-        queue.enqueue("one")
-        queue.enqueue("two")
-        queue.clear()
-        assertEquals(0, queue.size())
+    fun `a corrupt queue file is quarantined rather than overwritten`() = runTest {
+        // The first version read a corrupt file as "empty" and left it in place, so the next enqueue
+        // wrote a one-entry queue over it and every held question was gone. Unreadable is not empty.
+        val queueFile = java.io.File(queueDir, WearOfflineQueue.FILE_NAME)
+        queueFile.writeText("[{\"id\":1,\"text\":\"held\",\"createdAt\":1}")   // truncated mid-array
+        val broken = WearOfflineQueue(context(queueDir))
+
+        assertEquals(0, broken.size())
+
+        val quarantined = java.io.File(queueDir, WearOfflineQueue.FILE_NAME + ".corrupt")
+        assertTrue("the unreadable bytes must be kept, not deleted", quarantined.isFile)
+        assertEquals("[{\"id\":1,\"text\":\"held\",\"createdAt\":1}", quarantined.readText())
+
+        broken.enqueue("recovered")
+        assertEquals(1, broken.size())
     }
+
 }

@@ -2,4 +2,8 @@
 <resources>
     <string name="app_name">Hermes X</string>
     <string name="wear_speak_prompt">Ask Hermes X</string>
+    <!-- Voice fallbacks. The watch image ships no recognizer and no TTS engine, so these are the
+         sentences the user actually sees; a silent no-op was the previous behaviour. -->
+    <string name="wear_voice_unavailable">Voice input is not available on this watch. Type instead.</string>
+    <string name="wear_mic_denied">Microphone permission denied. Voice input is off until it is granted.</string>
 </resources>

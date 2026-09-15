@@ -50,6 +50,9 @@ class WearChatClient(private val config: WearConfig) {
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .build()
+
+        /** Ceiling on a response body; a watch cannot afford to buffer an unbounded one. */
+        const val MAX_RESPONSE_BYTES = 1 shl 20   // 1 MiB
     }
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
@@ -94,7 +97,7 @@ class WearChatClient(private val config: WearConfig) {
 
         return try {
             http.newCall(request).execute().use { response ->
-                val text = response.body?.string().orEmpty()
+                val text = readBounded(response)
                 if (!response.isSuccessful) {
                     // Status only — the body can echo the key in a proxy error page.
                     throw WearChatException("HTTP ${response.code}")
@@ -123,10 +126,38 @@ class WearChatClient(private val config: WearConfig) {
         }
     }
 
-    /** OpenAI-compatible chat-completions path, appended to the user's base URL. */
+    /**
+     * Reads the response body with a hard ceiling.
+     *
+     * `response.body?.string()` has no bound: a provider (or a captive portal, or a misconfigured
+     * gateway) that streams an endless or enormous body makes the watch allocate it all — on a 2 GB
+     * device that is an OOM in the one place the user cannot recover from. The cap is generous for a
+     * non-streaming chat completion and small enough to stay safe.
+     */
+    private fun readBounded(response: okhttp3.Response): String {
+        val source = response.body.source()
+        source.request(MAX_RESPONSE_BYTES.toLong() + 1)
+        val buffer = source.buffer
+        if (buffer.size > MAX_RESPONSE_BYTES) {
+            throw WearChatException("response too large")
+        }
+        return buffer.clone().readString(Charsets.UTF_8)
+    }
+
+    /** [OI]-compatible chat-completions path, appended to the user's base URL.
+     *
+     * Three shapes are handled because all three are what a user actually types: `…/v1`,
+     * `…/v1/chat/completions`, and the bare host. The bare host used to produce
+     * `https://api.openai.com/chat/completions`, which 404s with no hint that a `/v1` was missing —
+     * the watch just said "HTTP 404". A path of `/` or nothing is the only case where `/v1` is
+     * assumed; anything else is taken as intentional (Ollama's `/v1`, a gateway's own prefix).
+     */
     private fun endpoint(baseUrl: String): String {
         val base = baseUrl.trimEnd('/')
-        return if (base.endsWith("/chat/completions")) base else "$base/chat/completions"
+        if (base.endsWith("/chat/completions")) return base
+        val path = runCatching { java.net.URI(base).path }.getOrNull().orEmpty()
+        val withVersion = if (path.isBlank() || path == "/") "$base/v1" else base
+        return "$withVersion/chat/completions"
     }
 
     /**

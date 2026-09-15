@@ -24,7 +24,6 @@ class WearOfflineQueue(private val context: android.content.Context) {
 
     private val file = File(context.filesDir, FILE_NAME)
     private val mutex = Mutex()
-
     @Serializable
     data class Entry(
         val id: Long,
@@ -78,12 +77,22 @@ class WearOfflineQueue(private val context: android.content.Context) {
         false
     }
 
-    suspend fun clear() = mutex.withLock { runCatching { file.delete() } }
-
+    /**
+     * Reads the queue, quarantining a file that does not parse.
+     *
+     * The first version returned an empty list and left the corrupt file in place — so the next
+     * `enqueue` wrote a one-entry queue over it and **every held question was gone**. A file we
+     * cannot read is a file we must not overwrite: it is renamed aside (`.corrupt`) so the next
+     * write starts clean while the bytes stay on disk for a later recovery attempt.
+     */
     private fun readAll(): List<Entry> = runCatching {
         if (!file.isFile) return emptyList()
         json.decodeFromString<List<Entry>>(file.readText())
-    }.getOrDefault(emptyList())
+    }.getOrElse { error ->
+        WearLog.w("offline queue unreadable (${error.javaClass.simpleName}); quarantined")
+        runCatching { file.renameTo(File(file.parentFile, "$FILE_NAME.corrupt")) }
+        emptyList()
+    }
 
     private fun writeAll(entries: List<Entry>) {
         file.parentFile?.mkdirs()

@@ -15,8 +15,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -24,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
@@ -68,8 +72,14 @@ class WearMainActivity : ComponentActivity() {
 
     private var tts: TextToSpeech? = null
 
+    /** True once the TTS engine reported SUCCESS; false means Speak cannot produce sound here. */
+    private val ttsReady = MutableStateFlow(false)
+
     /** Set by the speech callback, consumed by the composition. A flow so a result can never be lost. */
     private val spoken = MutableStateFlow<String?>(null)
+
+    /** Set when no recognizer activity exists on this image, so the UI can say so instead of nothing. */
+    private val voiceUnavailable = MutableStateFlow<String?>(null)
 
     private val speechLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -82,17 +92,28 @@ class WearMainActivity : ComponentActivity() {
 
     private val micPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { granted -> if (granted) launchSpeech() }
+    ) { granted ->
+        if (granted) {
+            launchSpeech()
+        } else {
+            // Denied is a state the user can act on, so it is stated rather than swallowed.
+            voiceUnavailable.value = getString(R.string.wear_mic_denied)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         tts = TextToSpeech(this) { status ->
+            ttsReady.value = status == TextToSpeech.SUCCESS
             if (status == TextToSpeech.SUCCESS) tts?.language = Locale.getDefault()
+            if (status != TextToSpeech.SUCCESS) WearLog.w("no TTS engine on this watch")
         }
         setContent {
             WearHermesTheme {
                 WearChatScreen(
                     spokenQuestion = spoken,
+                    ttsReady = ttsReady,
+                    voiceUnavailable = voiceUnavailable,
                     onSpeak = ::speak,
                     onStartListening = ::startListening,
                 )
@@ -106,8 +127,18 @@ class WearMainActivity : ComponentActivity() {
         super.onDestroy()
     }
 
-    private fun speak(text: String) {
-        tts?.speak(text.take(MAX_SPOKEN_CHARS), TextToSpeech.QUEUE_FLUSH, null, "hermes-wear")
+    /**
+     * Speaks [text] when the engine is there.
+     *
+     * Returns whether anything was said, so the caller can tell the user when it was not: the previous
+     * version called `tts?.speak(...)` and a null/no-engine TTS made the button a silent no-op — the
+     * user tapped Speak, nothing happened, and no line on screen or in the log explained it.
+     */
+    private fun speak(text: String): Boolean {
+        val engine = tts ?: return false
+        if (!ttsReady.value) return false
+        engine.speak(text.take(MAX_SPOKEN_CHARS), TextToSpeech.QUEUE_FLUSH, null, "hermes-wear")
+        return true
     }
 
     private fun startListening() {
@@ -121,8 +152,19 @@ class WearMainActivity : ComponentActivity() {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_PROMPT, getString(R.string.wear_speak_prompt))
         }
-        runCatching { speechLauncher.launch(intent) }
-            .onFailure { WearLog.w("no speech recognizer on this watch") }
+        // Resolve before launching: on an image with no recognizer the launcher throws
+        // ActivityNotFoundException, and the previous code turned that into a log line the user
+        // never sees. A watch whose whole point is voice must say when voice is not installed.
+        val resolved = runCatching { packageManager.resolveActivity(intent, 0) }.getOrNull()
+        if (resolved == null) {
+            voiceUnavailable.value = getString(R.string.wear_voice_unavailable)
+            WearLog.w("no speech recognizer on this watch")
+            return
+        }
+        runCatching { speechLauncher.launch(intent) }.onFailure {
+            voiceUnavailable.value = getString(R.string.wear_voice_unavailable)
+            WearLog.w("speech launch failed: ${it.javaClass.simpleName}")
+        }
     }
 
     private companion object {
@@ -134,10 +176,15 @@ class WearMainActivity : ComponentActivity() {
 /** How much of a dropped question's text the notice shows before it becomes noise. */
 private const val DROPPED_TEXT_CHARS = 60
 
+/** Ceiling on the visible answer before it becomes a scrollable wall on a 384 px screen. */
+private const val MAX_ANSWER_LINES = 12
+
 @Composable
 private fun WearChatScreen(
     spokenQuestion: MutableStateFlow<String?>,
-    onSpeak: (String) -> Unit,
+    ttsReady: kotlinx.coroutines.flow.StateFlow<Boolean>,
+    voiceUnavailable: kotlinx.coroutines.flow.StateFlow<String?>,
+    onSpeak: (String) -> Boolean,
     onStartListening: () -> Unit,
 ) {
     val context = LocalContext.current.applicationContext
@@ -147,15 +194,37 @@ private fun WearChatScreen(
     val queue = remember { WearOfflineQueue(context) }
     val listState = rememberScalingLazyListState()
 
-    var draft by remember { mutableStateOf("") }
-    var answer by remember { mutableStateOf("") }
-    var status by remember { mutableStateOf("") }
+    // `rememberSaveable`, not `remember`: a watch is rotated/wrist-downed constantly, and a plain
+    // `remember` dropped the answer and the draft on every configuration change — the user looked
+    // away mid-answer and came back to an empty screen.
+    var draft by rememberSaveable { mutableStateOf("") }
+    var answer by rememberSaveable { mutableStateOf("") }
+    var status by rememberSaveable { mutableStateOf("") }
     var queued by remember { mutableStateOf(0) }
     var held by remember { mutableStateOf<List<WearOfflineQueue.Entry>>(emptyList()) }
-    var droppedNotice by remember { mutableStateOf("") }
+    var notice by rememberSaveable { mutableStateOf("") }
+
+    /** A question that was dropped for good. Error-coloured, and never a status line. */
+    var dropNotice by rememberSaveable { mutableStateOf("") }
     var ready by remember { mutableStateOf(false) }
     var showDebug by remember { mutableStateOf(false) }
     var debug by remember { mutableStateOf("") }
+
+    val ttsAvailable by ttsReady.collectAsState()
+    val voiceProblem by voiceUnavailable.collectAsState()
+
+    /**
+     * Speaks, or says why it could not.
+     *
+     * The button used to be a silent no-op on an image without a TTS engine (the target watch image
+     * ships none): the user tapped Speak and nothing at all happened. A fallback the user cannot see
+     * is not a fallback.
+     */
+    fun speakOrNotice(text: String) {
+        if (!onSpeak(text)) {
+            notice = "Voice unavailable on this watch"
+        }
+    }
 
     // The store is still the source of truth, but the flow is what tells the composition that the
     // phone pushed a config while the setup screen was up. Reading the file only at launch left the
@@ -195,12 +264,18 @@ private fun WearChatScreen(
         )
         if (report.lastAnswer != null) {
             answer = report.lastAnswer
-            onSpeak(report.lastAnswer)
+            speakOrNotice(report.lastAnswer)
+        }
+        // Held questions whose answers were produced but could not all be shown: say how many, so
+        // "answered" and "silently dropped" cannot look the same from the watch.
+        if (report.answersNotShown > 0) {
+            notice = "${report.answersNotShown} earlier held " +
+                if (report.answersNotShown == 1) "question was answered" else "questions were answered"
         }
         report.droppedText?.let { text ->
             // P0: an automatic drop was only a log line before, so a question could disappear with
             // nothing on screen. Say it out loud, with the text, while it is still true.
-            droppedNotice = "Dropped after ${WearOfflineQueue.MAX_ATTEMPTS} attempts: " +
+            dropNotice = "Dropped after ${WearOfflineQueue.MAX_ATTEMPTS} attempts: " +
                 text.take(DROPPED_TEXT_CHARS)
         }
         refreshQueued()
@@ -230,25 +305,47 @@ private fun WearChatScreen(
             return
         }
 
+        // Durable *before* the send, removed only once the answer is in hand.
+        //
+        // `WearChatClient.ask` rethrows CancellationException on purpose, and this scope dies with
+        // the composition — wrist-down, config change, process death. The first version enqueued
+        // only in the failure branch of `result.fold`, which never runs when the coroutine is
+        // cancelled: the question vanished with no queue entry, no notice and no log. Enqueueing
+        // first makes the queue the record of the question, which is what it is for.
+        val entry = withContext(Dispatchers.IO) { queue.enqueue(trimmed) }
+
         val core = withContext(Dispatchers.IO) { WearCoreContext.build(memoryCache.read()) }
         val client = WearChatClient(config)
         val result = withContext(Dispatchers.IO) { client.ask(trimmed, core) }
 
         result.fold(
             onSuccess = {
+                withContext(Dispatchers.IO) { queue.complete(entry.id) }
+                refreshQueued()
                 answer = it
                 status = ""
-                onSpeak(it)
+                speakOrNotice(it)
                 drainQueue(client, core, showResult = false)
             },
             onFailure = { error ->
-                // Offline is a normal watch state, not an error: hold the question and say so.
-                withContext(Dispatchers.IO) { queue.enqueue(trimmed) }
+                // Offline is a normal watch state, not an error: the question is already held.
                 refreshQueued()
                 status = "Offline — held"
                 WearLog.w("ask failed: ${error.message}")
             },
         )
+    }
+
+    /**
+     * Sends whatever is in the field and clears it.
+     *
+     * One function for both the Send button and the IME's Send key, so the two cannot disagree about
+     * what "send" means (the keyboard action used to do nothing at all).
+     */
+    fun sendDraft() {
+        val text = draft
+        draft = ""
+        scope.launch { send(text) }
     }
 
     LaunchedEffect(Unit) {
@@ -315,10 +412,18 @@ private fun WearChatScreen(
                         ),
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                     ) {
+                        // A long answer used to be handed to the card unbounded, and the card grew
+                        // past the round screen with no way to reach the rest. A ceiling plus its own
+                        // scroll keeps the answer readable on a 384 px watch.
                         Text(
                             text = answer,
                             textAlign = TextAlign.Start,
                             style = MaterialTheme.typography.bodyMedium,
+                            maxLines = MAX_ANSWER_LINES,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState()),
                         )
                     }
                 }
@@ -349,6 +454,9 @@ private fun WearChatScreen(
                             onValueChange = { draft = it },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                            // Without this the IME's Send key did nothing at all: the keyboard
+                            // offered "send", the user pressed it, and the text stayed in the field.
+                            keyboardActions = KeyboardActions(onSend = { sendDraft() }),
                             textStyle = TextStyle(
                                 color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = 15.sp,
@@ -370,11 +478,7 @@ private fun WearChatScreen(
 
             item {
                 Button(
-                    onClick = {
-                        val text = draft
-                        draft = ""
-                        scope.launch { send(text) }
-                    },
+                    onClick = { sendDraft() },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                 ) { Text("Send") }
             }
@@ -434,8 +538,9 @@ private fun WearChatScreen(
                                                 withContext(Dispatchers.IO) { queue.complete(entry.id) }
                                                 answer = outcome.getOrNull().orEmpty()
                                                 status = ""
-                                                droppedNotice = ""
-                                                onSpeak(answer)
+                                                notice = ""
+                                                dropNotice = ""
+                                                speakOrNotice(answer)
                                             } else {
                                                 val dropped = withContext(Dispatchers.IO) {
                                                     queue.recordFailure(entry.id)
@@ -467,10 +572,22 @@ private fun WearChatScreen(
                 }
             }
 
-            if (droppedNotice.isNotBlank()) {
+            if (notice.isNotBlank()) {
                 item {
                     Text(
-                        text = droppedNotice,
+                        text = notice,
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    )
+                }
+            }
+
+            if (dropNotice.isNotBlank()) {
+                item {
+                    Text(
+                        text = dropNotice,
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,

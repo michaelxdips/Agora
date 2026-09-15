@@ -78,6 +78,44 @@ class WearCoreContextTest {
         )
     }
 
+    @Test
+    fun `a user note that merely mentions the marker text keeps the rest of the snapshot`() {
+        // The marker prefix inside prose is not a block. Matching the raw substring treated it as one,
+        // and the unterminated branch then dropped every line after the mention — the user's memory,
+        // silently, while the watch reported a clean core context (audit A-037/A-040).
+        val snapshot = "- user lives in Pemalang\n" +
+            "the persona block is delimited by <!-- HERMES:PERSONA:CAVEMAN:START --> in active memory\n" +
+            "- user writes Kotlin\n"
+
+        val built = WearCoreContext.build(snapshot)
+
+        assertTrue("the user's own line was deleted: $built", built.contains("- user writes Kotlin"))
+        assertTrue(built.contains("- user lives in Pemalang"))
+    }
+
+    @Test
+    fun `a real unterminated block is still removed entirely`() {
+        val snapshot = "- user lives in Pemalang\n" +
+            "${PersonaMarkers.start}\n" +
+            "Respond terse. Drop articles.\n"
+
+        val built = WearCoreContext.build(snapshot)
+
+        assertEquals("- user lives in Pemalang", built)
+    }
+
+    @Test
+    fun `a terminated block never leaks its rule text`() {
+        val snapshot = "- user lives in Pemalang\n" +
+            "${PersonaMarkers.start}\nRespond terse.\n${PersonaMarkers.end}\n- user writes Kotlin\n"
+
+        val built = WearCoreContext.build(snapshot)
+
+        assertFalse("the rule text survived: $built", built.contains("Respond terse"))
+        assertTrue(built.contains("- user lives in Pemalang"))
+        assertTrue(built.contains("- user writes Kotlin"))
+    }
+
     private object PersonaMarkers {
         const val start = "<!-- HERMES:PERSONA:CAVEMAN:START -->"
         const val end = "<!-- HERMES:PERSONA:CAVEMAN:END -->"

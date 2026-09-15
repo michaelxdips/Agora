@@ -1,5 +1,6 @@
 package com.newoether.agora.wear
 
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -164,5 +165,47 @@ class WearQueueDrainerTest {
         WearQueueDrainer.drain(queue, sender, "core-context", showResult = false)
 
         assertEquals(listOf("core-context", "core-context"), seen)
+    }
+
+    @Test
+    fun `every drained answer is reported, not only the last one`() = runTest {
+        // A-021: the first version kept only the newest answer and deleted the rest, so a user with
+        // 3 held questions saw 1 answer and had no way to tell the other 2 had been answered at all.
+        queue.enqueue("one")
+        queue.enqueue("two")
+        queue.enqueue("three")
+        val sender = ScriptedSender(
+            listOf(Result.success("a1"), Result.success("a2"), Result.success("a3")),
+        )
+
+        val report = WearQueueDrainer.drain(queue, sender, "", showResult = true)
+
+        assertEquals(listOf("a1", "a2", "a3"), report.answers)
+        assertEquals("a3", report.lastAnswer)
+        assertEquals(2, report.answersNotShown)
+    }
+
+    @Test
+    fun `concurrent passes never send the same held question twice`() = runTest {
+        // A-020: the snapshot is taken outside the queue's mutex, so launch-drain and send-drain
+        // running at the same time used to both see the same entry and both send it.
+        queue.enqueue("only once")
+        val asked = java.util.Collections.synchronizedList(mutableListOf<String>())
+        val sender = QuestionSender { question, _ ->
+            asked += question
+            kotlinx.coroutines.delay(50)
+            Result.success("answer")
+        }
+
+        val passes = kotlinx.coroutines.coroutineScope {
+            List(4) {
+                async { WearQueueDrainer.drain(queue, sender, "", showResult = false) }
+            }
+        }
+        val total = passes.sumOf { it.await().delivered }
+
+        assertEquals(listOf("only once"), asked.toList())
+        assertEquals(1, total)
+        assertEquals(0, queue.size())
     }
 }

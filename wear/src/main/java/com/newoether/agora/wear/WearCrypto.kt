@@ -64,6 +64,15 @@ object WearCrypto {
         }.getOrNull()
     }
 
+    /**
+     * The keystore entry, created on first use.
+     *
+     * `@Synchronized` because generation is not atomic: two coroutines calling this at once (a config
+     * write from the listener and a read from the UI, which is exactly what happens when the phone
+     * pushes while the app is opening) would both find no entry, both generate, and the second would
+     * overwrite the first — leaving ciphertext nothing can decrypt.
+     */
+    @Synchronized
     private fun secretKey(): SecretKey {
         val keyStore = KeyStore.getInstance(KEYSTORE).apply { load(null) }
         (keyStore.getEntry(ALIAS, null) as? KeyStore.SecretKeyEntry)?.let { return it.secretKey }

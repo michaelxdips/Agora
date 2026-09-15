@@ -73,19 +73,38 @@ object WearCoreContext {
             .trim()
     }
 
-    /** Removes every `<!-- HERMES:PERSONA:X:START --> … :END -->` block, including unterminated ones. */
+    /**
+     * Removes every `<!-- HERMES:PERSONA:X:START --> … :END -->` block, including unterminated ones.
+     *
+     * Only **whole-line** markers count. Matching the raw substring made a user's note *about* the
+     * marker format indistinguishable from a real block, and the unterminated branch then dropped
+     * everything from that mention to the end of the snapshot — user memory silently deleted while the
+     * watch reported a clean core context (audit A-037/A-040).
+     */
     private fun stripPersonaBlocks(text: String): String {
         var result = text
         while (true) {
-            val start = result.indexOf(PERSONA_MARKER_PREFIX)
+            val start = markerLineIndex(result, PERSONA_MARKER_PREFIX)
             if (start < 0) return result
-            val end = result.indexOf(":END -->", start)
-            result = if (end < 0) {
+            val end = result.indexOf(":END -->", start).takeIf { it >= 0 }
+                ?.let { result.indexOf('\n', it).let { l -> if (l < 0) result.length else l } }
+            result = if (end == null) {
                 result.substring(0, start)
             } else {
-                result.substring(0, start) + result.substring(end + ":END -->".length)
+                result.substring(0, start) + result.substring(end)
             }
         }
+    }
+
+    /** Index of the first line starting with [prefix] at or after 0; -1 when absent. */
+    private fun markerLineIndex(text: String, prefix: String): Int {
+        var index = text.indexOf(prefix)
+        while (index >= 0) {
+            val lineStart = text.lastIndexOf('\n', index - 1) + 1
+            if (text.substring(lineStart, index).isBlank()) return index
+            index = text.indexOf(prefix, index + prefix.length)
+        }
+        return -1
     }
 
     private const val PERSONA_MARKER_PREFIX = "<!-- HERMES:PERSONA:"

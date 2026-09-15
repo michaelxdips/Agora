@@ -1,14 +1,9 @@
 package com.newoether.agora.wear
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
@@ -17,7 +12,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -118,7 +112,7 @@ fun WearSetupScreen(
             }
 
             item { SetupField("Base URL", baseUrl, waitingForPhone) { baseUrl = it } }
-            item { SetupField("API key", apiKey, waitingForPhone) { apiKey = it } }
+            item { SetupField("API key", apiKey, waitingForPhone, secret = true) { apiKey = it } }
             item { SetupField("Model", model, waitingForPhone) { model = it } }
 
             item {
@@ -199,12 +193,16 @@ fun WearSetupScreen(
  *
  * `KeyboardOptions(imeAction = Done)` matters on a watch: the Done key is how the user closes the
  * keyboard, and without it the field swallows the whole 384 px screen with no way back.
+ *
+ * @param secret masks the value. The API key used to be typed and displayed in clear on the watch
+ *   screen — the one credential in the app, on the most public display in the pair.
  */
 @Composable
 private fun SetupField(
     label: String,
     value: String,
     readOnly: Boolean,
+    secret: Boolean = false,
     onChange: (String) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
@@ -227,6 +225,11 @@ private fun SetupField(
                 enabled = !readOnly,
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                visualTransformation = if (secret) {
+                    androidx.compose.ui.text.input.PasswordVisualTransformation()
+                } else {
+                    androidx.compose.ui.text.input.VisualTransformation.None
+                },
                 textStyle = TextStyle(
                     color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 15.sp,
@@ -247,36 +250,3 @@ private fun SetupField(
     }
 }
 
-/** Shared placeholder surface so the setup and chat screens read as one app. */
-@Composable
-internal fun WearCardSurface(
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
-) {
-    Card(
-        onClick = {},
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        ),
-        modifier = modifier.fillMaxWidth(),
-    ) { content() }
-}
-
-/** Rounded input background used by the chat screen's composer. */
-@Composable
-internal fun Modifier.inputSurface(): Modifier = this
-    .background(
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(20.dp),
-    )
-    .padding(horizontal = 14.dp, vertical = 10.dp)
-
-/** Small spacer helper: Wear M3 has no layout sugar of its own. */
-@Composable
-internal fun Gap(height: Int) = Spacer(Modifier.height(height.dp))
-
-/** Centres a block inside the round screen without guessing the circle's inset. */
-@Composable
-internal fun RoundContent(content: @Composable () -> Unit) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { content() }
-}

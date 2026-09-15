@@ -262,8 +262,8 @@ apa adanya.
 | A-025 | **FIXED** | `collectAsState(initial = null)`; reconcile tidak lagi berjalan atas nilai tebakan |
 | A-026 | **FIXED** | `runCatching` di `AutopilotControlsSection` — kegagalan IO tidak lagi crash |
 | A-027 | **FIXED** | `countAutopilotSince(excludedStore)`; toggle persona tidak lagi memakan cap harian |
-| A-028 | **DEFERRED** | Destructive migration masih aktif; dibiarkan karena skema belum berubah sejak v1 |
-| A-029 | **DEFERRED** | Index `timestamp`/`targetFile`/`store` belum ditambahkan — retensi (50/berkas, 30 hari) yang membatasi ukuran |
+| A-028 | **FIXED** | `fallbackToDestructiveMigration(dropAllTables = true)` dihapus. Skema masih v1 (tidak ada perubahan skema), jadi tidak ada install yang butuh migrasi; perubahan skema berikutnya akan gagal berisik, bukan menghapus seluruh jurnal undo |
+| A-029 | **DEFERRED (alasan)** | Index `timestamp`/`targetFile`/`store` belum ditambahkan: itu perubahan skema, jadi butuh versi baru + migrasi, dan migrasi Room tidak bisa diverifikasi di mesin ini (tidak ada perangkat). Ukuran tabel sudah dibatasi retensi (50 versi/berkas, 30 hari) |
 | A-030 | **FIXED** | Transcript diurutkan ulang di `ReflectionWorker` (urutan `getMessagesByIds` tidak dijamin) |
 | A-031 | **FIXED** | `maxLines` + scroll pada kartu jawaban |
 | A-032 | **FIXED** | `KeyboardActions(onSend)` — tombol Send di keyboard bekerja |

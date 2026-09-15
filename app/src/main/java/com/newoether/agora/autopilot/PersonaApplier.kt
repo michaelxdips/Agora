@@ -8,6 +8,8 @@ import com.newoether.agora.util.DebugLog
  *
  * [storeContent] is the active-memory text **read back from the store** after the write, not the
  * value we think we wrote: P4 requires the status to come from the channel itself.
+ *
+ * Maintainer: Michael — this file belongs to the Hermes fork of Agora (see NOTICE.md).
  */
 data class PersonaState(
     val enabled: Map<String, Boolean>,

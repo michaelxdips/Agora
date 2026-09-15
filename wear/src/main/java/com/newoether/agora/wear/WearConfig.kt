@@ -15,6 +15,8 @@ import java.io.File
  * Stored with [WearCrypto], not in plain DataStore: an API key is a bearer credential, and the watch
  * is the device most likely to be lost. The file format is versioned so a future field addition does
  * not silently invalidate a paired watch's config.
+ *
+ * Maintainer: Michael — this file belongs to the Hermes fork of Agora (see NOTICE.md).
  */
 @Serializable
 data class WearConfig(

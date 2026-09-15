@@ -15,6 +15,12 @@ import com.google.android.gms.wearable.WearableListenerService
  *
  * Rejects a payload whose version the watch does not understand rather than guessing — a wrong config
  * silently produces wrong answers, which is worse than an obvious "needs phone setup" state.
+ *
+ * The config is also published to [WearSignals] so the UI moves to the chat screen the moment it
+ * arrives. Writing the store alone was not enough: the store was correct while the screen still showed
+ * setup, and the only way out was to close and reopen the app.
+ *
+ * Maintainer: Michael — this file belongs to the Hermes fork of Agora (see NOTICE.md).
  */
 class ConfigListenerService : WearableListenerService() {
 
@@ -40,6 +46,9 @@ class ConfigListenerService : WearableListenerService() {
                 return@forEach
             }
             store.write(config)
+            // Publish, don't just persist: this is what moves the UI off the setup screen.
+            WearSignals.config.value = config
+            WearSignals.pairing.value = PairingStatus.Connected
             WearLog.w("config installed from phone")
         }
     }
@@ -77,6 +86,7 @@ class MemoryListenerService : WearableListenerService() {
                 return@forEach
             }
             store.write(snapshot, map.getLong(KEY_UPDATED_AT, System.currentTimeMillis()))
+            WearSignals.memoryUpdatedAt.value = map.getLong(KEY_UPDATED_AT, System.currentTimeMillis())
             WearLog.w("memory snapshot updated (${snapshot.length} chars)")
         }
     }
@@ -89,10 +99,31 @@ class MemoryListenerService : WearableListenerService() {
 }
 
 /**
+ * Receives the phone's answer to a pairing request, and the push result of a config the watch asked
+ * for. The phone sends it on [WearPairing.ACK_PATH]; the watch turns it into UI state and nothing
+ * else — an ack is a status string, never a credential.
+ *
+ * Maintainer: Michael — this file belongs to the Hermes fork of Agora (see NOTICE.md).
+ */
+class PairingAckListenerService : WearableListenerService() {
+
+    override fun onMessageReceived(event: com.google.android.gms.wearable.MessageEvent) {
+        if (event.path != WearPairing.ACK_PATH) return
+        val ack = runCatching { String(event.data, Charsets.UTF_8) }.getOrDefault("")
+        if (ack.isBlank()) return
+        val shown = WearPairing.displayableAck(ack)
+        WearSignals.pairingAck.value = shown
+        WearLog.w("pairing ack from phone: $shown")
+    }
+}
+
+/**
  * The last active-memory snapshot the phone pushed, on disk so it survives a watch restart.
  *
  * Read-only by design: the watch never writes memory back, so there is no merge conflict to resolve
  * and no way for a watch to corrupt the phone's store.
+ *
+ * Maintainer: Michael — this file belongs to the Hermes fork of Agora (see NOTICE.md).
  */
 class WearMemoryCache(private val context: android.content.Context) {
 

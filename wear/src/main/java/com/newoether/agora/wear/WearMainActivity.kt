@@ -9,7 +9,9 @@ import android.speech.tts.TextToSpeech
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -33,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
+import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
@@ -128,6 +131,9 @@ class WearMainActivity : ComponentActivity() {
     }
 }
 
+/** How much of a dropped question's text the notice shows before it becomes noise. */
+private const val DROPPED_TEXT_CHARS = 60
+
 @Composable
 private fun WearChatScreen(
     spokenQuestion: MutableStateFlow<String?>,
@@ -145,13 +151,25 @@ private fun WearChatScreen(
     var answer by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("") }
     var queued by remember { mutableStateOf(0) }
+    var held by remember { mutableStateOf<List<WearOfflineQueue.Entry>>(emptyList()) }
+    var droppedNotice by remember { mutableStateOf("") }
     var ready by remember { mutableStateOf(false) }
     var showDebug by remember { mutableStateOf(false) }
     var debug by remember { mutableStateOf("") }
 
+    // The store is still the source of truth, but the flow is what tells the composition that the
+    // phone pushed a config while the setup screen was up. Reading the file only at launch left the
+    // user staring at setup until they restarted the app.
+    val pushedConfig by WearSignals.config.collectAsState()
+    LaunchedEffect(pushedConfig) {
+        if (pushedConfig != null) ready = true
+    }
+
     /** One place that touches the queue, so the badge can never disagree with the file. */
     suspend fun refreshQueued() {
-        queued = withContext(Dispatchers.IO) { queue.size() }
+        val entries = withContext(Dispatchers.IO) { queue.all() }
+        held = entries
+        queued = entries.size
     }
 
     /**
@@ -168,29 +186,25 @@ private fun WearChatScreen(
      * @return how many held questions were delivered.
      */
     suspend fun drainQueue(client: WearChatClient, core: String, showResult: Boolean): Int {
-        val pending = withContext(Dispatchers.IO) { queue.all() }
-        if (pending.isEmpty()) return 0
-        var delivered = 0
-        for (entry in pending) {
-            val outcome = withContext(Dispatchers.IO) { client.ask(entry.text, core) }
-            if (outcome.isSuccess) {
-                withContext(Dispatchers.IO) { queue.complete(entry.id) }
-                delivered += 1
-                if (showResult) {
-                    answer = outcome.getOrNull().orEmpty()
-                    onSpeak(answer)
-                }
-            } else {
-                // Give up on this one only after the attempt ceiling, so a permanently failing
-                // question cannot block every question behind it forever.
-                WearLog.w("drain: send failed for id=${entry.id}: ${outcome.exceptionOrNull()?.message}")
-                val dropped = withContext(Dispatchers.IO) { queue.recordFailure(entry.id) }
-                if (dropped) WearLog.w("dropped after ${WearOfflineQueue.MAX_ATTEMPTS} attempts")
-                break
-            }
+        val report = WearQueueDrainer.drain(
+            queue = queue,
+            sender = { question, coreContext -> client.ask(question, coreContext) },
+            coreContext = core,
+            showResult = showResult,
+            onFailure = { message -> WearLog.w("drain: send failed: $message") },
+        )
+        if (report.lastAnswer != null) {
+            answer = report.lastAnswer
+            onSpeak(report.lastAnswer)
+        }
+        report.droppedText?.let { text ->
+            // P0: an automatic drop was only a log line before, so a question could disappear with
+            // nothing on screen. Say it out loud, with the text, while it is still true.
+            droppedNotice = "Dropped after ${WearOfflineQueue.MAX_ATTEMPTS} attempts: " +
+                text.take(DROPPED_TEXT_CHARS)
         }
         refreshQueued()
-        return delivered
+        return report.delivered
     }
 
     /**
@@ -381,6 +395,88 @@ private fun WearChatScreen(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                     )
                 }
+                // P0: the badge was read-only, so a held question could not be seen, retried or
+                // discarded — the only way out was to wait and hope the next send drained it.
+                items(held) { entry ->
+                    Card(
+                        onClick = {},
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        ),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = entry.text,
+                                style = MaterialTheme.typography.bodySmall,
+                                textAlign = TextAlign.Start,
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                Button(
+                                    onClick = {
+                                        scope.launch {
+                                            val config = withContext(Dispatchers.IO) { configStore.read() }
+                                            if (config == null) {
+                                                status = "No setup yet"
+                                                return@launch
+                                            }
+                                            val core = withContext(Dispatchers.IO) {
+                                                WearCoreContext.build(memoryCache.read())
+                                            }
+                                            val client = WearChatClient(config)
+                                            val outcome = withContext(Dispatchers.IO) {
+                                                client.ask(entry.text, core)
+                                            }
+                                            if (outcome.isSuccess) {
+                                                withContext(Dispatchers.IO) { queue.complete(entry.id) }
+                                                answer = outcome.getOrNull().orEmpty()
+                                                status = ""
+                                                droppedNotice = ""
+                                                onSpeak(answer)
+                                            } else {
+                                                val dropped = withContext(Dispatchers.IO) {
+                                                    queue.recordFailure(entry.id)
+                                                }
+                                                status = if (dropped) {
+                                                    "Dropped after ${WearOfflineQueue.MAX_ATTEMPTS} attempts"
+                                                } else {
+                                                    "Still offline — held"
+                                                }
+                                            }
+                                            refreshQueued()
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                ) { Text("Send now") }
+                                Button(
+                                    onClick = {
+                                        scope.launch {
+                                            withContext(Dispatchers.IO) { queue.complete(entry.id) }
+                                            refreshQueued()
+                                        }
+                                    },
+                                    colors = ButtonDefaults.filledTonalButtonColors(),
+                                    modifier = Modifier.weight(1f),
+                                ) { Text("Discard") }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (droppedNotice.isNotBlank()) {
+                item {
+                    Text(
+                        text = droppedNotice,
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    )
+                }
             }
 
             // Debug surface: what the watch actually holds (mandated: memory snapshot visible on the
@@ -393,9 +489,17 @@ private fun WearChatScreen(
                             scope.launch {
                                 val snapshot = withContext(Dispatchers.IO) { memoryCache.read() }
                                 val core = withContext(Dispatchers.IO) { WearCoreContext.build(snapshot) }
-                                debug = "snapshot ${snapshot.length} chars\n" +
+                                val stored = withContext(Dispatchers.IO) { configStore.read() }
+                                val lastMemory = WearSignals.memoryUpdatedAt.value
+                                debug = "${WearBuildInfo.PRODUCT_NAME}\n" +
+                                    WearBuildInfo.identityLines() + "\n\n" +
+                                    "snapshot ${snapshot.length} chars\n" +
                                     "core ${WearCoreContext.estimateTokens(core)} tokens\n" +
-                                    "queued ${withContext(Dispatchers.IO) { queue.size() }}"
+                                    "queued ${withContext(Dispatchers.IO) { queue.size() }}\n" +
+                                    "config ${if (stored == null) "none" else stored.baseUrl}\n" +
+                                    "model ${stored?.model.orEmpty().ifBlank { "none" }}\n" +
+                                    "pairing ${WearSignals.pairing.value.message}\n" +
+                                    "memory pushed " + if (lastMemory == 0L) "never" else lastMemory.toString()
                             }
                         }
                     },

@@ -17,6 +17,8 @@ import java.io.File
  * `ponytail:` file-backed list, not Room. The whole queue is a few dozen short strings; Room would
  * add a schema, a migration policy and a KSP round for a JSON array. Upgrade to Room if the queue
  * ever needs queries beyond "next N".
+ *
+ * Maintainer: Michael — this file belongs to the Hermes fork of Agora (see NOTICE.md).
  */
 class WearOfflineQueue(private val context: android.content.Context) {
 

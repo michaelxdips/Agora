@@ -1,10 +1,13 @@
 name: Build APK
 
 on:
+  # HERMES INTEGRATION POINT: the fork works on `main`; upstream's default branch is `master`, so
+  # with only [master] listed this workflow never ran on a single fork commit (audit A-015). `main`
+  # is added rather than substituted, so an upstream sync that lands on master still triggers it.
   push:
-    branches: [master]
+    branches: [master, main]
   pull_request:
-    branches: [master]
+    branches: [master, main]
   workflow_dispatch:
 
 permissions:

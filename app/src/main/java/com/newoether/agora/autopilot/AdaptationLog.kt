@@ -157,14 +157,23 @@ abstract class AdaptationDatabase : RoomDatabase() {
         @Volatile
         private var instance: AdaptationDatabase? = null
 
-        /** Process-wide singleton; destructive migration is allowed until the first tagged release. */
+        /**
+         * Process-wide singleton. **No destructive fallback.**
+         *
+         * `fallbackToDestructiveMigration(dropAllTables = true)` was still on from before the v2.0
+         * tag: the next schema change would have dropped both tables, and `adaptation_log` is the
+         * *only* record of what the autopilot changed and what the user's memory looked like before
+         * it did. Losing it silently is the one failure this journal exists to prevent, so a schema
+         * mismatch now fails loudly (and a migration must be written) instead of wiping the undo
+         * history of every installed user.
+         */
         fun get(context: Context): AdaptationDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     AdaptationDatabase::class.java,
                     DB_NAME,
-                ).fallbackToDestructiveMigration(dropAllTables = true).build().also { instance = it }
+                ).build().also { instance = it }
             }
     }
 }

@@ -177,7 +177,8 @@ class AutopilotMemoryInstrumentedTest {
             override suspend fun isEnabled() = true
             override suspend fun currentDailyCap() = AutopilotSettings.DEFAULT_DAILY_CAP
             override suspend fun underDailyCap(log: AdaptationLogDao, sinceMillis: Long) =
-                log.countSince(sinceMillis) - baselineCount < AutopilotSettings.DEFAULT_DAILY_CAP
+                log.countAutopilotSince(sinceMillis, AdaptationEntry.STORE_ACTIVE_MEMORY) -
+                baselineCount < AutopilotSettings.DEFAULT_DAILY_CAP
         },
     )
 }

@@ -1,7 +1,5 @@
 package com.newoether.agora.autopilot
 
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
  * In-memory [AdaptationLogDao] for JVM tests.
@@ -29,9 +27,6 @@ class FakeAdaptationLogDao : AdaptationLogDao {
 
     override suspend fun all(): List<AdaptationEntry> = entries.values.sortedWith(order)
 
-    override fun observe(): Flow<List<AdaptationEntry>> =
-        MutableStateFlow(entries.values.sortedWith(order))
-
     override suspend fun updateStatus(id: Long, status: String): Int {
         val entry = entries[id] ?: return 0
         entries[id] = entry.copy(status = status)
@@ -50,6 +45,10 @@ class FakeAdaptationLogDao : AdaptationLogDao {
     override suspend fun delete(id: Long): Int = if (entries.remove(id) != null) 1 else 0
 
     override suspend fun countSince(since: Long): Int = entries.values.count { it.timestamp >= since }
+
+    /** Mirrors `WHERE timestamp >= :since AND store != :excludedStore`. */
+    override suspend fun countAutopilotSince(since: Long, excludedStore: String): Int =
+        entries.values.count { it.timestamp >= since && it.store != excludedStore }
 
     override suspend fun idsBeyondRetention(file: String, store: String, keep: Int): List<Long> =
         historyFor(file, store).drop(keep).map { it.id }

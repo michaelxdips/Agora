@@ -55,7 +55,7 @@ class SkillSynthesizerTest {
         override suspend fun isEnabled() = enabled
         override suspend fun currentDailyCap() = cap
         override suspend fun underDailyCap(log: AdaptationLogDao, sinceMillis: Long) =
-            cap > 0 && log.countSince(sinceMillis) < cap
+            cap > 0 && log.countAutopilotSince(sinceMillis, AdaptationEntry.STORE_ACTIVE_MEMORY) < cap
     }
 
     @Test
@@ -145,6 +145,22 @@ class SkillSynthesizerTest {
         val id = synthesizer.synthesize("USER: x", listOf("taken"), { _, _ -> reply }, "s1")
 
         assertNull(id)
+        assertEquals(before.toList(), File(filesDir, "skill_db/taken.md").readBytes().toList())
+        assertTrue(log.all().isEmpty())
+    }
+
+    @Test
+    fun anExistingSkillNameWithTheMdSuffixIsAlsoRejected() = runBlocking {
+        // The production caller passes `SkillManager.listFiles().map { it.name }`, which yields file
+        // names **with** `.md`, while a draft carries a bare name. The old comparison asked whether
+        // "taken" equals "taken.md" — never true — so a colliding draft overwrote the user's skill.
+        skillManager.createFile("taken", "# taken\n", "existing")
+        val before = File(filesDir, "skill_db/taken.md").readBytes()
+        val reply = """{"name":"taken","trigger":"t","steps":["s"],"pitfalls":[]}"""
+
+        val id = synthesizer.synthesize("USER: x", listOf("taken.md"), { _, _ -> reply }, "s1")
+
+        assertNull("a colliding draft must be refused, not applied", id)
         assertEquals(before.toList(), File(filesDir, "skill_db/taken.md").readBytes().toList())
         assertTrue(log.all().isEmpty())
     }

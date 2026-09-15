@@ -382,6 +382,28 @@ Clean-build numbers: **65,285,432 → 65,294,236 = +8,804 bytes**, entirely dex 
 the new code. Had the archives not been measured entry by entry, 2.5 MB of packaging noise would have
 been reported as a real change — in either direction.
 
+**Does the missing 574 KB break anything? No — and this was checked rather than assumed.** The
+baseline was taken with `app/src/fdroid/assets/alpine-minirootfs.tar.gz` present; that file is
+gitignored and absent now. It turns out it was never a build input at all:
+
+```kotlin
+// ProotSandboxManager.install(), line 164
+// Fetch the base rootfs on-device (not shipped in the APK) and verify its checksum.
+downloadRootfs(rootfsUrl, tmpTar)
+```
+
+The Alpine rootfs is downloaded on the device at install time, so the APK never needed to carry it and
+its absence changes nothing. Verified against the current build:
+
+```
+  lib/arm64-v8a/libagora_proot.so          3536 bytes
+  dex symbols present: FdroidSandboxManagerFactory, ProotNative, ProotSandboxManager
+```
+
+So the fdroid APK is 563,928 bytes smaller than the baseline and the sandbox is fully intact: the
+shrinking is a file that was never used, and the fork's own code grew by 8,804 bytes. Both numbers are
+now explained, and neither is a regression.
+
 ## Gate (all re-run at the end of the session)
 
 ```

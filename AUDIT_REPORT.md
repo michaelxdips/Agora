@@ -320,3 +320,150 @@ only by a test that the earlier reading-pass had considered unnecessary.
 
 The pattern is consistent and worth naming: **the block is the unit, not the marker line.** Marker
 handling that treats markers as lines produced two independent bugs in two different modules.
+
+---
+
+# Pass 5 — rename, the three critical findings, real pairing, Wear rebuild (Phase 12)
+
+## Findings
+
+| # | Sev | Finding | How it was found | Status |
+|---|---|---|---|---|
+| 16 | **CRITICAL** | `SettingsWatchSetupPage` could never be opened: no `SettingsCategory("watch", …)` and no `"watch"` branch in `SettingsScreen.kt`, while the page itself was complete and called `WatchSync.pushConfig` / `pushMemorySnapshot` / `connectedWatchCount`. The phone→watch setup path was unreachable for every user. | The handover prompt predicted it; reproduced here with `grep -c '"watch"' SettingsScreen.kt` → `0` and `grep -rn "SettingsWatchSetupPage" app/src/main/java/ \| grep -v "Page.kt:"` → empty, then `git log -S` → empty (never wired, not wired-then-removed). | **FIXED** — entry + dispatch added; proved on emulator-5554 by opening it and reading `Send to watch` / `Watches connected: 0` |
+| 17 | **HIGH** | The watch's "Pair with phone" button had no handler. `onClick` set `waitingForPhone = true` and printed a fixed sentence; nothing ever left the device. Of the owner's two mandated setup paths, only BYOK was real. | `grep -rn "pairing\|pairRequest\|CapabilityClient\|MessageClient\|onCapabilityChanged" app/src/main/java/ wear/src/main/java/` → **empty**; `grep -rc 'WatchSync' wear/src/main/java/` → `0` | **FIXED** — see "Pairing" below |
+| 18 | **MEDIUM** | `ConfigListenerService.onDataChanged` wrote the config to the encrypted store and notified nobody, so the watch kept showing the setup screen until the user closed and reopened the app. | `grep -c 'onDataChanged' WearMainActivity.kt` → `0` | **FIXED** — `WearSignals` StateFlows; the composition collects, nothing polls |
+| 19 | **HIGH** (regression, introduced in this session) | Extracting `drainQueue` out of the composable into `WearQueueDrainer` dropped the `withContext(Dispatchers.IO)` wrapper. On the device the launch drain died with `NetworkOnMainThreadException` and the held question stayed on disk — the exact P0 failure, reintroduced. | `_tools/p0_autodrain_proof.py` on the device: `drain: send failed: NetworkOnMainThreadException`, `launch drain: delivered=0, queue now 1`, `RESULT: FAIL`. **All 47 JVM tests were green at the time.** | **FIXED** — the dispatcher moved into `drain`; re-proved `RESULT: PASS`; `WearMainThreadSentinelTest` added |
+| 20 | **LOW** | The pairing "no phone" outcome was silent in logcat (visible only in the UI), so an investigation would start from nothing. | Reading the log after a real tap: no line at all | **FIXED** — `pairing: no node advertises hermes_phone` |
+| 21 | **LOW** | Ten user-visible upstream strings still said "Agora", including the onboarding headline a new user reads first. | The device said `Welcome to Agora` on a fresh install — found by running the app, not by reading the source | **FIXED** — flavor overlays for all eleven locales; device now shows `Welcome to Hermes X` |
+| 22 | **MEDIUM** (harness, not app) | `install -r` of the **release** watch APK over an installed **debug** one fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE` — different signing certificates (`Android Debug` vs `hermes-release.jks`). The first device-proof run reported this as a failure. | Reading the install output and then `apksigner verify --print-certs` on both APKs | Recorded as expected behaviour; the proof now uninstalls first for a release install |
+
+## Pairing — what is proved, and what is not
+
+**The problem.** The Data Layer requires both apps to share an `applicationId` (they do: `com.hermes.app`)
+and to be signed with the same certificate (they are). It also requires the two devices to be *paired*
+at the platform level. Two emulators on one host share no Google account, so
+`getCapability(..., FILTER_REACHABLE)` returns no nodes and no message can leave the device. This is
+**HS4**, and it cannot be closed on this machine.
+
+**What was built.**
+
+* `WearPairing.request()` — the watch's whole decision: send to every node advertising `hermes_phone`,
+  then report `NoPhone` / `SendFailed` / `Sent` / `TimedOut` / `Connected` from the real result. The
+  payload carries **no credential**: the watch asks, it does not authenticate, because a secret on the
+  watch is a secret that can leak.
+* `WearPairingTransport` — the real Data Layer behind a `PairingTransport` **interface**. This is the
+  seam §8.4 asks for.
+* `PairingListenerService` — the phone answers by running the same `WatchSync.sendConfigToWatch` the
+  settings screen's button runs, so the two paths cannot disagree about what "sent" means, and replies
+  on `/hermes/pair/ack`. A watch-initiated request requires **no** phone-side tap.
+* `hermes_phone` declared statically in `res/values/wear.xml` of both flavors — a capability that only
+  appears after the first request cannot be used to find the phone for that first request.
+
+**Proof that exists.**
+
+| Layer | Evidence |
+|---|---|
+| Decision logic | `WearPairingTest`, 8 tests: no phone is reported as no-phone (not as "waiting"), a failed send does not wait for an ack, a timeout carries the recovery step, a blank ack is not an ack, the payload carries no key/token, a 10,000-character ack cannot own the screen, every status carries an actionable sentence |
+| Request path on a real device | tapping *Pair with phone* on `emulator-5556` → screen shows `No phone app found. Install it and open it once, or use a key on the watch.`; logcat `HermesWear: pairing: no node advertises hermes_phone`. The old code printed a fixed sentence here and this log line would not exist |
+| Transport between two devices | **NOT VERIFIED.** Needs HS4. Not claimed. |
+
+## APK size — a measurement that was wrong first
+
+The first comparison against the handover baseline appeared to show the APKs had **shrunk** by
+562,792 B. Both parts of that were wrong:
+
+1. The baseline number was taken with `app/src/fdroid/assets/alpine-minirootfs.tar.gz` present. That
+   file is gitignored and absent now, so the two builds were not comparable. (Confirmed by building the
+   baseline commit in a worktree and diffing the archives.)
+2. Diffing the archives entry by entry showed a **2,558,477-byte gap of pure padding** before
+   `res/xml/file_paths.xml` in an incrementally packaged APK. A `:app:clean` build removes it.
+
+Clean-build numbers: **65,285,432 → 65,294,236 = +8,804 bytes**, entirely dex and `resources.arsc` from
+the new code. Had the archives not been measured entry by entry, 2.5 MB of packaging noise would have
+been reported as a real change — in either direction.
+
+## Gate (all re-run at the end of the session)
+
+```
+touchpoint_guard.sh                      PASS
+SYNC_DRY_RUN=1 upstream_sync.sh          PASS (exit 0)
+:app:testFdroidDebugUnitTest             2533 tests, 0 failures, 0 errors
+:app:testPlayDebugUnitTest               2516 tests, 0 failures, 0 errors
+:wear:testDebugUnitTest                  47 tests, 0 failures, 0 errors
+:app:assembleFdroidDebug                 BUILD SUCCESSFUL
+:app:assemblePlayDebug                   BUILD SUCCESSFUL
+:wear:assembleRelease                    BUILD SUCCESSFUL (R8 + shrinking + lintVitalRelease)
+apksigner verify --print-certs           verified, CN=Hermes Local, SHA-256 7188ce70...aa56d7
+aapt2 dump badging (3 APKs)              application-label:'Hermes X' in every locale
+                                         package: com.hermes.app, versionName 3.0.0-hermesx
+_tools/p0_autodrain_proof.py             RESULT: PASS — held question delivered on launch
+_tools/maintainer_proof.py               watch Debug panel: Hermes X / Maintainer: Michael / both URLs
+_tools/phone_proof.py                    RESULT: PASS — Watch setup opens, About shows the maintainer
+```
+
+## Changes this session — one line each
+
+Format: `file — what was wrong — evidence`.
+
+**Rename to Hermes X**
+
+* `app/src/fdroid/res/values*/strings.xml`, `app/src/play/res/values*/strings.xml` (24 files) — the launcher label said "Hermes" and upstream's 12 locale files still said "Agora"; the play flavor had no locale overlays at all, so a German user saw an app called "Agora" — `aapt2 dump badging` now reports `application-label:'Hermes X'` for `de`/`ar`/`es`/`zh`/`ja`/`ko`/`ru`/`vi`/`fr`/`pt-BR`/`zh-TW` in all three APKs
+* `app/src/{fdroid,play}/res/values/strings.xml` — ten user-visible strings still named the old product, onboarding first — device showed `Welcome to Agora`, now `Welcome to Hermes X`
+* `wear/src/main/res/values/strings.xml` — `app_name` + `wear_speak_prompt` — `aapt2` shows the new label on the release APK
+* `wear/.../WearMainActivity.kt`, `wear/.../WearSetupScreen.kt` — the product name was two literals in two files and could drift — both now read `WearBuildInfo.PRODUCT_NAME`
+* `app/.../autopilot/AutopilotNotifier.kt` — the notification body named the old product — string updated
+* `app/build.gradle.kts`, `wear/build.gradle.kts` — `versionName` `2.1.0` → `3.0.0-hermesx` — `aapt2 dump badging`; `versionCode` deliberately left at 31
+
+**Maintainer**
+
+* `wear/.../WearBuildInfo.kt` (new), `app/.../autopilot/HermesBuildInfo.kt` (new) — the maintainer existed nowhere in code — both constants are *used* (watch Debug panel, phone About), not just declared
+* `app/.../ui/settings/SettingsAboutPage.kt` — nothing in the app said who maintains the fork — device About shows `Hermes X / Maintainer: Michael / Fork of Agora — github.com/newo-ether/Agora / github.com/michaelxdips/Agora`
+* twelve fork-owned files — maintainer line in the KDoc header — see `CODE_MAP.md` §1–2
+* `NOTICE.md` — the fork-owner line named the old product — updated
+
+**The three critical findings**
+
+* `app/.../ui/settings/SettingsScreen.kt` — the Watch setup entry and dispatch did not exist (4.1) — device opens the page
+* `app/.../autopilot/wearsync/SettingsWatchSetupPage.kt` — took two constructor arguments no caller had, so it could not be dispatched like its siblings; now resolves them from `AppContainer` — compiles and opens
+* `app/.../autopilot/wearsync/WatchSync.kt` — the push logic was only reachable from the UI; extracted to `sendConfigToWatch` so the pairing listener runs the same code, and added `lastPushOutcome` so the screen can report a real result
+* `app/.../autopilot/wearsync/PairingListenerService.kt` (new) — the phone had no way to answer a watch request
+* `app/src/main/AndroidManifest.xml` — registers the service (upstream touchpoint #5, budget 5/6)
+* `app/src/{fdroid,play}/res/values/wear.xml` (new) — the `hermes_phone` capability must exist before the first request
+* `wear/.../WearPairing.kt` (new) — the button had no mechanism
+* `wear/.../WearSetupScreen.kt` — the button printed a fixed sentence instead of requesting anything
+* `wear/.../WearSignals.kt` (new) — nothing told the UI a config had arrived (4.3)
+* `wear/.../WearListeners.kt` — the config listener wrote the store and published nothing; also added `PairingAckListenerService`
+* `wear/src/main/AndroidManifest.xml` — registers the ack listener
+* `wear/.../WearMainActivity.kt` — the composition now reacts to a pushed config
+
+**P0 remainder + the regression**
+
+* `wear/.../WearQueueDrainer.kt` (new) — the drain was a local function inside a composable, so no test could reach it and the launch-drain bug had no regression test; extraction is what makes the eight new tests possible
+* `wear/.../WearQueueDrainer.kt` — **the extraction dropped `withContext(Dispatchers.IO)`** and broke auto-drain on the device — device proof FAIL, then FIX, then device proof PASS
+* `wear/.../WearMainActivity.kt` — the held-question badge was read-only, so a held question could not be seen, retried or discarded, and an automatic drop was only a log line — cards with Send now / Discard, plus a visible drop notice
+* `wear/src/test/.../WearQueueDrainerTest.kt` (new), `WearPairingTest.kt` (new), `WearMainThreadSentinelTest.kt` (new) — 47 tests total, up from 31
+
+**Hygiene, docs, tooling**
+
+* `.gitignore` — `_*.log` was not ignored, so a gate run's scratch logs landed in `git status` — six such files were caught staged and removed rather than committed; budget 6 → 9 with the reason in the registry
+* `UPSTREAM_TOUCHPOINTS.md` — three budgets raised, each with its reason in the registry table
+* `app/.../ReflectionProtocol.kt`, `SkillSynthesisProtocol.kt` — four broad `catch (Exception)` sites had no cancellation branch and no explanation — annotated as to why cancellation cannot arrive there (synchronous JSON decoding), so a reviewer does not have to guess
+* `STATUS.md` — the Phase-7 row claiming the watch setup was "driven from Settings → Watch setup" was false when written; corrected with the RED evidence and the device proof
+* `CODE_MAP.md` (new) — the file-by-file review map §12A.2 asks for
+* `_tools/maintainer_proof.py`, `_tools/phone_proof.py` (new) — the two device proofs for the maintainer surface and the Watch setup entry
+* `evidence/_session_logs/` — the three logs worth keeping (baseline gate, device proof, APK-delta investigation)
+
+## Patterns worth naming (added to the existing four)
+
+* **"the JVM suite is green while the device is broken."** `Dispatchers.IO` is not observable from a
+  unit test with a fake sender. 47 tests passed while auto-drain was dead on the watch. A platform
+  property a unit test cannot see needs a device proof, and if the proof is not re-run after a
+  refactor, the refactor is unverified.
+* **"a refactor that removes a wrapper removes the behaviour."** Moving a function out of a class is not
+  behaviour-preserving when the class supplied a context the function relied on. The old inline version
+  had `withContext(Dispatchers.IO)` at each call; the extracted version had none.
+* **"an archive is not a sum of its entries."** 2.5 MB of inter-entry padding made a clean diff look
+  like a 2.5 MB regression. Measure archives entry by entry, and prefer a `clean` build for size
+  comparisons.
+* **"a claim can be true in code and false in the product."** `SettingsWatchSetupPage.kt` existed,
+  compiled, and passed its own tests while being unreachable. Source presence is not reachability.

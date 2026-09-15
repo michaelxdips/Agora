@@ -1,9 +1,15 @@
 <div align="center">
   <img src="app/src/main/assets/agora_transparent_large.png" alt="Agora Logo" width="120" />
 
-  # Agora
+  # Hermes X
 
   **BYOK LLM client with multi-provider access, agentic workflows, and remote device control.**
+
+  > **Hermes X** is a fork of [Agora](https://github.com/newo-ether/Agora) by the Agora authors (MIT).
+  > Maintainer of this fork: **Michael** ([`michaelxdips`](https://github.com/michaelxdips/Agora)).
+  > Attribution is unchanged — see `NOTICE.md`. Everything below is upstream's README and describes
+  > the shared product; the fork's additions (autopilot, personas, the watch module) are documented in
+  > `ROADMAP.md`, `STATUS.md` and `CODE_MAP.md`.
 
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
   [![Platform: Android](https://img.shields.io/badge/Platform-Android-green.svg)](https://developer.android.com)

@@ -1,7 +1,9 @@
 name: Deploy MkDocs
 on:
+  # HERMES INTEGRATION POINT: same reason as build.yml — the fork pushes `main`, upstream's default
+  # branch is `master` (audit A-015).
   push:
-    branches: [master]
+    branches: [master, main]
     paths:
       - 'docs/**'
       - 'mkdocs.yml'

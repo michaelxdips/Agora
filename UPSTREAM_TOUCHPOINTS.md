@@ -13,6 +13,8 @@ never remove upstream behaviour — add, don't rewrite.
 app/build.gradle.kts :: max=16
 settings.gradle.kts :: max=4
 gradle/libs.versions.toml :: max=10
+.github/workflows/build.yml :: max=8
+.github/workflows/mkdocs.yml :: max=4
 .gitignore :: max=9
 app/src/main/AndroidManifest.xml :: max=6
 app/src/main/res/values/strings.xml :: max=4
@@ -22,6 +24,8 @@ app/src/main/java/com/newoether/agora/util/UpdateChecker.kt :: max=90
 app/src/test/java/com/newoether/agora/util/UpdateCheckerTest.kt :: max=100
 app/src/main/java/com/newoether/agora/MainActivity.kt :: max=40
 app/src/main/java/com/newoether/agora/viewmodel/GenerationRequestBuilder.kt :: max=8
+
+| 13 | `.github/workflows/build.yml`, `.github/workflows/mkdocs.yml` | Phase 14 (audit A-015): both workflows triggered on `[master]` only. Upstream's default branch is `master`, but this fork works on `main`, so with `main` never listed **no CI job had ever run on a fork commit**. `main` is added alongside `master` (add, don't rewrite) and both files are registered here because the guard's ALLOWED class covers `upstream-sync.yml` alone. Budgets: 8 changed lines for build.yml (the two branch lists plus the marker comment), 4 for mkdocs.yml |
 <!-- GUARD:DATA:END -->
 
 ## Registry

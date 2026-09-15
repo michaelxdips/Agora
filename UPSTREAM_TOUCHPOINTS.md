@@ -19,6 +19,7 @@ app/src/main/res/values/strings.xml :: max=4
 app/src/main/java/com/newoether/agora/ui/settings/SettingsScreen.kt :: max=32
 app/src/main/java/com/newoether/agora/ui/settings/SettingsAboutPage.kt :: max=16
 app/src/main/java/com/newoether/agora/util/UpdateChecker.kt :: max=90
+app/src/test/java/com/newoether/agora/util/UpdateCheckerTest.kt :: max=100
 app/src/main/java/com/newoether/agora/MainActivity.kt :: max=40
 app/src/main/java/com/newoether/agora/viewmodel/GenerationRequestBuilder.kt :: max=8
 <!-- GUARD:DATA:END -->
@@ -38,6 +39,7 @@ app/src/main/java/com/newoether/agora/viewmodel/GenerationRequestBuilder.kt :: m
 | 9 | `.gitignore` (raised 6 → 9) | Phase 12: `_*.log` — the gate/build logs an agent session writes at the repo root. The previous session committed a build tree once because a pattern was missing; this closes the same hole for scratch logs before it happens |
 | 10 | `app/src/main/java/com/newoether/agora/util/UpdateChecker.kt` (max=90) | Phase 13: the check queried **upstream's** releases (`newo-ether/Agora`), so a fork build could only ever be offered the upstream APK — a wrong install, since the two have different `applicationId`s, signing identities and feature sets. Repointed at the fork, `compare` made public and rewritten so a non-numeric segment is ordered instead of collapsing to 0, and a `CancellationException` branch added. The 90-line budget covers the rewrite plus its explanatory KDoc; the file is 128 lines total and the logic is unchanged in shape |
 | 11 | `app/src/main/java/com/newoether/agora/ui/settings/SettingsAboutPage.kt` (raised 8 → 16) | Phase 13: the GitHub, issue-tracker, contribute and privacy-policy rows all opened **upstream's** URLs. A bug in Hermes X reported to a tracker for a build upstream does not ship is a bug that cannot be reproduced. Repointed at the fork (11 lines: 4 URLs + the marker) |
+| 12 | `app/src/test/java/com/newoether/agora/util/UpdateCheckerTest.kt` (max=100) | Phase 13: a test for the upstream file above. It lives next to its subject, not under `autopilot/`, because the fork-only test directories do not cover `util/`. It is the test whose absence let the upstream-releases defect ship |
 
 Each edit site is marked `// HERMES INTEGRATION POINT`; the guard enforces both the budget and the
 marker. Upstream behaviour is added to, never removed.

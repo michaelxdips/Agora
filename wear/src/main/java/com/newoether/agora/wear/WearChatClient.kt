@@ -5,6 +5,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
@@ -128,13 +129,30 @@ class WearChatClient(private val config: WearConfig) {
         return if (base.endsWith("/chat/completions")) base else "$base/chat/completions"
     }
 
+    /**
+     * Extracts the assistant text from an OpenAI-compatible response.
+     *
+     * Two shapes are accepted: the current `choices[0].message.content`, and the legacy
+     * `choices[0].text`. Anything else is null, which `ask` turns into "unreadable response".
+     *
+     * **The `is JsonNull` checks are not defensive noise — they fix a bug found on the device.**
+     * `JsonNull` IS a `JsonPrimitive` in kotlinx.serialization, so the previous
+     * `... as? JsonPrimitive` cast accepted a JSON `null`, `.content` returned the four characters
+     * `null`, and `takeIf { it.isNotBlank() }` let them through because "null" is not blank. A user
+     * whose provider answered `content: null` was shown the word "null" as the answer. A wrong
+     * answer is worse than an honest failure, so a JSON null must fail here.
+     */
     private fun parseContent(raw: String): String? {
         val root = runCatching { json.parseToJsonElement(raw) as? JsonObject }.getOrNull() ?: return null
         val choices = root["choices"] as? JsonArray ?: return null
         val first = choices.firstOrNull() as? JsonObject ?: return null
         val message = first["message"] as? JsonObject
-        val content = (message?.get("content") ?: first["text"]) as? JsonPrimitive ?: return null
-        return runCatching { content.content }.getOrNull()?.takeIf { it.isNotBlank() }
+        val candidate = message?.get("content") ?: first["text"] ?: return null
+        if (candidate is JsonNull) return null
+        val primitive = candidate as? JsonPrimitive ?: return null
+        // A JSON null inside the primitive is also possible for a hand-built element.
+        if (primitive is JsonNull) return null
+        return runCatching { primitive.content }.getOrNull()?.takeIf { it.isNotBlank() }
     }
 
 }

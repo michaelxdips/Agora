@@ -1,12 +1,16 @@
 package com.newoether.agora.autopilot.wearsync
 
 import android.content.Context
+import com.google.android.gms.wearable.CapabilityClient
 import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
 import com.newoether.agora.data.MemoryManager
+import com.newoether.agora.data.repository.SettingsRepository
 import com.newoether.agora.util.DebugLog
+import com.newoether.agora.viewmodel.ProviderRegistry
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
@@ -24,12 +28,24 @@ import kotlinx.coroutines.withContext
  * its own retry loop.
  *
  * Failure is silent to the user and logged: a watch that is not paired, not nearby, or not installed
- * must never make the phone app show an error.
+ * must never make the phone app show an error. The one place a result *is* surfaced is the Watch setup
+ * screen, via [lastPushOutcome] — a user who asked for a transfer deserves to know whether it went.
+ *
+ * Maintainer: Michael — this file belongs to the Hermes fork of Agora (see NOTICE.md).
  */
 object WatchSync {
 
     private const val CONFIG_PATH = "/hermes/config"
     private const val MEMORY_PATH = "/hermes/memory"
+
+    /** Capability the watch looks for when it wants to pair; advertised by PairingListenerService. */
+    const val PHONE_CAPABILITY = "hermes_phone"
+
+    /** The last transfer result, for the setup screen. Null until the first attempt this process. */
+    val lastPushOutcome = MutableStateFlow<PushOutcome?>(null)
+
+    /** What a transfer attempt did. [ok] is false only when nothing reached the watch. */
+    data class PushOutcome(val ok: Boolean, val message: String)
 
     /**
      * Pushes the credential payload.
@@ -106,6 +122,60 @@ object WatchSync {
             0
         }
     }
+
+    /**
+     * One full transfer: resolve the key the user already configured, push config, push memory, and
+     * return a sentence that is true of what happened.
+     *
+     * Shared by the settings screen's button and by [PairingListenerService] — the watch's request must
+     * run the *same* code, or the two paths could disagree about what "sent" means.
+     *
+     * @param settingsRepo key source; the user is never asked to re-type a key the phone already has.
+     */
+    suspend fun sendConfigToWatch(
+        context: Context,
+        settingsRepo: SettingsRepository,
+        registry: ProviderRegistry,
+        baseUrl: String,
+        model: String,
+    ): PushOutcome {
+        val modelId = model.ifBlank { settingsRepo.selectedModel.value.orEmpty() }
+        val providerName = if (modelId.isBlank()) "" else registry.providerForModel(modelId)
+        val key = withContext(Dispatchers.IO) {
+            runCatching {
+                settingsRepo.awaitActiveKey(providerName)?.takeIf { it.isNotBlank() }
+                    ?: settingsRepo.resolveActiveKey(providerName)
+            }.getOrNull().orEmpty()
+        }
+        val outcome = when {
+            baseUrl.isBlank() || modelId.isBlank() ->
+                PushOutcome(false, NO_ENDPOINT)
+            key.isBlank() -> PushOutcome(false, NO_KEY)
+            else -> {
+                val pushed = withContext(Dispatchers.IO) {
+                    pushConfig(context, baseUrl, key, modelId)
+                }
+                if (!pushed) {
+                    PushOutcome(false, PUSH_FAILED)
+                } else {
+                    val memory = withContext(Dispatchers.IO) { pushMemorySnapshot(context) }
+                    PushOutcome(true, if (memory) PUSHED else CONFIG_ONLY)
+                }
+            }
+        }
+        lastPushOutcome.value = outcome
+        return outcome
+    }
+
+    internal const val NO_ENDPOINT = "No base URL or model selected. Configure a provider first."
+    internal const val NO_KEY = "No API key configured for the selected model. Set it in Providers first."
+    internal const val PUSH_FAILED = "No watch reachable — open the app on the watch and try again."
+    internal const val CONFIG_ONLY =
+        "Config sent; the memory snapshot will follow when the watch is reachable."
+    internal const val PUSHED = "Sent. The watch is standalone now."
+
+    /** Human sentence for a capability/node query failure, used by the pairing listener. */
+    internal const val UNREACHABLE = "The phone could not reach the watch to send the config."
 
     private const val TAG = "AutopilotWearSync"
 }

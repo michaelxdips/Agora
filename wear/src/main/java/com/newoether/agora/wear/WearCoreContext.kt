@@ -10,6 +10,8 @@ package com.newoether.agora.wear
  *
  * Pure Kotlin, no Android: this is the piece the watch unit tests exercise hardest, because a
  * mis-built core context is invisible until a wrong answer arrives.
+ *
+ * Maintainer: Michael — this file belongs to the Hermes fork of Agora (see NOTICE.md).
  */
 object WearCoreContext {
 

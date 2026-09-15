@@ -12,6 +12,8 @@ import kotlinx.coroutines.CancellationException
  * singleton `active_memory.md` is deliberately excluded — Agora's `MemoryManager` exposes no
  * create/delete primitive for it, so adapting it would require a second, parallel write path
  * (prohibited by N4: no custom formats, no parallel pipelines).
+ *
+ * Maintainer: Michael — this file belongs to the Hermes fork of Agora (see NOTICE.md).
  */
 data class AdaptationTarget(
     val store: String,

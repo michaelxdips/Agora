@@ -270,6 +270,9 @@ private val baseSettingsGroups = listOf(
         SettingsCategory("adaptation", R.string.hermes_adaptation_history, R.string.hermes_adaptation_history_desc, Icons.Default.History),
         // HERMES INTEGRATION POINT: persona system entry (Phase 6 P4).
         SettingsCategory("personas", R.string.hermes_personas, R.string.hermes_personas_desc, Icons.Default.RecordVoiceOver),
+        // HERMES INTEGRATION POINT: Watch setup entry (Phase 7). Without this row the page existed
+        // but no user could reach it — the feature was dead code.
+        SettingsCategory("watch", R.string.hermes_watch_setup, R.string.hermes_watch_setup_desc, Icons.Default.Watch),
         SettingsCategory("datacontrol", R.string.settings_data_control, R.string.settings_data_control_desc, Icons.Default.Storage),
     )),
     SettingsGroupData(titleRes = R.string.settings_group_appearance_language, items = listOf(
@@ -357,6 +360,10 @@ fun SettingsScreen(
                 )
                 // HERMES INTEGRATION POINT: persona system page (Phase 6 P4).
                 "personas" -> com.newoether.agora.autopilot.SettingsPersonasPage(
+                    onBack = { selectedCategory = null },
+                )
+                // HERMES INTEGRATION POINT: Watch setup page (Phase 7).
+                "watch" -> com.newoether.agora.autopilot.wearsync.SettingsWatchSetupPage(
                     onBack = { selectedCategory = null },
                 )
                 "datacontrol" -> SettingsDataControlPage(viewModel, onBack = { selectedCategory = null })

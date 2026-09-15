@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.Flow
  *
  * N2: Agora's Room database is never extended. This database is separate, version 1, and may use
  * destructive migration until the fork's first tagged release.
+ *
+ * Maintainer: Michael — this file belongs to the Hermes fork of Agora (see NOTICE.md).
  */
 @Entity(tableName = "adaptation_log")
 data class AdaptationEntry(

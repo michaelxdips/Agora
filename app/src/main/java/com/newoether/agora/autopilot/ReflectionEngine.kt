@@ -16,6 +16,8 @@ data class ReflectionOutcome(
  *
  * Everything that can refuse a write refuses here, so the worker stays a thin scheduler and the
  * whole decision is unit-testable without WorkManager or a Provider.
+ *
+ * Maintainer: Michael — this file belongs to the Hermes fork of Agora (see NOTICE.md).
  */
 class ReflectionEngine(
     /** Reflection call seam: production passes [ReflectionCaller::reflect]; tests pass a stub. */

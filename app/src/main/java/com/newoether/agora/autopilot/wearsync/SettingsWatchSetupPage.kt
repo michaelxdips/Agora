@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.newoether.agora.AgoraApplication
 import com.newoether.agora.R
 import com.newoether.agora.data.repository.SettingsRepository
 import com.newoether.agora.ui.settings.CollapsingSettingsLazyScaffold
@@ -36,30 +37,46 @@ import kotlinx.coroutines.withContext
  * The key is **read from the provider config the user already entered** and pushed; it is never
  * displayed, never logged, and never written anywhere on the phone side. Re-pushing overwrites the
  * watch's config, which is also the recovery path when a user re-issues a key.
+ *
+ * This page is also the phone half of pairing: when the watch taps "Pair with phone" it sends a
+ * request on `/hermes/pair`, [PairingListenerService] pushes the config without the user touching
+ * this screen, and the push result shows up here as the last-transfer status.
+ *
+ * Maintainer: Michael — this file belongs to the Hermes fork of Agora (see NOTICE.md).
  */
 @Composable
 fun SettingsWatchSetupPage(
-    settings: SettingsRepository,
-    providers: ProviderRegistry,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current.applicationContext
     val scope = rememberCoroutineScope()
 
+    var settings by remember { mutableStateOf<SettingsRepository?>(null) }
+    var providers by remember { mutableStateOf<ProviderRegistry?>(null) }
     var baseUrl by remember { mutableStateOf("") }
     var model by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("") }
     var watchCount by remember { mutableStateOf(0) }
 
     LaunchedEffect(Unit) {
-        val modelId = settings.selectedModel.value.orEmpty()
-        val providerName = if (modelId.isBlank()) "" else providers.providerForModel(modelId)
+        // Resolved from the process-scoped container rather than passed in, so the entry point in
+        // SettingsScreen stays a one-liner like every other Hermes page.
+        val container = (context as? AgoraApplication)?.awaitContainer()
+        settings = container?.settingsRepository
+        providers = container?.providerRegistry
+        val settingsRepo = container?.settingsRepository ?: return@LaunchedEffect
+        val registry = container.providerRegistry
+        val modelId = settingsRepo.selectedModel.value.orEmpty()
+        val providerName = if (modelId.isBlank()) "" else registry.providerForModel(modelId)
         // `getEffectiveBaseUrl` is nullable: a provider with no configured base URL resolves to null,
         // and a watch config with a null URL is invalid. Fall back to empty so `WearConfig.isValid()`
         // rejects it on the watch instead of the field silently holding "null".
-        baseUrl = if (providerName.isBlank()) "" else providers.getEffectiveBaseUrl(providerName).orEmpty()
+        baseUrl = if (providerName.isBlank()) "" else registry.getEffectiveBaseUrl(providerName).orEmpty()
         model = modelId
         watchCount = withContext(Dispatchers.IO) { WatchSync.connectedWatchCount(context) }
+        // A pairing request that arrived while this page was closed is reported here instead of
+        // being lost — the phone is the one that knows whether the push actually worked.
+        WatchSync.lastPushOutcome.value?.let { status = it.message }
     }
 
     CollapsingSettingsLazyScaffold(
@@ -95,32 +112,15 @@ fun SettingsWatchSetupPage(
 
                 Button(
                     onClick = {
+                        val settingsRepo = settings ?: return@Button
+                        val registry = providers ?: return@Button
                         scope.launch {
                             status = "…"
-                            val modelId = settings.selectedModel.value.orEmpty()
-                            val providerName = if (modelId.isBlank()) "" else providers.providerForModel(modelId)
-                            // Read the key from the provider config the user already owns; it is
-                            // pushed straight to the Data Layer and never held in this screen.
-                            val key = withContext(Dispatchers.IO) {
-                                runCatching {
-                                    settings.awaitActiveKey(providerName)?.takeIf { it.isNotBlank() }
-                                        ?: settings.resolveActiveKey(providerName)
-                                }.getOrNull().orEmpty()
+                            status = withContext(Dispatchers.IO) {
+                                WatchSync.sendConfigToWatch(context, settingsRepo, registry, baseUrl, model)
+                                    .message
                             }
-                            if (key.isBlank()) {
-                                status = context.getString(R.string.hermes_watch_no_key)
-                                return@launch
-                            }
-                            val pushed = withContext(Dispatchers.IO) {
-                                WatchSync.pushConfig(context, baseUrl, key, model)
-                            }
-                            val memory = withContext(Dispatchers.IO) { WatchSync.pushMemorySnapshot(context) }
                             watchCount = withContext(Dispatchers.IO) { WatchSync.connectedWatchCount(context) }
-                            status = when {
-                                !pushed -> context.getString(R.string.hermes_watch_push_failed)
-                                !memory -> context.getString(R.string.hermes_watch_config_only)
-                                else -> context.getString(R.string.hermes_watch_pushed)
-                            }
                         }
                     },
                     modifier = Modifier.padding(top = 12.dp),

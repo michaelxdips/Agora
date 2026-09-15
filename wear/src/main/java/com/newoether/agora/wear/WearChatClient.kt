@@ -27,6 +27,8 @@ import java.util.concurrent.TimeUnit
  *
  * Non-streaming: a watch screen is small, answers are short, and streaming would add a connection to
  * babysit across wrist-down events for no visible benefit.
+ *
+ * Maintainer: Michael — this file belongs to the Hermes fork of Agora (see NOTICE.md).
  */
 class WearChatClient(private val config: WearConfig) {
 

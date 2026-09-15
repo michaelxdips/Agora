@@ -21,6 +21,8 @@ import javax.crypto.spec.GCMParameterSpec
  *
  * `ponytail:` no key rotation and no biometric binding. Both are additive when the threat model
  * grows past "lost watch"; rotation would be a second key version in the payload header.
+ *
+ * Maintainer: Michael — this file belongs to the Hermes fork of Agora (see NOTICE.md).
  */
 object WearCrypto {
 

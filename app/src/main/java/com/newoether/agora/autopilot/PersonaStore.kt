@@ -19,6 +19,8 @@ package com.newoether.agora.autopilot
  * ```
  * The markers make find / replace / **remove** deterministic — removal is what makes "toggle OFF =
  * zero trace" verifiable rather than hopeful.
+ *
+ * Maintainer: Michael — this file belongs to the Hermes fork of Agora (see NOTICE.md).
  */
 object PersonaStore {
     const val ID_CAVEMAN = "caveman"

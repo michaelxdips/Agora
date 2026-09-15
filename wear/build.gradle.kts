@@ -30,7 +30,7 @@ android {
         minSdk = 30
         targetSdk = 36
         versionCode = 31
-        versionName = "2.1.0"
+        versionName = "3.0.0-hermesx"
     }
 
     signingConfigs {
@@ -88,8 +88,11 @@ dependencies {
     implementation("androidx.wear.compose:compose-foundation:1.6.2")
     implementation("androidx.wear.compose:compose-material:1.6.2")
 
-    // Data Layer only: the one-time credential push and the read-only memory snapshot.
+    // Data Layer only: the one-time credential push, the read-only memory snapshot and pairing.
     implementation(libs.play.services.wearable)
+    // `await()` on the Data Layer Tasks — without this the Task returned by sendMessage has no
+    // coroutine bridge. Same library the phone module already uses for the same reason.
+    implementation(libs.coroutines.play.services)
 
     // play-services-basement drags in androidx.fragment:1.1.0, which is below the 1.3.0 floor the
     // ActivityResult APIs require (lintVitalRelease fails the release build without this). Constrained

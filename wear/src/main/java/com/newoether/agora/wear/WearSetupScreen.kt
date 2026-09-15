@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -63,7 +64,11 @@ fun WearSetupScreen(
     var apiKey by remember { mutableStateOf("") }
     var model by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("") }
-    var waitingForPhone by remember { mutableStateOf(false) }
+    // Pairing is no longer a local boolean that disables the form: it is the real status of a real
+    // request, so the screen can say "no phone found" instead of pretending to wait forever.
+    val pairing by WearSignals.pairing.collectAsState()
+    val pairingAck by WearSignals.pairingAck.collectAsState()
+    val waitingForPhone = pairing == PairingStatus.Sending || pairing == PairingStatus.Sent
 
     ScreenScaffold(scrollState = listState) { contentPadding ->
         ScalingLazyColumn(
@@ -104,7 +109,7 @@ fun WearSetupScreen(
                         ),
                     ) {
                         Text(
-                            text = "Waiting for the phone…\nKeep the phone app on Watch setup.",
+                            text = "Asking the phone…\nKeep the phone app on Watch setup.",
                             textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.bodySmall,
                         )
@@ -133,6 +138,9 @@ fun WearSetupScreen(
                             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                                 store.write(config)
                             }
+                            // Publish so the chat screen's collector sees it too; the callback alone
+                            // only covers the screen that is currently composed.
+                            WearSignals.config.value = config
                             onConfigured(config)
                         }
                     },
@@ -143,9 +151,14 @@ fun WearSetupScreen(
             item {
                 Button(
                     onClick = {
-                        waitingForPhone = true
-                        status = "Waiting for the phone…"
+                        // Real request, real result. The button used to set a flag and print a fixed
+                        // sentence; nothing ever left the watch.
+                        scope.launch {
+                            status = ""
+                            WearPairing.request(WearPairingTransport(context))
+                        }
                     },
+                    enabled = !waitingForPhone,
                     colors = ButtonDefaults.filledTonalButtonColors(),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                 ) { Text("Pair with phone") }
@@ -155,6 +168,22 @@ fun WearSetupScreen(
                 item {
                     Text(
                         text = status,
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    )
+                }
+            }
+
+            // The honest status line: what the last request actually did, plus the phone's own reply
+            // when one arrived. Without this the user cannot tell "sent" from "there is no phone".
+            if (pairing != PairingStatus.Idle || pairingAck != null) {
+                item {
+                    Text(
+                        text = buildString {
+                            append(pairing.message)
+                            pairingAck?.let { append("\n").append(it) }
+                        },
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),

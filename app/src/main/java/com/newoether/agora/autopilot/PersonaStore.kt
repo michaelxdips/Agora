@@ -52,10 +52,45 @@ object PersonaStore {
         startMarker(id) + "\n" + body.trim() + "\n" + endMarker(id)
 
     fun hasBlock(text: String, id: String): Boolean =
-        text.contains(startMarker(id)) && text.contains(endMarker(id))
+        markerLineIndex(text, startMarker(id)) >= 0 && markerLineIndex(text, endMarker(id)) >= 0
 
     /** True when any persona marker survives anywhere in [text] — the "zero trace" check. */
     fun hasAnyMarker(text: String): Boolean = text.contains(MARKER_PREFIX)
+
+    /**
+     * Index of the first **line that is exactly** [marker], at or after [from]; -1 when absent.
+     *
+     * Markers are only recognised when they are a line of their own, because that is the only shape
+     * [block] ever writes. Matching the raw substring instead made a user's *note about the marker
+     * format* indistinguishable from a real block: mentioning the literal in a memory file made the
+     * next reconcile cut everything from that mention to the end of the file (audit A-040).
+     */
+    private fun markerLineIndex(text: String, marker: String, from: Int = 0): Int {
+        var index = text.indexOf(marker, from)
+        while (index >= 0) {
+            if (lineAt(text, index).trim() == marker) return index
+            index = text.indexOf(marker, index + marker.length)
+        }
+        return -1
+    }
+
+    /** Index of the first persona-marker line of any id, at or after [from]; -1 when absent. */
+    private fun nextMarkerLineIndex(text: String, from: Int): Int {
+        var index = text.indexOf(MARKER_PREFIX, from)
+        while (index >= 0) {
+            val line = lineAt(text, index).trim()
+            if (line.startsWith(MARKER_PREFIX) && line.endsWith("-->")) return index
+            index = text.indexOf(MARKER_PREFIX, index + MARKER_PREFIX.length)
+        }
+        return -1
+    }
+
+    /** The full line containing [index]. */
+    private fun lineAt(text: String, index: Int): String {
+        val start = text.lastIndexOf('\n', index - 1) + 1
+        val end = text.indexOf('\n', index).let { if (it < 0) text.length else it }
+        return text.substring(start, end)
+    }
 
     /**
      * Removes [id]'s block, collapsing only the whitespace the block itself introduced.
@@ -66,15 +101,14 @@ object PersonaStore {
      * a persona ends up duplicated in the prompt.
      */
     fun removeBlock(text: String, id: String): String {
-        val markerStart = text.indexOf(startMarker(id))
+        val markerStart = markerLineIndex(text, startMarker(id))
         if (markerStart < 0) return text
-        val end = text.indexOf(endMarker(id))
+        val end = markerLineIndex(text, endMarker(id))
         val cut = if (end < markerStart) {
             // Unterminated: stop at whatever persona marker comes next, else take the rest.
             // `indexOf` returns -1 when absent, and -1 must not win the min.
-            IDS.map { text.indexOf(MARKER_PREFIX, markerStart + startMarker(id).length) }
-                .filter { it >= 0 }
-                .minOrNull() ?: text.length
+            nextMarkerLineIndex(text, markerStart + startMarker(id).length)
+                .takeIf { it >= 0 } ?: text.length
         } else {
             end + endMarker(id).length
         }
@@ -108,8 +142,8 @@ object PersonaStore {
 
     /** Read-back for the UI and for status assertions: block bodies currently present. */
     fun blocks(text: String): Map<String, String> = IDS.mapNotNull { id ->
-        val start = text.indexOf(startMarker(id))
-        val end = text.indexOf(endMarker(id))
+        val start = markerLineIndex(text, startMarker(id))
+        val end = markerLineIndex(text, endMarker(id))
         if (start < 0 || end < start) null
         else id to text.substring(start + startMarker(id).length, end).trim()
     }.toMap()

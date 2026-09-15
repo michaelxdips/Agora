@@ -19,12 +19,19 @@ import com.newoether.agora.model.Participant
  */
 object PersonaCostReport {
 
-    /** Input tokens the persona block adds to every request while enabled, per the app's estimator. */
-    fun inputTokenCost(blockBody: String): Int =
+    /**
+     * Input tokens the persona block adds to every request while enabled, per the app's estimator.
+     *
+     * @param id which persona the block belongs to. The marker is part of the measured bytes, so using
+     *   one persona's marker to measure another's body reports a number that is off by the marker
+     *   difference — small, but this class exists to publish honest numbers, and an estimate that is
+     *   quietly about a different block is exactly what it must not do.
+     */
+    fun inputTokenCost(id: String, blockBody: String): Int =
         ContextTokenEstimator.estimate(
             listOf(
                 ChatMessage(
-                    text = PersonaStore.block(PersonaStore.ID_CAVEMAN, blockBody),
+                    text = PersonaStore.block(id, blockBody),
                     participant = Participant.USER,
                     status = MessageStatus.SUCCESS,
                 )
@@ -49,7 +56,7 @@ object PersonaCostReport {
     fun summary(bodies: Map<String, String>): String {
         val perPersona = PersonaStore.IDS.joinToString(", ") { id ->
             val body = bodies[id].orEmpty()
-            "$id=${inputTokenCost(body)}"
+            "$id=${inputTokenCost(id, body)}"
         }
         return "persona input cost (app estimator, per request): $perPersona; " +
             "combined=${combinedInputTokenCost(bodies)}"

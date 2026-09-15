@@ -82,12 +82,15 @@ class PersonaFidelityTest {
         // Printed so the number lands in the test report; asserted so it can never be zero/unknown.
         println("PERSONA_COST $summary")
         PersonaStore.IDS.forEach { id ->
-            assertTrue("$id reported no input cost", PersonaCostReport.inputTokenCost(bodies.getValue(id)) > 0)
+            assertTrue("$id reported no input cost", PersonaCostReport.inputTokenCost(id, bodies.getValue(id)) > 0)
         }
         assertTrue(
             "combined cost should exceed a single persona",
             PersonaCostReport.combinedInputTokenCost(bodies) >
-                PersonaCostReport.inputTokenCost(bodies.getValue(PersonaStore.ID_CAVEMAN)),
+                PersonaCostReport.inputTokenCost(
+                    PersonaStore.ID_CAVEMAN,
+                    bodies.getValue(PersonaStore.ID_CAVEMAN),
+                ),
         )
     }
 

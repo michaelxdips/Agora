@@ -45,15 +45,13 @@ class AutopilotSettings(private val context: Context) : AutopilotControls {
     override suspend fun underDailyCap(log: AdaptationLogDao, sinceMillis: Long): Boolean {
         val cap = currentDailyCap()
         if (cap <= 0) return false
-        return log.countSince(sinceMillis) < cap
+        // Persona toggles are the user's action, not the autopilot's work — counting them spent the
+        // day's budget on five taps and silenced reflection until midnight (audit A-027).
+        return log.countAutopilotSince(sinceMillis, AdaptationEntry.STORE_ACTIVE_MEMORY) < cap
     }
 
     suspend fun setEnabled(value: Boolean) {
         context.autopilotDataStore.edit { it[KEY_ENABLED] = value }
-    }
-
-    suspend fun setDailyCap(value: Int) {
-        context.autopilotDataStore.edit { it[KEY_DAILY_CAP] = value.coerceAtLeast(0) }
     }
 
     companion object {

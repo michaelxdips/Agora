@@ -244,9 +244,87 @@ class MemoryApplierTest {
         )
     }
 
-    private fun assertArrayEquals(expected: ByteArray, actual: ByteArray) {
+    // ── active memory (the persona injection channel) ───────────────────────
+
+    /**
+     * The persona write path journals [AdaptationEntry.STORE_ACTIVE_MEMORY], and its undo has to
+     * restore `files/active_memory.md`.
+     *
+     * Before this, persona rows were journaled as `STORE_MEMORY` + `targetFile = "active_memory.md"`,
+     * which `MemoryManager` resolves under `memory_db/` — a different file. Undo either failed
+     * silently or, if the user happened to own a `memory_db/active_memory.md`, overwrote it with a
+     * persona snapshot. The assertion on the absent `memory_db` file is the data-loss check.
+     */
+    @Test
+    fun activeMemoryUndoRestoresTheSingletonAndNeverTouchesMemoryDb() = runBlocking {
+        setUp()
+        memoryManager.updateActiveMemory("- user lives in Pemalang\n")
+        val priorBytes = File(filesDir, "active_memory.md").readBytes()
+
+        val target = AdaptationTarget(
+            AdaptationEntry.STORE_ACTIVE_MEMORY,
+            "active_memory.md",
+        )
+        val id = applier.apply(
+            target = target,
+            after = "- user lives in Pemalang\n\n<!-- HERMES:PERSONA:CAVEMAN:START -->\nterse\n<!-- HERMES:PERSONA:CAVEMAN:END -->\n",
+            reason = "persona caveman = true",
+        )
+        assertTrue(memoryManager.getActiveMemory().contains("HERMES:PERSONA:CAVEMAN"))
+
+        assertTrue(applier.undo(requireNotNull(log.find(id))))
+
+        assertArrayEquals(priorBytes, File(filesDir, "active_memory.md").readBytes())
+        assertFalse(
+            "undo of the singleton must not create a memory_db file",
+            File(filesDir, "memory_db/active_memory.md").exists(),
+        )
+        assertEquals(AdaptationEntry.STATUS_USER_ROLLED_BACK, log.find(id)?.status)
+    }
+
+    /**
+     * Rows the shipped build already wrote (`store = memory`, `targetFile = active_memory.md`) still
+     * have to undo the right file. If they resolved through `MemoryManager.readFile`, the user's own
+     * `memory_db/active_memory.md` would be replaced by the persona snapshot — silent data loss on a
+     * journal row that was created before the fix.
+     */
+    @Test
+    fun aLegacyPersonaRowUndoesActiveMemoryAndLeavesTheUsersMemoryFileAlone() = runBlocking {
+        setUp()
+        memoryManager.updateActiveMemory("- user lives in Pemalang\n")
+        memoryManager.createFile("active_memory", "- the user's own saved note\n")
+        val userFileBytes = File(filesDir, "memory_db/active_memory.md").readBytes()
+        val activeBytes = File(filesDir, "active_memory.md").readBytes()
+
+        val legacyRow = AdaptationEntry(
+            timestamp = 1L,
+            store = AdaptationEntry.STORE_MEMORY,          // what the old code journaled
+            targetFile = "active_memory.md",
+            beforeSnapshot = "- user lives in Pemalang\n",
+            afterSnapshot = "- user lives in Pemalang\n\npersona block\n",
+            reason = "persona caveman = true",
+            sourceSessionId = null,
+            status = AdaptationEntry.STATUS_APPLIED,
+        )
+        val id = log.insert(legacyRow)
+        memoryManager.updateActiveMemory("- user lives in Pemalang\n\npersona block\n")
+
+        assertTrue(applier.undo(requireNotNull(log.find(id))))
+
+        assertArrayEquals(activeBytes, File(filesDir, "active_memory.md").readBytes())
+        assertArrayEquals(
+            "the user's own memory_db file must be untouched",
+            userFileBytes,
+            File(filesDir, "memory_db/active_memory.md").readBytes(),
+        )
+    }
+
+    private fun assertArrayEquals(expected: ByteArray, actual: ByteArray) =
+        assertArrayEquals("byte-for-byte mismatch", expected, actual)
+
+    private fun assertArrayEquals(message: String, expected: ByteArray, actual: ByteArray) {
         assertEquals(
-            "byte-for-byte mismatch: expected ${expected.size} bytes, got ${actual.size}",
+            "$message: expected ${expected.size} bytes, got ${actual.size}",
             expected.toList(),
             actual.toList(),
         )

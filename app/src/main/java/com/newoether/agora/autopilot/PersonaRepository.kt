@@ -36,18 +36,29 @@ class PersonaRepository(
             ?.takeIf { it.isNotBlank() }
     }.getOrNull()
 
-    /** The block body injected into active memory: upstream frontmatter stripped, body verbatim. */
-    fun defaultBody(id: String): String? = defaultText(id)?.let(PersonaStore::toBody)?.takeIf { it.isNotBlank() }
+    /**
+     * The bodies to inject, keyed by persona id.
+     *
+     * Suspending because it has to consult the user's edit: the first version built this map from
+     * the vendored default only, so **the edit dialog was write-only** — the user changed the rule
+     * text, saved, and the prompt still carried the vendored default. Every caller already runs
+     * inside a coroutine, and `customText` is a DataStore read, so suspending here costs nothing.
+     */
+    suspend fun bodies(): Map<String, String> = PersonaStore.IDS.mapNotNull { id ->
+        effectiveBody(id)?.let { id to it }
+    }.toMap()
 
-    fun bodies(): Map<String, String> =
-        PersonaStore.IDS.mapNotNull { id -> defaultBody(id)?.let { id to it } }.toMap()
+    /** The body the prompt should carry for [id]: the user's edit when present, else the default. */
+    suspend fun effectiveBody(id: String): String? =
+        (customText(id) ?: defaultText(id))?.let(PersonaStore::toBody)?.takeIf { it.isNotBlank() }
 
     /**
      * Copies the vendored files out of the APK assets into app storage on first run.
      *
      * Assets are read-only, and the update flow has to be able to replace the text at runtime, so the
-     * authoritative copy has to live somewhere writable. Existing files are never overwritten here —
-     * an update goes through the explicit, test-gated [installVendored] path.
+     * authoritative copy has to live somewhere writable. Existing files are never overwritten here:
+     * `scripts/persona_update.sh` owns the update, and it only writes after the persona regression
+     * tests pass.
      */
     fun seedVendoredFromAssets(assets: android.content.res.AssetManager) {
         val dir = File(context.filesDir, VENDOR_DIR)
@@ -63,19 +74,29 @@ class PersonaRepository(
                 DebugLog.w("AutopilotPersonas", "persona vendored file missing in assets: $id")
             }
         }
+        seedLockFromAssets(assets, dir)
     }
 
     /**
-     * P2 update flow, last step: write the newly fetched text in and update the lock record.
+     * Copies `personas/upstream.lock` out of assets next to the vendored rule files.
      *
-     * Only ever called after the persona regression tests pass (see `scripts/persona_update.sh`),
-     * which is why it is a separate, explicit entry point rather than something the UI can trigger
-     * directly.
+     * The lock is what [PersonaUpdater] reads to know which upstream ref each persona is pinned to.
+     * It shipped inside the APK but was never copied to `filesDir`, so `readLock` looked for a file
+     * that could not exist and "Check for persona updates" always answered `upstream.lock not
+     * readable` — a feature that was finished, wired to a button, and impossible to run. Seeding it
+     * here is the whole fix: the app already owned the file, it just never put it where it reads.
      */
-    fun installVendored(id: String, text: String) {
-        val target = File(context.filesDir, "$VENDOR_DIR/$id/$FILE_NAME")
-        target.parentFile?.mkdirs()
-        target.writeText(text)
+    private fun seedLockFromAssets(assets: android.content.res.AssetManager, dir: File) {
+        val target = File(dir, LOCK_FILE_NAME)
+        if (target.isFile && target.readText().isNotBlank()) return
+        runCatching {
+            target.parentFile?.mkdirs()
+            assets.open(LOCK_FILE_NAME).use { input ->
+                target.outputStream().use { output -> input.copyTo(output) }
+            }
+        }.onFailure {
+            DebugLog.w("AutopilotPersonas", "persona lock missing in assets: $LOCK_FILE_NAME")
+        }
     }
 
     /**
@@ -96,6 +117,9 @@ class PersonaRepository(
     companion object {
         private const val VENDOR_DIR = "personas"
         private const val FILE_NAME = "SKILL.md"
+
+        /** The pinned-ref record, shipped in assets and seeded next to the vendored rule files. */
+        private const val LOCK_FILE_NAME = "$VENDOR_DIR/upstream.lock"
 
         /**
          * Offline fallback — a faithful, shortened statement of the upstream rule set, used only when

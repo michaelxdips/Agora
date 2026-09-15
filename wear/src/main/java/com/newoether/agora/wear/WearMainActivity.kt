@@ -159,25 +159,38 @@ private fun WearChatScreen(
      *
      * Declared before [send] because it is called from there: Kotlin local functions are not
      * forward-referenceable, and a stale closure would be worse than an ordering constraint.
+     *
+     * @param showResult whether the drained answers may take over the visible answer slot. Callers
+     *   that have a *fresh* question on screen pass false: the queue holds the OLDEST questions, so
+     *   letting a drained answer win would replace what the user just asked with an answer to a
+     *   question they asked minutes ago. Auto-drain on launch passes true, because then there is no
+     *   fresh answer to protect.
+     * @return how many held questions were delivered.
      */
-    suspend fun drainQueue(client: WearChatClient, core: String) {
+    suspend fun drainQueue(client: WearChatClient, core: String, showResult: Boolean): Int {
         val pending = withContext(Dispatchers.IO) { queue.all() }
-        if (pending.isEmpty()) return
+        if (pending.isEmpty()) return 0
+        var delivered = 0
         for (entry in pending) {
             val outcome = withContext(Dispatchers.IO) { client.ask(entry.text, core) }
             if (outcome.isSuccess) {
                 withContext(Dispatchers.IO) { queue.complete(entry.id) }
-                answer = outcome.getOrNull().orEmpty()
-                onSpeak(answer)
+                delivered += 1
+                if (showResult) {
+                    answer = outcome.getOrNull().orEmpty()
+                    onSpeak(answer)
+                }
             } else {
                 // Give up on this one only after the attempt ceiling, so a permanently failing
                 // question cannot block every question behind it forever.
+                WearLog.w("drain: send failed for id=${entry.id}: ${outcome.exceptionOrNull()?.message}")
                 val dropped = withContext(Dispatchers.IO) { queue.recordFailure(entry.id) }
                 if (dropped) WearLog.w("dropped after ${WearOfflineQueue.MAX_ATTEMPTS} attempts")
                 break
             }
         }
         refreshQueued()
+        return delivered
     }
 
     /**
@@ -186,6 +199,9 @@ private fun WearChatScreen(
      * Draining here rather than on a connectivity callback is deliberate: this app has no background
      * service, so "the network came back" is only observable when the user asks something — and that
      * is exactly the moment the queued questions are worth sending.
+     *
+     * The drain passes `showResult = false`: this call has a fresh question on screen, and the queue
+     * holds older ones, so a drained answer must not overwrite the answer the user just asked for.
      */
     suspend fun send(question: String) {
         val trimmed = question.trim()
@@ -209,7 +225,7 @@ private fun WearChatScreen(
                 answer = it
                 status = ""
                 onSpeak(it)
-                drainQueue(client, core)
+                drainQueue(client, core, showResult = false)
             },
             onFailure = { error ->
                 // Offline is a normal watch state, not an error: hold the question and say so.
@@ -224,6 +240,25 @@ private fun WearChatScreen(
     LaunchedEffect(Unit) {
         ready = withContext(Dispatchers.IO) { configStore.read() != null }
         refreshQueued()
+
+        // P0 fix: drain on launch. Before this, `drainQueue` had exactly one call site — the success
+        // branch of `send()` — so a question held offline was only ever delivered if the user asked a
+        // SECOND question that ALSO succeeded. A held question that nobody re-asks is a silently
+        // dropped question, which is the worst possible failure for a device whose whole premise is
+        // losing connectivity. Launch is the one moment we know the app is open and the user is
+        // looking at it, and it is cheap: `drainQueue` returns immediately when the queue is empty.
+        //
+        // Note: this reads `ready` from the local val below rather than the state variable, because
+        // Compose state writes inside a LaunchedEffect are not visible to a read in the same
+        // composition pass — the `if (ready)` form was always false on first launch, which the
+        // on-device proof caught (`held question delivered on launch` never logged).
+        val configured = withContext(Dispatchers.IO) { configStore.read() }
+        WearLog.w("launch drain check: configured=${configured != null} queue=${queue.size()}")
+        if (configured != null) {
+            val core = withContext(Dispatchers.IO) { WearCoreContext.build(memoryCache.read()) }
+            val delivered = drainQueue(WearChatClient(configured), core, showResult = true)
+            WearLog.w("launch drain: delivered=$delivered, queue now ${queue.size()}")
+        }
     }
 
     val question by spokenQuestion.collectAsState()

@@ -13,7 +13,11 @@ REGISTRY="UPSTREAM_TOUCHPOINTS.md"
 UPSTREAM_REF="${1:-origin/master}"
 
 # Hermes-only paths: additions here are always allowed.
-ALLOWED_RE='^(AGENTS\.md|ROADMAP\.md|STATUS\.md|NOTICE\.md|UPSTREAM_SYNC\.md|UPSTREAM_TOUCHPOINTS\.md|BLOCKED\.md|HANDOVER\.md|GAP_ANALYSIS\.md|AUDIT_REPORT\.md|evidence/|personas/|scripts/|\.github/workflows/upstream-sync\.yml|app/src/fdroid/res/|app/src/play/res/|app/src/main/assets/personas/|app/src/main/java/com/newoether/agora/autopilot/|app/src/test/java/com/newoether/agora/autopilot/|app/src/androidTest/java/com/newoether/agora/autopilot/|wear/)'
+# Root-level Markdown is allowed as a CLASS, not one name at a time: the guard lists each doc by name
+# and a new one (e.g. a mega-prompt handed to the next session) then fails the guard for the crime of
+# existing. Docs are Hermes-owned by definition — upstream's root .md files are already covered by the
+# registered-touchpoint check, so widening this cannot hide an upstream edit.
+ALLOWED_RE='^([A-Z][A-Z0-9_]*\.md|AGENTS\.md|ROADMAP\.md|NOTICE\.md|evidence/|personas/|scripts/|\.github/workflows/upstream-sync\.yml|app/src/fdroid/res/|app/src/play/res/|app/src/main/assets/personas/|app/src/main/java/com/newoether/agora/autopilot/|app/src/test/java/com/newoether/agora/autopilot/|app/src/androidTest/java/com/newoether/agora/autopilot/|wear/)'
 
 fail=0
 note() { printf '%s\n' "$*"; }

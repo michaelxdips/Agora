@@ -1,0 +1,75 @@
+########## 0.1 git ##########
+81812922 hermes: guard — fix the root-doc pattern so filenames with lowercase work
+########## 0.2 guard ##########
+touchpoint_guard: ok   app/src/main/java/com/newoether/agora/ui/settings/SettingsScreen.kt (23/24 lines)
+touchpoint_guard: ok   app/src/main/java/com/newoether/agora/viewmodel/GenerationRequestBuilder.kt (7/8 lines)
+touchpoint_guard: ok   gradle/libs.versions.toml (6/10 lines)
+touchpoint_guard: ok   settings.gradle.kts (3/4 lines)
+touchpoint_guard: PASS (914e7c8debe20c7e12dbf98c6a0ee59274edf0cc)
+guard_exit=0
+########## 0.3 sync dry-run ##########
+touchpoint_guard: ok   app/src/main/java/com/newoether/agora/ui/settings/SettingsScreen.kt (23/24 lines)
+touchpoint_guard: ok   app/src/main/java/com/newoether/agora/viewmodel/GenerationRequestBuilder.kt (7/8 lines)
+touchpoint_guard: ok   gradle/libs.versions.toml (6/10 lines)
+touchpoint_guard: ok   settings.gradle.kts (3/4 lines)
+touchpoint_guard: PASS (914e7c8debe20c7e12dbf98c6a0ee59274edf0cc)
+sync_exit=0
+########## 0.4 unit tests ##########
+> Task :wear:javaPreCompileDebug UP-TO-DATE
+> Task :wear:compileDebugJavaWithJavac NO-SOURCE
+> Task :wear:checkDebugAarMetadata UP-TO-DATE
+> Task :wear:mapDebugSourceSetPaths UP-TO-DATE
+> Task :wear:compileDebugNavigationResources UP-TO-DATE
+> Task :wear:mergeDebugResources UP-TO-DATE
+> Task :wear:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :wear:extractDeepLinksDebug UP-TO-DATE
+> Task :wear:processDebugMainManifest UP-TO-DATE
+> Task :wear:processDebugManifest UP-TO-DATE
+> Task :wear:processDebugManifestForPackage UP-TO-DATE
+> Task :wear:processDebugResources UP-TO-DATE
+> Task :wear:bundleDebugClassesToRuntimeJar UP-TO-DATE
+> Task :wear:bundleDebugClassesToCompileJar UP-TO-DATE
+> Task :wear:preDebugUnitTestBuild
+> Task :wear:compileDebugUnitTestKotlin UP-TO-DATE
+> Task :wear:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :wear:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :wear:processDebugJavaRes UP-TO-DATE
+> Task :wear:processDebugUnitTestJavaRes UP-TO-DATE
+> Task :wear:testDebugUnitTest UP-TO-DATE
+
+BUILD SUCCESSFUL in 6s
+91 actionable tasks: 1 executed, 90 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.5.1/userguide/configuration_cache_enabling.html
+unit_exit=0
+########## 0.5 assemble ##########
+> Task :wear:reportReleaseComposeMappingErrors
+> Task :wear:mergeReleaseComposeMapping UP-TO-DATE
+> Task :wear:compileReleaseArtProfile UP-TO-DATE
+> Task :wear:generateReleaseAssets UP-TO-DATE
+> Task :wear:mergeReleaseAssets UP-TO-DATE
+> Task :wear:compressReleaseAssets UP-TO-DATE
+> Task :wear:extractReleaseVersionControlInfo
+> Task :wear:generateReleaseLintVitalReportModel UP-TO-DATE
+> Task :wear:lintVitalAnalyzeRelease UP-TO-DATE
+> Task :wear:lintVitalReportRelease UP-TO-DATE
+> Task :wear:lintVitalRelease
+> Task :wear:convertShrunkResourcesToBinaryRelease UP-TO-DATE
+> Task :wear:optimizeReleaseResources UP-TO-DATE
+> Task :wear:collectReleaseDependencies UP-TO-DATE
+> Task :wear:sdkReleaseDependencyData UP-TO-DATE
+> Task :wear:validateSigningRelease UP-TO-DATE
+> Task :wear:writeReleaseAppMetadata UP-TO-DATE
+> Task :wear:writeReleaseSigningConfigVersions UP-TO-DATE
+> Task :wear:packageRelease
+> Task :wear:createReleaseApkListingFileRedirect UP-TO-DATE
+> Task :wear:assembleRelease
+
+BUILD SUCCESSFUL in 4s
+133 actionable tasks: 7 executed, 126 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.5.1/userguide/configuration_cache_enabling.html
+asm_exit=0
+########## 0.6 apk sizes ##########
+65860308 app/build/outputs/apk/fdroid/debug/app-fdroid-debug.apk
+65799760 app/build/outputs/apk/play/debug/app-play-debug.apk
+2669736 wear/build/outputs/apk/release/wear-release.apk
+########## DONE ##########

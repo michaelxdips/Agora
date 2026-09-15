@@ -61,7 +61,7 @@ object AutopilotNotifier {
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_notify_sync)
             .setContentTitle("$count memories updated")
-            .setContentText("Hermes adapted your saved memory from this conversation.")
+            .setContentText("Hermes X adapted your saved memory from this conversation.")
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)

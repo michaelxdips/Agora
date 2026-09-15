@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- HERMES: fdroid-flavor overlay. Upstream values-ko/strings.xml defines app_name="Agora";
+<!-- HERMES: play-flavor overlay. Upstream values-vi/strings.xml defines app_name="Agora";
      this overlay wins for that locale so the rebranded launcher label holds. Upstream file
      is never edited (rebrand = applicationId + resource overlay only). -->
 <resources>

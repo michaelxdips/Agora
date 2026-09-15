@@ -10,16 +10,16 @@
 
      `app_name` also stays here (see the separate note at the top of this file). -->
 <resources>
-    <string name="app_name">Hermes</string>
+    <string name="app_name">Hermes X</string>
 
     <!-- Adaptation History (Phase 4) -->
     <string name="hermes_adaptation_history">Adaptation History</string>
-    <string name="hermes_adaptation_history_desc">Review and undo memory changes made by Hermes</string>
-    <string name="hermes_adaptation_history_empty">No adaptations yet. Hermes records every memory change here, with a one-tap undo.</string>
+    <string name="hermes_adaptation_history_desc">Review and undo memory changes made by Hermes X</string>
+    <string name="hermes_adaptation_history_empty">No adaptations yet. Hermes X records every memory change here, with a one-tap undo.</string>
 
     <!-- Autopilot controls (Phase 3) -->
     <string name="hermes_autopilot">Autopilot</string>
-    <string name="hermes_autopilot_desc">Hermes updates saved memory automatically after conversations</string>
+    <string name="hermes_autopilot_desc">Hermes X updates saved memory automatically after conversations</string>
     <string name="hermes_autopilot_cap">Daily cap: %1$d adaptations</string>
     <string name="hermes_autopilot_run_now">Run reflection now</string>
 

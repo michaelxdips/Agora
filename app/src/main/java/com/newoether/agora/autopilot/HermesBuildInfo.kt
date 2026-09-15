@@ -21,8 +21,11 @@ object HermesBuildInfo {
     /** Upstream project this fork is based on. */
     const val UPSTREAM_URL = "github.com/newo-ether/Agora"
 
-    /** Fork repository. */
-    const val FORK_URL = "github.com/michaelxdips/Agora"
+    /** Fork repository, owner/name form — the form the GitHub API takes. */
+    const val FORK_REPO = "michaelxdips/Agora"
+
+    /** Fork repository, full URL, for display. */
+    const val FORK_URL = "https://github.com/michaelxdips/Agora"
 
     /** The three lines the About screen shows, so the phone and watch screens cannot disagree. */
     fun identityLines(): String =

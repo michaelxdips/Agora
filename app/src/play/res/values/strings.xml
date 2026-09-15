@@ -63,4 +63,8 @@
     <string name="crash_title">Hermes X quit unexpectedly</string>
     <string name="developer_options_export_share_title">Share Hermes X Diagnostic Bundle</string>
 
+
+    <!-- HERMES: transfer outcomes that are not failures of the watch connection. -->
+    <string name="hermes_watch_no_endpoint">No base URL or model selected. Configure a provider first.</string>
+    <string name="hermes_watch_starting_up">The phone is still starting up. Try again in a moment.</string>
 </resources>

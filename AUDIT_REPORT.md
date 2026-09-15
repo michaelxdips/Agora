@@ -250,6 +250,66 @@ matters**. Nothing here duplicates upstream: conversation fork/regenerate/edit-m
 
 ---
 
+## Pass 4 — P0 implemented, and the bug that only the implementation could find
+
+The owner asked for the recommended features to be added, not just listed. P0 (the watch's offline
+queue) is now **implemented and proven on the device**. Doing it surfaced a defect that no amount of
+reading had caught.
+
+### The P0 defect, restated precisely
+
+`drainQueue` had exactly **one** call site: the success branch of `send()`. So a question held while
+offline was delivered only if the user asked a *second* question that *also* succeeded — and the
+drained answer then **overwrote** the fresh one. A held question nobody re-asks was silently
+dropped, on a device whose entire premise is losing connectivity.
+
+### Three fixes, each found by running the thing
+
+| # | Fix | How it was actually found |
+|---|---|---|
+| 23 | `drainQueue` takes `showResult`. `send()` passes **false** (the queue holds the oldest questions, so a drained answer must not replace the answer the user just asked for); launch passes **true**. | reading the call site while wiring the launch drain |
+| 24 | **Launch drains at all.** The first implementation wrote `if (ready)`, reading the Compose state variable it had *just assigned* in the same `LaunchedEffect` — a read that is not visible in that composition pass, so the branch was **always false** and the drain never ran. Now reads a local val. | the device proof: `launch drain check: configured=true queue=1` logged, then nothing happened at all |
+| 25 | **The localhost escape hatch never worked.** `WearConfig.isValid()` accepts `http://127.0.0.1` / `localhost` / `10.0.2.2`, but the module declared **no `networkSecurityConfig`**, so Android's cleartext default blocked every one of them and OkHttp surfaced a bare `UnknownServiceException` — the *platform* refusing, not the server, with nothing to tell the user which. Fixed with a network security config permitting cleartext for **loopback and 10.0.2.2 only**; every other host stays TLS-required, so a mistyped real URL cannot send the bearer key in clear. Deliberately **not** `usesCleartextTraffic="true"`, which the phone module sets globally. | the drain failed with `UnknownServiceException`; the phone manifest was checked and has `usesCleartextTraffic="true"` while the wear manifest had nothing |
+
+Finding 25 is the significant one: it means the dev escape hatch validated in #21 was **unusable on
+device**, and no test — JVM or instrumented — covered it, because nothing had ever pointed the watch
+at a real loopback server. That took a mock provider and a live emulator to expose.
+
+### The proof (re-runnable, not a one-off)
+
+`_tools/mock_provider.py` — a mock OpenAI-compatible endpoint on the host with a `/__fail` toggle,
+reached from the emulator through `adb reverse`. `_tools/p0_autodrain_proof.py` drives the real app:
+
+```
+STEP 1: configure BYOK against the mock provider      -> configured
+STEP 2: mock returns 503, ask a question              -> 'Offline — held', queue size 1
+STEP 3: mock back to 200, force-stop, relaunch, touch nothing
+  screen after relaunch: ['Hermes', 'MOCK-ANSWER to: held-question-alpha', 'Type a question']
+  queue after relaunch: 0
+  mock received: ['held-question-alpha']
+RESULT: PASS — held question delivered on launch, no user action, queue empty
+```
+
+Device log, same run:
+```
+W HermesWear: launch drain check: configured=true queue=1
+W HermesWear: launch drain: delivered=1, queue now 0
+```
+
+This also closes **part** of the HS2 gap honestly: the watch's real OkHttp path, request shape,
+response parsing and offline queue now run against a live server end-to-end. What it still does not
+prove is any *specific provider's* behaviour — that remains HS2.
+
+### A test-harness trap worth recording
+
+The first run of the proof reported `queue size: 0` on a release APK and looked like a second bug.
+It was the harness: `run-as` cannot read a **release** APK's data directory
+(`package not debuggable`), so every queue read returned 0. The proof now runs against the **debug**
+APK, where `run-as` works. Worth noting because "the measurement returned zero" and "the thing is
+broken" look identical, and only checking *why* the measurement failed told them apart.
+
+---
+
 ## Honest summary
 
 The code in Phases 3–5 arrived in good shape. Phases 6 and 7 — the ones built in this session — did

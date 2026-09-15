@@ -481,7 +481,6 @@ ones. Same class of bug as the Phase 6 `trim()` finding: the block is the unit, 
 ---
 
 ## Phase 12 — Rename, the three critical findings, and the Wear rebuild
-
 Session scope: rename to **Hermes X**, maintainer **Michael** visible in code and on screen, the three
 confirmed defects in the handover prompt, repo hygiene, a full `:wear:` rebuild, real pairing, and a
 two-pass audit. One commit per phase; every claim below names the command that produced it.
@@ -565,3 +564,77 @@ a real change if the archive had not been measured entry by entry.
   conversation history, a tighter `readTimeout`) were **not** attempted in this session. The phase
   order put the three critical findings, pairing, hygiene and the rebuild first; the remaining time
   went to proving those rather than starting new surfaces. Not done, not claimed.
+
+---
+
+## Phase 13 — the update feature, the adversarial audit, and the "null" answer
+
+Full detail is in `AUDIT_REPORT.md` (Pass 6). The summary a reviewer needs:
+
+### Gate at the end of Phase 13 (all re-run clean)
+
+| Gate | Result |
+|---|---|
+| `scripts/touchpoint_guard.sh` | **PASS** (12 registered touchpoints) |
+| `SYNC_DRY_RUN=1 scripts/upstream_sync.sh` | **PASS** (exit 0) |
+| `:app:testFdroidDebugUnitTest` | **2541 tests, 0 failures, 0 errors** |
+| `:app:testPlayDebugUnitTest` | **2524 tests, 0 failures, 0 errors** |
+| `:wear:testDebugUnitTest` | **54 tests, 0 failures, 0 errors** (was 47) |
+| Three APKs, clean build | **65,296,380** / **65,235,904** / **2,719,147** bytes |
+| `apksigner verify --print-certs` | verified, `CN=Hermes Local`, SHA-256 `7188ce70…aa56d7` |
+| `lintVitalRelease` | **BUILD SUCCESSFUL** |
+| `aapt2 dump badging` | `application-label:'Hermes X'` in all 12 locales, 3 APKs; `package: com.hermes.app`; `versionName='3.0.0-hermesx'` |
+| tracked build/log/apk/tmp files | **0** |
+
+### Three defects fixed in this phase
+
+| # | Sev | Finding | Evidence | Status |
+|---|---|---|---|---|
+| 23 | **HIGH** | The update check queried **upstream's** releases (`newo-ether/Agora`). This fork has a different `applicationId` and signing identity, so the offered APK would be a different app — a wrong install, not a missed one. The second half: the fork's `versionName` (`3.0.0-hermesx`) is above upstream's newest tag (`v2.1.0`), so the check always said "up to date" and the wrong repository could never fire. Two defects hiding each other. | Read `UpdateChecker.kt:39`; no test existed for the repository or the comparison | **FIXED** — points at the fork via `HermesBuildInfo.FORK_REPO`; `compare` public and rewritten; `CancellationException` rethrows; `UpdateCheckerTest` (8 tests). RED first: the test would not compile because `compare` was private and `RELEASES_REPOSITORY` did not exist |
+| 24 | **HIGH** | A provider answering `{"choices":[{"message":{"content":null}}]}` made the watch display the literal word **`null`** as the answer. `JsonNull` IS a `JsonPrimitive`, so the cast succeeded, `.content` returned `"null"`, and `isNotBlank()` passed. A wrong answer that looks like a real one — the worst shape this app can produce. | Device probe with the mock in `/__nocontent` mode: screen showed a bare `null` | **FIXED** — explicit `is JsonNull` checks; verified on the device against the rebuilt APK: `Offline — held` instead of `null` |
+| 25 | **MEDIUM** | `SettingsAboutPage`'s GitHub, issue-tracker, contribute and privacy-policy rows opened **upstream's** URLs. A bug in Hermes X reported to a tracker for a build upstream does not ship cannot be reproduced. | Read the four `openUrl` calls | **FIXED** — repointed at the fork (touchpoint #11) |
+
+Also fixed: my own Phase-12 regression where the `WatchSync` rewrite left four `hermes_watch_*`
+resources defined and unreferenced (the sentences existed twice, and a translation would never have
+been picked up). `PushReason` is now the single decision — the screen resolves `reason.stringRes`, the
+wire ack uses `reason.wireText`.
+
+### Measured numbers (no estimates)
+
+| Metric | Value | How |
+|---|---|---|
+| Watch cold start | **509 ms** median (474–567, n=5) | `am start -W` → `TotalTime` |
+| Watch PSS | **27,255 KB** | `dumpsys meminfo` |
+| Phone cold start | **5,279 ms** median (4,829–7,523, n=3) | `am start -W` |
+| Phone PSS | **246,226 KB** | `dumpsys meminfo` |
+| API-key canary in logcat, before and after a real request | **0 occurrences** | `logcat -d` grep |
+| API-key canary in `hermes_wear_config.bin` | not present in plaintext | `run-as cat` grep |
+
+The 60 s `readTimeout` is **not** exercised (the mock's slow mode is 8 s; measuring the timeout would
+cost 60 s per run). Recorded as not measured rather than claimed.
+
+### Two harness traps disproved (so they are not chased again)
+
+* **"The app leaves the foreground for a 4000-character question."** False — the harness pressed BACK
+  to dismiss the IME. With 4000 characters typed in chunks and no key event, the app stays in
+  `WearMainActivity` with all 4000 characters in the field. BACK finishing the activity is correct
+  Android behaviour. `evidence/audit_backkey_probe.py`.
+* **"Section A passed."** It did not the first time: the harness read the system UI
+  (`Android System / Serial console enabled`) and called it OK. `evidence/audit_recheck.py` asserts the
+  app is in the foreground first; all four base-URL shapes then passed for real.
+
+### Still open — the recommended-feature list (§9) was NOT implemented
+
+Honest list, in the order I would do them:
+
+| Pri | Feature | State |
+|---|---|---|
+| P1 | Tile (`SuspendingTileService` + ProtoLayout) — one tap from the watch face | not started |
+| P1 | Complication data source — "configured? anything held?" at a glance | not started |
+| P1 | `OngoingActivity` + notification for a long answer — the screen sleeps at 5–15 s while the read timeout is 60 s, so the app *looks* hung | not started |
+| P2 | usage parsing (`prompt_tokens`/`completion_tokens`) — replaces the ~4-chars-per-token estimate | not started |
+| P2 | watch conversation history (N recent, JSON file, not Room) — a restart currently loses the last answer | not started |
+| P2 | tighter `readTimeout` — 60 s is longer than any watch interaction | not started |
+
+The time in this phase went to defects in shipped behaviour rather than absent features. That was the
+right order, and the rest is listed as not done rather than implied as done.

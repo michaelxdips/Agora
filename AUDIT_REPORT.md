@@ -467,3 +467,161 @@ Format: `file — what was wrong — evidence`.
   comparisons.
 * **"a claim can be true in code and false in the product."** `SettingsWatchSetupPage.kt` existed,
   compiled, and passed its own tests while being unreachable. Source presence is not reachability.
+
+---
+
+# Pass 6 — the update feature, adversarial device audit, and the "null" answer (Phase 13)
+
+Owner's instruction for this pass: *"cari fitur yang layak ada, cek apakah fitur update bekerja dengan
+baik, bug, optimalisasi dll lagi. cari sekuat tenaga"* — so the update feature was checked first, then
+the watch was attacked on the device rather than read, then the numbers were measured.
+
+## 1. The update feature did not work, in two ways that hid each other
+
+**What was wrong.**
+
+```
+app/src/main/java/com/newoether/agora/util/UpdateChecker.kt:39
+    .url("https://api.github.com/repos/newo-ether/Agora/releases/latest")
+```
+
+The check queried **upstream's** releases. This fork ships its own `applicationId`
+(`com.hermes.app`), its own signing identity and features upstream does not have, so the "update" it
+would have offered is a different app. Installing it over this build is a wrong install, not a missed
+one.
+
+The second half is what kept the first half invisible: this fork's `versionName` is `3.0.0-hermesx`
+while upstream's newest release is `v2.1.0`, so `compareVersions("2.1.0", "3.0.0-hermesx")` returned
+`-1` and the check always concluded "up to date". The wrong repository could never fire, and if it had
+fired it would have been wrong. Two defects in the same direction, each hiding the other.
+
+**Why no test caught it.** There was no test for either half. `compareVersions` was private and
+untested; nothing asserted which repository the check points at. The absence of a test *is* the defect's
+survival mechanism.
+
+**Fixed.**
+
+* `RELEASES_REPOSITORY = HermesBuildInfo.FORK_REPO` — the fork, derived from the same constant the
+  About screen shows, so the two cannot drift.
+* `compare` is public and rewritten. The old body used `toIntOrNull() ?: 0`, which collapsed every
+  non-numeric segment to zero — so `1.2.3-rc1` compared as `1.2.0`. Segments are now compared
+  numerically where both are numeric and lexically otherwise.
+* A `CancellationException` branch rethrows, so a cancelled check cannot be reported as "up to date".
+* `UpdateCheckerTest` (8 tests) covers the arithmetic, the repository, the release URL and a
+  malformed current version.
+
+**A second wrong-repository defect in the same feature.** `SettingsAboutPage`'s GitHub,
+issue-tracker, contribute and privacy-policy rows all opened **upstream's** URLs. A bug in Hermes X
+reported to a tracker for a build upstream does not ship is a bug that cannot be reproduced.
+Repointed at the fork (touchpoint #11).
+
+**Honest current state.** This fork has no releases yet, so `check()` now returns `null` for every
+user. That is the correct answer — "no update available" — and publishing a release on the fork turns
+the check on with no code change. It is **not** claimed to have been observed finding an update.
+
+## 2. A provider answering `content: null` was shown to the user as the word "null"
+
+Found by attacking the watch with adversarial provider responses on the device.
+
+```
+RED on the device:  screen shows a bare "null" as the answer
+```
+
+`JsonNull` **is** a `JsonPrimitive` in kotlinx.serialization. So
+
+```kotlin
+val content = (message?.get("content") ?: first["text"]) as? JsonPrimitive ?: return null
+return runCatching { content.content }.getOrNull()?.takeIf { it.isNotBlank() }
+```
+
+accepted `{"choices":[{"message":{"content":null}}]}`: the cast succeeded, `.content` returned the four
+characters `null`, and `takeIf { it.isNotBlank() }` passed because "null" is not blank.
+
+That is the worst failure shape this app can produce — not a crash, not an error, a **wrong answer that
+looks like a real one**. A user cannot tell it from a terse model reply. Fixed with explicit
+`is JsonNull` checks before the primitive cast (and the same check on the legacy `text` field, which had
+the same hole). Verified on the device against the rebuilt APK: `Offline — held` instead of `null`.
+
+Tests: `aNullContentBecomesAFailureNotTheWordNull`, `aMissingContentBecomesAFailure`,
+`anExplicitJsonNullIsNeverTreatedAsText`. RED before the fix (2 failing), GREEN after.
+
+## 3. Adversarial device audit — what was attacked, and what survived
+
+The mock provider (`_tools/mock_provider.py`, also copied to `evidence/`) gained seven modes, each a
+shape a real provider, proxy or captive portal returns.
+
+| Mode | Response | Watch behaviour | Verdict |
+|---|---|---|---|
+| `/__fail` | 503 | `Offline — held`, question on disk | correct |
+| `/__ok` | 200 normal | answer shown | correct |
+| `/__html` | 200 with a captive-portal HTML page | `Offline — held` | correct — the JSON parse refuses it |
+| `/__broken` | 200 with truncated JSON | `Offline — held` | correct |
+| `/__empty` | 200 with `choices: []` | `Offline — held` | correct |
+| `/__nocontent` | 200 with `content: null` | **showed the word "null"** | **defect, fixed** |
+| `/__huge` | 200 with a 200 KB answer | answer accepted; screen shows the top of it | correct, see below |
+| `/__slow` | 200 after 8 s | answered; no hang | correct |
+
+Other attacks, all survived:
+
+| Attack | Result |
+|---|---|
+| Base URL `https://x.com/v1/` | accepted |
+| Base URL `https://x.com/chat/completions` | accepted, and the client does **not** append a second path |
+| Base URL `http://127.0.0.1:11434` (no `/v1`, localhost) | accepted |
+| Base URL `x.com/v1` (no scheme) | rejected with a message |
+| 4000-character question | all 4000 characters held in the field; app stays in the foreground |
+| No config at all | setup screen, no crash |
+| Corrupted `hermes_wear_config.bin` | back to setup, no crash |
+| Empty / garbage `hermes_wear_queue.json` | queue reads as 0, no crash |
+| API key canary in the config file | not present in plaintext (encrypted) |
+| API key canary in logcat, before and after a real request | **0 occurrences** |
+
+## 4. Two harness traps found and disproved (recorded so nobody chases them)
+
+* **"The app leaves the foreground for a 4000-character question."** False. The harness pressed BACK
+  (`input keyevent 4`) to dismiss the IME. `evidence/audit_backkey_probe.py` isolates it: 4000
+  characters typed in 40 chunks with **no** key event leaves the app in `WearMainActivity` with all
+  4000 characters in the field; ESC keeps it there too; BACK finishes the activity, which is correct
+  Android behaviour for an activity with no `BackHandler`. Same class as the `run-as` trap already in
+  this report: a measurement that returns "the app is gone" and a real defect look identical until the
+  *measurement* is checked.
+* **"Section A passed."** It did not, the first time. The harness dumped the screen without asserting
+  the app was in the foreground, so it read `Android System / Serial console enabled` and called it OK.
+  `evidence/audit_recheck.py` adds the assertion; all four base-URL shapes then passed for real. A
+  verdict that cannot be wrong is not evidence.
+
+## 5. Measured numbers (no estimates)
+
+| Metric | Value | How |
+|---|---|---|
+| Watch cold start | **509 ms** median (474–567, n=5) | `am start -W` → `TotalTime` |
+| Watch PSS | **27,255 KB** | `dumpsys meminfo` → `TOTAL PSS` |
+| Phone cold start | **5,279 ms** median (4,829–7,523, n=3) | `am start -W` → `TotalTime` |
+| Phone PSS | **246,226 KB** | `dumpsys meminfo` |
+| Watch APK, release | **2,719,147 B** | `stat` |
+| Wear unit tests | **54**, 0 failures, 0 errors | test XML, not the Gradle summary |
+
+The 60 s `readTimeout` in `WearChatClient` is **not** exercised: the mock's slow mode is 8 s, and
+measuring the timeout itself would cost 60 s of wall time per run. Recorded as not measured rather
+than claimed.
+
+The phone's 5.3 s cold start is the one number here that looks worth improving. It is upstream's
+startup path (Room + KSP + the provider registry + a semantic index kick-off), not the fork's, and no
+change was attempted without a profile to justify it.
+
+## 6. What this pass did NOT do
+
+The recommended-feature list (§9) was **not** implemented. In priority order, still open:
+
+| # | Feature | Why it is worth having | State |
+|---|---|---|---|
+| P1 | Tile (`SuspendingTileService` + ProtoLayout) | the fastest path to "ask something" on a watch: one tap from the watch face | not started |
+| P1 | Complication data source | "configured? anything held?" at a glance | not started |
+| P1 | `OngoingActivity` + notification for a long answer | the screen sleeps at 5–15 s while the read timeout is 60 s, so the app *looks* hung | not started |
+| P2 | usage parsing (`prompt_tokens`/`completion_tokens`) | replaces the ~4-chars-per-token estimate with a measurement | not started |
+| P2 | watch conversation history (N recent, JSON file, not Room) | a restart currently loses the last answer | not started |
+| P2 | tighter `readTimeout` | 60 s is longer than any watch interaction | not started |
+
+The time in this pass went to proving the update feature and the watch's failure paths, because those
+are defects in shipped behaviour rather than absent features. That was the right order, and the
+remaining items are honestly listed as not done.

@@ -1,0 +1,29 @@
+########## A. launcher label per locale (aapt2 dump badging) ##########
+--- app-fdroid-debug.apk
+application-label:'Hermes X'
+--- app-play-debug.apk
+application-label:'Hermes X'
+--- wear-release.apk
+application-label:'Hermes X'
+########## B. applicationId + versionName, all three APKs ##########
+app-fdroid-debug.apk         com.hermes.app  vc=31 vn=3.0.0-hermesx
+app-play-debug.apk           com.hermes.app  vc=31 vn=3.0.0-hermesx
+wear-release.apk             com.hermes.app  vc=31 vn=3.0.0-hermesx
+########## C. signing certificates (all three) ##########
+app-fdroid-debug.apk         app-play-debug.apk           wear-debug.apk               wear-release.apk             ########## D. watch: clean install of the RELEASE apk ##########
+Success
+Success
+    versionName=3.0.0-hermesx
+      firstInstallTime=2026-09-15 09:43:09
+########## E. watch setup screen, first fold ##########
+TEXTS: ['Hermes X setup', 'Pair with the phone app, or enter your own key.', 'Base URL', 'Tap to type']
+########## F. scroll down, find and tap 'Pair with phone' ##########
+found on attempt 3 at: 176 335
+TEXTS AFTER TAP: ['Model', 'Tap to type', 'Save key', 'Pair with phone']
+--- logcat (pairing) ---
+09-15 09:41:26.159  2529  2529 W HermesWear: launch drain check: configured=false queue=0
+09-15 09:43:11.700  2768  2768 W HermesWear: launch drain check: configured=false queue=0
+########## G. BYOK save, then the chat screen + Debug panel ##########
+after typing base url:
+TEXTS: ['Model', 'http://127.0.0.1:8077/v1', 'Save key', 'Pair with phone']
+########## DONE ##########

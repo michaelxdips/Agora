@@ -75,12 +75,18 @@ object SkillSynthesisProtocol {
         val element = try {
             json.parseToJsonElement(body)
         } catch (_: Exception) {
+            // No CancellationException branch: `parseToJsonElement` / `decodeFromJsonElement` are
+            // synchronous and cannot suspend, so cancellation cannot arrive here as an exception.
+            // A rethrow branch would be dead code pretending to be care.
             return null
         }
         val obj = element as? kotlinx.serialization.json.JsonObject ?: return null
         val draft = try {
             json.decodeFromJsonElement(SkillDraft.serializer(), obj)
         } catch (_: Exception) {
+            // No CancellationException branch: `parseToJsonElement` / `decodeFromJsonElement` are
+            // synchronous and cannot suspend, so cancellation cannot arrive here as an exception.
+            // A rethrow branch would be dead code pretending to be care.
             return null
         }
         return draft.takeIf { it.isValid() }

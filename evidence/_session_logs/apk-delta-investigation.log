@@ -1,0 +1,4 @@
+fatal: cannot change to '/c/Users/Michael/Documents/Chatapp/Agora': No such file or directory
+fatal: cannot change to '/c/Users/Michael/Documents/Chatapp/Agora': No such file or directory
+cp: cannot create regular file '/c/Users/Michael/Documents/Chatapp/_baseline_wt/local.properties': No such file or directory
+_baseline_apk_compare.sh: line 16: cd: /c/Users/Michael/Documents/Chatapp/_baseline_wt: No such file or directory

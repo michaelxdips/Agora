@@ -91,6 +91,9 @@ object ReflectionProtocol {
         val element = try {
             json.parseToJsonElement(body)
         } catch (_: Exception) {
+            // No CancellationException branch: `parseToJsonElement` / `decodeFromJsonElement` are
+            // synchronous and cannot suspend, so cancellation cannot arrive here as an exception.
+            // A rethrow branch would be dead code pretending to be care.
             return null
         }
         val obj = element as? JsonObject ?: return null
@@ -98,6 +101,9 @@ object ReflectionProtocol {
         val plan = try {
             ReflectionPlan(ops = opsArray.map { json.decodeFromJsonElement(ReflectionOp.serializer(), it) })
         } catch (_: Exception) {
+            // No CancellationException branch: `parseToJsonElement` / `decodeFromJsonElement` are
+            // synchronous and cannot suspend, so cancellation cannot arrive here as an exception.
+            // A rethrow branch would be dead code pretending to be care.
             return null
         }
         return plan.copy(ops = plan.ops.filter { it.isValid() })

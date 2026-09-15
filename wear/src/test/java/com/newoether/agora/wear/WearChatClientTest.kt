@@ -262,6 +262,30 @@ class WearChatClientTest {
     }
 
     @Test
+    fun configRejectsAHostThatMerelyStartsWithLocalhost() {
+        // Prefix matching accepted this, so validation said "fine" while the platform's
+        // network_security_config refused the request — the user got UnknownServiceException instead
+        // of the honest "need an https base URL" message.
+        assertFalse(
+            "http://localhost.evil.com is a public plain-http host",
+            config("http://localhost.evil.com/v1").isValid(),
+        )
+        assertFalse(config("http://127.0.0.1.evil.com/v1").isValid())
+        assertFalse(config("http://10.0.2.2.evil.com/v1").isValid())
+        // …while the real escape hatches still pass.
+        assertTrue(config("http://127.0.0.1:11434/v1").isValid())
+        assertTrue(config("http://localhost:1234/v1").isValid())
+    }
+
+    @Test
+    fun aBareHostGetsTheV1SegmentTheUserOmitted() {
+        // The user types what the provider's docs show; a missing /v1 used to 404 with no hint.
+        serve(200, """{"choices":[{"message":{"content":"hi"}}]}""")
+        WearChatClient(config("http://127.0.0.1:$port")).ask("q", "")
+        assertEquals("POST /v1/chat/completions HTTP/1.1", requests.first().trim())
+    }
+
+    @Test
     fun configRejectsABlankBaseUrlEvenWithAKeyAndModel() {
         assertFalse(WearConfig(baseUrl = "   ", apiKey = "k", model = "m").isValid())
     }

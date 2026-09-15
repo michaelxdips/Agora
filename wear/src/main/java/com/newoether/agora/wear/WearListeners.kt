@@ -9,9 +9,16 @@ import com.google.android.gms.wearable.WearableListenerService
 /**
  * Receives the **one-time** credential push from the phone.
  *
- * After this fires the watch is standalone: nothing here is needed to answer a question. The listener
- * is `exported` because the Data Layer is an inter-process channel; the payload is the phone's own
- * config, and the store is encrypted, so a hostile app cannot read the key out of this service.
+ * After this fires the watch is standalone: nothing here is needed to answer a question.
+ *
+ * Trust boundary, stated accurately: the Wearable Data Layer enforces that **the package name and the
+ * signing certificate must match** on both devices, and the platform's own documentation states that
+ * no other app has access to the data regardless of connection type. So the exported listener is not
+ * a channel another app on the watch can write into — the earlier comment here claimed the opposite
+ * ("a hostile app cannot read the key out of this service") and the audit read it as an unproven
+ * assertion, which it was. What *is* a real exposure is persistence: the credential used to stay in
+ * the shared Data Layer store forever, so this service now deletes the item as soon as it has stored
+ * it, and the value lives only in the encrypted, app-private `filesDir`.
  *
  * Rejects a payload whose version the watch does not understand rather than guessing — a wrong config
  * silently produces wrong answers, which is worse than an obvious "needs phone setup" state.
@@ -46,11 +53,27 @@ class ConfigListenerService : WearableListenerService() {
                 return@forEach
             }
             store.write(config)
+            // Consume the item: the key now lives only in the encrypted app-private store, not in the
+            // Data Layer's replicated store where it would otherwise sit indefinitely.
+            deleteConsumed(event.dataItem.uri)
             // Publish, don't just persist: this is what moves the UI off the setup screen.
             WearSignals.config.value = config
             WearSignals.pairing.value = PairingStatus.Connected
             WearLog.w("config installed from phone")
         }
+    }
+
+    /**
+     * Deletes the credential item after it has been stored locally.
+     *
+     * A failure here is logged, never fatal: the config is already installed, and the worst case is
+     * that the item stays until the phone pushes again.
+     */
+    private fun deleteConsumed(uri: android.net.Uri) {
+        runCatching {
+            com.google.android.gms.wearable.Wearable.getDataClient(applicationContext)
+                .deleteDataItems(uri)
+        }.onFailure { WearLog.w("config item not deleted: ${it.javaClass.simpleName}") }
     }
 
     companion object {
@@ -131,15 +154,11 @@ class WearMemoryCache(private val context: android.content.Context) {
 
     fun read(): String = runCatching { file.takeIf { it.isFile }?.readText().orEmpty() }.getOrDefault("")
 
-    fun updatedAt(): Long = runCatching { file.lastModified() }.getOrDefault(0L)
-
     fun write(snapshot: String, updatedAt: Long) {
         file.parentFile?.mkdirs()
         file.writeText(snapshot)
         runCatching { file.setLastModified(updatedAt) }
     }
-
-    fun clear() = runCatching { file.delete() }
 
     companion object {
         const val FILE_NAME = "hermes_wear_memory.txt"

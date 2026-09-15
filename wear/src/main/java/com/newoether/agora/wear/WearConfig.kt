@@ -38,14 +38,22 @@ data class WearConfig(
      * "Need an https base URL, key and model" with no hint why, while the identical server spelled
      * `localhost` was accepted. Caught by `WearChatClientTest`, which is why that test suite exists.
      * `10.0.2.2` is the emulator's alias for the host machine.
+     *
+     * The **host is parsed, not prefix-matched**. `url.startsWith("http://localhost")` accepted
+     * `http://localhost.evil.com/v1`, which is a plain-HTTP public host: validation said yes and the
+     * platform's `network_security_config` said no, so the request failed with a confusing
+     * `UnknownServiceException` instead of the honest "need an https base URL" message.
      */
     private fun isLocalDevBaseUrl(url: String): Boolean {
-        val hosts = listOf("http://localhost", "http://127.0.0.1", "http://10.0.2.2")
-        return hosts.any { url.startsWith(it) }
+        val host = runCatching { java.net.URI(url).host }.getOrNull()?.lowercase() ?: return false
+        return url.startsWith("http://") && host in LOCAL_DEV_HOSTS
     }
 
     companion object {
         const val CURRENT_VERSION = 1
+
+        /** Hosts allowed over plain HTTP — the local dev escape hatch. Parsed as hosts, never prefixes. */
+        private val LOCAL_DEV_HOSTS = setOf("localhost", "127.0.0.1", "10.0.2.2")
 
         /** HTTPS only, except an explicit localhost escape hatch for a dev-side model server. */
         private val json = Json { ignoreUnknownKeys = true; prettyPrint = true }
@@ -74,10 +82,6 @@ class WearConfigStore(private val context: Context) {
         val plain = WearCrypto.json.encodeToString(WearConfig.serializer(), config)
         file.parentFile?.mkdirs()
         file.writeBytes(WearCrypto.encrypt(context, plain))
-    }
-
-    fun clear() {
-        runCatching { file.delete() }
     }
 
     companion object {

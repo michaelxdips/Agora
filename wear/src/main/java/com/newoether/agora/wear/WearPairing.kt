@@ -152,6 +152,10 @@ object WearPairing {
         timeoutMs: Long = ACK_TIMEOUT_MS,
         onStatus: (PairingStatus) -> Unit = { WearSignals.pairing.value = it },
     ): PairingStatus {
+        // Clear the previous answer before asking again. Without this the ack flow is
+        // `filterNotNull().first()`, so a *stale* ack from the last request satisfied the wait
+        // instantly and a second tap reported `Connected` without the phone having answered at all.
+        WearSignals.pairingAck.value = null
         onStatus(PairingStatus.Sending)
         val sent = transport.sendRequest(requestPayload())
         val afterSend = when (sent) {

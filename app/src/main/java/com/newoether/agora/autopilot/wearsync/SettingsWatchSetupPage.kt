@@ -34,13 +34,17 @@ import kotlinx.coroutines.withContext
  * One-time transfer of base URL, API key and model to the watch over the Data Layer. After this the
  * watch is standalone — it calls the provider directly and the phone is not needed again.
  *
- * The key is **read from the provider config the user already entered** and pushed; it is never
- * displayed, never logged, and never written anywhere on the phone side. Re-pushing overwrites the
- * watch's config, which is also the recovery path when a user re-issues a key.
+ * The key is **read from the provider config the user already entered** and pushed. This page never
+ * displays it and never logs it, and it writes no copy of its own — but the transfer does place it in
+ * the Data Layer's replicated store, which is private to this app (the platform requires the package
+ * name *and* signing certificate to match on both devices). The watch deletes the item as soon as it
+ * has stored the value in its encrypted `filesDir`, so the credential does not sit there indefinitely.
+ * Re-pushing overwrites the watch's config, which is also the recovery path when a user re-issues a key.
  *
  * This page is also the phone half of pairing: when the watch taps "Pair with phone" it sends a
- * request on `/hermes/pair`, [PairingListenerService] pushes the config without the user touching
- * this screen, and the push result shows up here as the last-transfer status.
+ * request on `/hermes/pair`, [PairingListenerService] checks the request's protocol version, pushes the
+ * config without the user touching this screen, and the push result shows up here as the last-transfer
+ * status.
  *
  * Maintainer: Michael — this file belongs to the Hermes fork of Agora (see NOTICE.md).
  */

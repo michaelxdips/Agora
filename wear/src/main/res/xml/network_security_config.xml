@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  HERMES: cleartext policy for the watch module.
+
+  The bug this fixes: `WearConfig.isValid()` accepts a plain-HTTP localhost base URL (the documented
+  dev escape hatch — `localhost`, `127.0.0.1`, `10.0.2.2`) but the module declared no
+  `networkSecurityConfig` and no `usesCleartextTraffic`, so Android's default blocked every one of
+  them. The user got "Need an https base URL" logic that passed validation, then a bare
+  `UnknownServiceException` from OkHttp at request time — with no way to tell that the *platform*
+  refused, not the server. Caught by the on-device P0 auto-drain proof, which pointed the watch at a
+  loopback mock and watched it fail.
+
+  Scope, deliberately narrow: cleartext is permitted ONLY for loopback and the emulator's host alias.
+  Everything else stays HTTPS-only, so the validated escape hatch is exactly the set of hosts that
+  actually works, and a real provider URL is still forced through TLS.
+
+  This is not `usesCleartextTraffic="true"` (which the phone module sets globally) — that would
+  permit plain HTTP to any host, including one a user mistypes, sending a bearer key in the clear.
+-->
+<network-security-config>
+    <!-- Loopback and the emulator's alias for the host machine: the dev-side model servers
+         (Ollama, LM Studio, llama.cpp) that WearConfig.isValid() already allows. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+
+    <!-- Default for every other host: TLS required, matching WearConfig.isValid()'s https:// rule. -->
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>

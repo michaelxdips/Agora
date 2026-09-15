@@ -10,6 +10,7 @@
 
      `app_name` also stays here (see the separate note at the top of this file). -->
 <resources>
+
     <string name="app_name">Hermes X</string>
 
     <!-- Adaptation History (Phase 4) -->
@@ -49,4 +50,17 @@
     <string name="hermes_watch_config_only">Config sent; the memory snapshot will follow when the watch is reachable.</string>
     <string name="hermes_watch_push_failed">No watch reachable — open the app on the watch and try again.</string>
     <string name="hermes_watch_no_key">No API key configured for the selected model. Set it in Providers first.</string>
+
+    <!-- HERMES: product name in upstream copy (values). Only "Agora" -> "Hermes X"; the upstream translation is otherwise untouched. -->
+    <string name="agora_responded">Hermes X responded</string>
+    <string name="ask_agora">Ask Hermes X anything...</string>
+    <string name="welcome_to_agora">Welcome to Hermes X.</string>
+    <string name="database_incompatible_desc">The database is incompatible with this version of Hermes X. Please clear the database and restart the app.</string>
+    <string name="about_available_body">A new version of Hermes X is available on GitHub.</string>
+    <string name="rating_title">Rate Hermes X</string>
+    <string name="import_from">Exported on %1$s\nFrom Hermes X v%2$s</string>
+    <string name="onboarding_welcome_title">Welcome to Hermes X</string>
+    <string name="crash_title">Hermes X quit unexpectedly</string>
+    <string name="developer_options_export_share_title">Share Hermes X Diagnostic Bundle</string>
+
 </resources>

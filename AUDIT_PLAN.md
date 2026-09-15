@@ -250,7 +250,7 @@ apa adanya.
 | A-012 | **FIXED** | `ttsReady` + `voiceUnavailable`; tombol Speak dan mic memberi pesan di layar, bukan no-op senyap |
 | A-013 | **FIXED** | `MemorySnapshotPusher` mendorong snapshot saat `activeMemoryRevision` berubah (debounce 2 s) |
 | A-014 | **PARSIAL** | Pola ALLOWED tetap lebar; belum diubah di pass ini (butuh redesign guard + tes lab) |
-| A-015 | **DEFERRED** | `.github/workflows/build.yml|mkdocs.yml` masih trigger `[master]`; keduanya file upstream → perlu registrasi touchpoint. Dicatat di bawah. |
+| A-015 | **FIXED** | `main` ditambahkan ke trigger `build.yml` + `mkdocs.yml`; keduanya didaftarkan di `UPSTREAM_TOUCHPOINTS.md` dengan budget + marker. CI sekarang jalan pada push ke `main`. |
 | A-016 | **DIKOREKSI** | Klaim screenshot `_device_proof/p6-*.png` & `p7-*.png` dicabut di `STATUS.md` dengan cara verifikasi yang bisa diulang |
 | A-017 | **DIKOREKSI** | Serial `emulator-5558` yang tidak ada dihapus dari heading `STATUS.md` |
 | A-018 | **DIKOREKSI (parsial)** | Angka dokumen yang bertabrakan: laporan ini memakai angka hasil gate terakhir |

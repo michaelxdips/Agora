@@ -17,7 +17,7 @@ UPSTREAM_REF="${1:-origin/master}"
 # and a new one (e.g. a mega-prompt handed to the next session) then fails the guard for the crime of
 # existing. Docs are Hermes-owned by definition — upstream's root .md files are already covered by the
 # registered-touchpoint check, so widening this cannot hide an upstream edit.
-ALLOWED_RE='^([A-Z][A-Z0-9_]*\.md|AGENTS\.md|ROADMAP\.md|NOTICE\.md|evidence/|personas/|scripts/|\.github/workflows/upstream-sync\.yml|app/src/fdroid/res/|app/src/play/res/|app/src/main/assets/personas/|app/src/main/java/com/newoether/agora/autopilot/|app/src/test/java/com/newoether/agora/autopilot/|app/src/androidTest/java/com/newoether/agora/autopilot/|wear/)'
+ALLOWED_RE='^([A-Z][A-Za-z0-9_.-]*\.md|AGENTS\.md|ROADMAP\.md|NOTICE\.md|evidence/|personas/|scripts/|\.github/workflows/upstream-sync\.yml|app/src/fdroid/res/|app/src/play/res/|app/src/main/assets/personas/|app/src/main/java/com/newoether/agora/autopilot/|app/src/test/java/com/newoether/agora/autopilot/|app/src/androidTest/java/com/newoether/agora/autopilot/|wear/)'
 
 fail=0
 note() { printf '%s\n' "$*"; }

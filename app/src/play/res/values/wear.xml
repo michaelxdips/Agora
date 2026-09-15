@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- HERMES: phone side of pairing. The watch asks for this capability when the user taps
+     "Pair with phone", so it must be declared statically — a capability that only exists after the
+     first request cannot be used to find the phone for that first request.
+
+     The array name is fixed by the Wear OS Data Layer: `android_wear_capabilities`. -->
+<resources>
+    <string-array name="android_wear_capabilities">
+        <item>hermes_phone</item>
+    </string-array>
+</resources>

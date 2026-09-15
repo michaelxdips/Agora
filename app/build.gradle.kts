@@ -32,7 +32,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 31
-        versionName = "2.1.0"
+        versionName = "3.0.0-hermesx"
 
 
         ndk {

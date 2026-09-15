@@ -113,6 +113,13 @@ fun SettingsAboutPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                     leadingContent = { Icon(Icons.Default.Info, contentDescription = null) },
                     modifier = Modifier.clickable(onClick = ::onVersionTapped),
                 )
+            }, {
+                // HERMES INTEGRATION POINT: fork identity on the About screen (maintainer + URLs).
+                SettingsItem(
+                    headlineContent = { Text(com.newoether.agora.autopilot.HermesBuildInfo.PRODUCT_NAME) },
+                    supportingContent = { Text(com.newoether.agora.autopilot.HermesBuildInfo.identityLines()) },
+                    leadingContent = { Icon(Icons.Default.Code, contentDescription = null) }
+                )
             }))
 
             // -- Updates --

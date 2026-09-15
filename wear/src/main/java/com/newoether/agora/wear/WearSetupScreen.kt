@@ -85,7 +85,7 @@ fun WearSetupScreen(
             // ScreenScaffold already draws the system TimeText at the top inset itself, so a
             // `item { TimeText() }` is a second copy; it was also item 0, which is what autoCentering
             // was centring.
-            item { ListHeader { Text("Hermes setup") } }
+            item { ListHeader { Text("${WearBuildInfo.PRODUCT_NAME} setup") } }
             item {
                 Text(
                     text = "Pair with the phone app, or enter your own key.",

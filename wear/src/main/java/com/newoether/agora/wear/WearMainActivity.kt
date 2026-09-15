@@ -290,7 +290,7 @@ private fun WearChatScreen(
                 alignment = androidx.compose.ui.Alignment.CenterVertically,
             ),
         ) {
-            item { ListHeader { Text("Hermes") } }
+            item { ListHeader { Text(WearBuildInfo.PRODUCT_NAME) } }
 
             if (answer.isNotBlank()) {
                 item {

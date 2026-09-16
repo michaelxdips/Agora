@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -206,7 +207,24 @@ private fun WearChatScreen(
 
     /** A question that was dropped for good. Error-coloured, and never a status line. */
     var dropNotice by rememberSaveable { mutableStateOf("") }
-    var ready by remember { mutableStateOf(false) }
+
+    /**
+     * Whether a usable config exists. `rememberSaveable` so a wrist-down / process death does not
+     * flash the setup screen at a user who is already configured — the value is re-derived from the
+     * store by [LaunchedEffect] below, but that happens a frame late.
+     */
+    var ready by rememberSaveable { mutableStateOf(false) }
+
+    /**
+     * Whether the user asked to edit the configuration.
+     *
+     * This exists because the setup gate used to be one-way: once a config was stored, `ready` was
+     * true for the rest of the process, and nothing in the app could set it back. A user who
+     * mistyped a base URL, or rotated an API key, had to uninstall the app or clear its data —
+     * there was no screen, no button and no gesture that led back to setup. On a watch with no
+     * rotating crown and only two physical buttons, that is a dead end with no way out.
+     */
+    var editingConfig by rememberSaveable { mutableStateOf(false) }
     var showDebug by remember { mutableStateOf(false) }
     var debug by remember { mutableStateOf("") }
 
@@ -384,10 +402,41 @@ private fun WearChatScreen(
 
     // Setup gate: two ways in, user picks. A config can also arrive from the phone while this is up,
     // so the gate re-checks the store rather than trusting the first read.
-    if (!ready) {
-        WearSetupScreen(onConfigured = { ready = true })
+    //
+    // BackHandler on the setup screen: BACK on a watch is the platform's "up one level", and without
+    // this it closed the app entirely. There is nowhere to go up to from a first-run gate, so the
+    // only correct behaviour is to leave the app — which is what the platform default does. It is
+    // declared explicitly rather than left implicit because the setup screen is the one place where
+    // "BACK quits" is right, and that should be a decision in the code, not an accident.
+    if (!ready || editingConfig) {
+        // Read on the caller's side, off the composition thread: the store decrypts through the
+        // Android keystore, and the setup screen must not do that in a `remember`.
+        var existingConfig by remember { mutableStateOf<WearConfig?>(null) }
+        LaunchedEffect(editingConfig) {
+            existingConfig = withContext(Dispatchers.IO) { configStore.read() }
+        }
+
+        // BackHandler only while editing. On first run there is nothing to go back to, so the
+        // platform default (leave the app) is already the correct behaviour and is left alone —
+        // installing a handler that calls finish() would be a no-op with extra code.
+        BackHandler(enabled = editingConfig && ready) {
+            // Editing an existing config: BACK is "cancel", and the stored config is untouched.
+            editingConfig = false
+        }
+        WearSetupScreen(
+            onConfigured = {
+                ready = true
+                editingConfig = false
+            },
+            existing = existingConfig,
+            onCancel = if (ready) ({ editingConfig = false }) else null,
+            onSwipeBack = if (ready) ({ editingConfig = false }) else null,
+        )
         return
     }
+
+    // Back from the chat screen while a config exists: the platform default (leave the app) is
+    // correct here — the chat screen IS the root. No BackHandler is installed, deliberately.
 
     ScreenScaffold(scrollState = listState) { contentPadding ->
         ScalingLazyColumn(
@@ -594,6 +643,19 @@ private fun WearChatScreen(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                     )
                 }
+            }
+
+            // The way back to setup. Without this the config screen was reachable exactly once per
+            // install: a mistyped base URL or a rotated API key meant uninstalling the app.
+            //
+            // Placed next to Debug because both are "settings", and a watch list wants the frequent
+            // action (composer, Send, Speak) above the rare ones.
+            item {
+                Button(
+                    onClick = { editingConfig = true },
+                    colors = ButtonDefaults.filledTonalButtonColors(),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                ) { Text("Change key") }
             }
 
             // Debug surface: what the watch actually holds (mandated: memory snapshot visible on the

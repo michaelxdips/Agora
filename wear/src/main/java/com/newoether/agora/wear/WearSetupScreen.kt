@@ -48,15 +48,39 @@ import kotlinx.coroutines.launch
 @Composable
 fun WearSetupScreen(
     onConfigured: (WearConfig) -> Unit,
+    /**
+     * The config already on the watch, when the user is editing rather than setting up.
+     *
+     * Passed in rather than read here: [WearConfigStore.read] decrypts through the Android keystore,
+     * and doing that inside a `remember` would run it on the composition thread. Null on first run.
+     */
+    existing: WearConfig? = null,
+    /** Shown when [existing] is non-null: cancels the edit and keeps the stored config. */
+    onCancel: (() -> Unit)? = null,
+    /**
+     * Swipe left-to-right, the Wear OS "go back" gesture.
+     *
+     * The platform guide is explicit that this is *the* way back on a watch ("instead of back
+     * buttons, Wear OS devices use left-to-right swipe gestures to close the current view"). An app
+     * with two screens that only responds to a button is fighting the platform. Null on first run,
+     * where there is no previous view to return to.
+     */
+    onSwipeBack: (() -> Unit)? = null,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current.applicationContext
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val store = remember { WearConfigStore(context) }
     val listState = rememberScalingLazyListState()
 
-    var baseUrl by remember { mutableStateOf("") }
-    var apiKey by remember { mutableStateOf("") }
-    var model by remember { mutableStateOf("") }
+    // Pre-filled when editing, so "change my base URL" does not mean retyping three fields on a
+    // watch keyboard. Empty on first run, which is the same code path.
+    //
+    // Keyed on [existing] because the caller loads it asynchronously: on the first composition it is
+    // null (the keystore read has not finished), so an unkeyed `remember` would capture that null and
+    // the fields would stay empty forever — which is exactly what the first version did.
+    var baseUrl by remember(existing) { mutableStateOf(existing?.baseUrl.orEmpty()) }
+    var apiKey by remember(existing) { mutableStateOf(existing?.apiKey.orEmpty()) }
+    var model by remember(existing) { mutableStateOf(existing?.model.orEmpty()) }
     var status by remember { mutableStateOf("") }
     // Pairing is no longer a local boolean that disables the form: it is the real status of a real
     // request, so the screen can say "no phone found" instead of pretending to wait forever.
@@ -64,6 +88,24 @@ fun WearSetupScreen(
     val pairingAck by WearSignals.pairingAck.collectAsState()
     val waitingForPhone = pairing == PairingStatus.Sending || pairing == PairingStatus.Sent
 
+    val swipeState = androidx.wear.compose.foundation.rememberSwipeToDismissBoxState(
+        confirmStateChange = { value ->
+            if (value == androidx.wear.compose.foundation.SwipeToDismissValue.Dismissed) {
+                onSwipeBack?.invoke()
+                true
+            } else {
+                false
+            }
+        },
+    )
+
+    androidx.wear.compose.foundation.BasicSwipeToDismissBox(
+        state = swipeState,
+        backgroundKey = "setup-background",
+        // `userSwipeEnabled` off on first run: there is no previous view, and a swipe that visibly
+        // slides the screen and then snaps back is a lie about what the gesture does.
+        userSwipeEnabled = onSwipeBack != null,
+    ) {
     ScreenScaffold(scrollState = listState) { contentPadding ->
         ScalingLazyColumn(
             state = listState,
@@ -87,7 +129,11 @@ fun WearSetupScreen(
             item { ListHeader { Text("${WearBuildInfo.PRODUCT_NAME} setup") } }
             item {
                 Text(
-                    text = "Pair with the phone app, or enter your own key.",
+                    text = if (onCancel != null) {
+                        "Editing your saved key. Back cancels and keeps the old one."
+                    } else {
+                        "Pair with the phone app, or enter your own key."
+                    },
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
@@ -169,6 +215,18 @@ fun WearSetupScreen(
                 }
             }
 
+            // Only when editing an existing config: on first run there is nothing to cancel back to,
+            // and a visible Cancel that does nothing is worse than no Cancel at all.
+            if (onCancel != null) {
+                item {
+                    Button(
+                        onClick = onCancel,
+                        colors = ButtonDefaults.filledTonalButtonColors(),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    ) { Text("Cancel") }
+                }
+            }
+
             // The honest status line: what the last request actually did, plus the phone's own reply
             // when one arrived. Without this the user cannot tell "sent" from "there is no phone".
             if (pairing != PairingStatus.Idle || pairingAck != null) {
@@ -185,6 +243,7 @@ fun WearSetupScreen(
                 }
             }
         }
+    }
     }
 }
 

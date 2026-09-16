@@ -44,9 +44,11 @@ class UpdateCheckerTest {
     @Test
     fun `a plain release outranks the same version with a fork suffix`() {
         // Segment 3 is `0` vs `0-hermesx`: one is numeric, the other is not, so the numeric one wins.
-        // That is also semver's rule — a plain release is newer than a pre-release of the same number —
-        // and it is the right behaviour here: if the fork ever publishes `v3.0.0` after shipping
-        // `3.0.0-hermesx`, the user should be offered it.
+        // That is also semver's rule — a plain release is newer than a pre-release of the same number.
+        //
+        // NOTE: this asserts the primitive only. `check` goes through `isNewer`, which drops the
+        // `-suffix` from both sides, so a plain `3.0.0` is NOT offered to a `3.0.0-hermesx` device —
+        // same version, different marker. See `ReleaseVersionOrderingTest`.
         assertTrue(UpdateChecker.compare("3.0.0", "3.0.0-hermesx") > 0)
         // The suffix must not *inflate* the version: a later base version still wins.
         assertTrue(UpdateChecker.compare("3.0.1", "3.0.0-hermesx") > 0)

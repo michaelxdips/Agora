@@ -654,3 +654,100 @@ Honest list, in the order I would do them:
 
 The time in this phase went to defects in shipped behaviour rather than absent features. That was the
 right order, and the rest is listed as not done rather than implied as done.
+
+---
+
+## Post-push verification — the update channel against a real release
+
+Run after the README/CI push (`93052a75`), on a clean tree. Question: does the in-app update check
+behave correctly when this fork's `applicationId`, signing key and release channel all differ from
+upstream's — and what does it do with the fact that upstream has shipped releases and this fork has
+none?
+
+### The experiment
+
+`UpdateChecker.check()` was called against the **live GitHub API** from the real compiled class (a
+throwaway JVM probe in `app/src/test/.../TempLiveUpdateProbe.kt`, deleted before the commit that
+followed; the permanent coverage is `UpdateCheckerTest`'s 8 offline tests). The only variable changed
+between runs was the existence of a release on the fork.
+
+| Run | Fork releases | `UpdateChecker.check("3.0.0-hermesx")` returned |
+|---|---|---|
+| A | none (real state) | `null` — no update offered |
+| B | one throwaway release `v3.0.1` | `UpdateInfo(version=3.0.1, url=https://github.com/michaelxdips/Agora/releases/tag/v3.0.1, body=…)` |
+
+Raw, run A:
+
+```
+PROBE repo=michaelxdips/Agora url=https://github.com/michaelxdips/Agora
+PROBE live check() result=null
+PROBE compare(2.1.0, 3.0.0-hermesx)=-1
+PROBE compare(3.0.1, 3.0.0-hermesx)=1
+```
+
+Raw, run B (`app/build/test-results/testFdroidDebugUnitTest/TEST-com.newoether.agora.autopilot.TempLiveUpdateProbe.xml`):
+
+```
+PROBE live check() result=UpdateInfo(version=3.0.1, url=https://github.com/michaelxdips/Agora/releases/tag/v3.0.1, body=## Throwaway release
+```
+
+While the throwaway release existed, `GET /repos/newo-ether/Agora/releases/latest` still returned
+`v2.1.0` with `assets: [('app-release.apk', 48553937)]` — i.e. upstream **did** have a downloadable
+release at the same moment, and the fork's check ignored it. That is the property under test:
+upstream's release is not this build's update.
+
+### Proved on the device (not only in a JVM)
+
+Release-signed APK (`app-fdroid-release.apk`) installed on `hermes_x86_64` (`emulator-5556`),
+first-launch onboarding completed, then the release created:
+
+```
+text="Update available: v3.0.1"
+text="A new version of Hermes X is available on GitHub."
+text="Throwaway release"
+text="Created only to prove the in-app update check end to end, then deleted."
+text="•  probe marker"
+text="View Release"
+text="Later"
+```
+
+Raw dump and screenshot: `../_workbench/docs/evidence-updater/positive-dialog-uiautomator.xml`,
+`…/positive-dialog.png`. The title renders the fork's own version string, and the body is the
+release's, markdown-lite rendered by the existing dialog.
+
+After deleting the release and force-stopping the app, the same build relaunched into the normal
+chat screen (`Ask Hermes X anything...` / `No model selected` / `Welcome to Hermes X.`), no update
+dialog, `logcat -b crash` empty. Run B → A on one binary, no rebuild.
+
+### Package name, signing key and coexistence — measured
+
+| Claim | Command | Output |
+|---|---|---|
+| Fork package | `aapt2 dump badging app-fdroid-release.apk` | `package: name='com.hermes.app' versionCode='31' versionName='3.0.0-hermesx'` |
+| Upstream package | `aapt2 dump badging upstream-v2.1.0.apk` | `package: name='com.newoether.agora' versionCode='31' versionName='2.1.0'` |
+| Different signing identity | `apksigner verify --print-certs` | fork `[certificate DN omitted]`, SHA-256 `7188ce70…aa56d7`; upstream `CN=Newo Ether`, SHA-256 `5de26f26…be1aa29` |
+| Both installed at once | `adb shell pm list packages \| grep -iE 'hermes\|newoether'` | `package:com.hermes.app` **and** `package:com.newoether.agora` |
+| Both report their own version | `adb shell dumpsys package <pkg> \| grep versionName` | `3.0.0-hermesx` / `2.1.0` |
+| The check's target is baked into the APK | `grep -aoE 'api\.github\.com/repos/[^"]+/releases/latest' classes*.dex` | upstream APK → `api.github.com/repos/newo-ether/Agora/releases/latest`. Fork APK → no match for that literal, because the fork builds the URL from `HermesBuildInfo.FORK_REPO`; the same probe for `michaelxdips/Agora` matches the fork APK and not the upstream one |
+| Cross-signature install is refused | `adb install -r -d app-fdroid-release.apk` over the debug build | `INSTALL_FAILED_UPDATE_INCOMPATIBLE: Existing package com.hermes.app signatures do not match newer version` |
+
+The last row is the reason the update check must point at the fork: the two builds are different
+signing identities, so an APK offered across that boundary cannot be installed over this app.
+
+### Not claimed
+
+* The check never downloads or installs anything — it opens the release page in a browser. No silent
+  APK install path exists to test.
+* The 24-hour `UPDATE_INTERVAL_MS` throttle was not exercised (it would need a day of wall-clock, or
+  a clock the test cannot move without root). The manual "check for updates" path in Settings → About
+  bypasses it and is what the device run above used.
+* The fork still has **0 releases**, so the shipped default state is "up to date". Creating a release
+  is the only thing that changes that; no code change is needed.
+
+### Environment repaired during this session
+
+`hermes_x86_64` could not boot at the start (missing `system-images;android-36;google_apis_playstore;
+x86_64` — only a half-finished installer directory, `132M` of orphaned download in `$ANDROID_HOME/.temp`).
+Removed the orphan and installed the image with `sdkmanager`; the AVD then booted and reported
+`sys.boot_completed=1`. `ANDROID_SDK_ROOT` must be set alongside `ANDROID_HOME` or the emulator
+refuses to start.

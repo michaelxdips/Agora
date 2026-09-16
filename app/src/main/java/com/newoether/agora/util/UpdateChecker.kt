@@ -94,7 +94,7 @@ object UpdateChecker {
             val release = json.decodeFromString<GitHubRelease>(body)
             val latestVersion = release.tag_name.removePrefix("v")
 
-            if (compare(latestVersion, currentVersion) > 0) {
+            if (isNewer(release.tag_name, currentVersion)) {
                 UpdateInfo(
                     version = latestVersion,
                     url = release.html_url,
@@ -111,6 +111,28 @@ object UpdateChecker {
             null
         }
     }
+
+    /**
+     * Is the release tag [tag] strictly newer than the installed [currentVersion]?
+     *
+     * This is **not** `compare(tag, current) > 0`, and the difference is a shipped defect the first
+     * release exposed: the fork's own version string carries a suffix (`3.0.1-hermesx`) while a
+     * release tag does not (`v3.0.1`). Segment-wise, `1` is numeric and `1-hermesx` is not, so a
+     * numeric segment outranks a non-numeric one — meaning `compare("3.0.1", "3.0.1-hermesx") == 1`
+     * and every device **already on a release would be offered that same release, forever**. The
+     * build's own suffix is not a newer version, it is the same version with a marker.
+     *
+     * The rule: drop a `-`-suffix from both sides, compare the bare numbers, and treat a difference
+     * only in the suffix as *not* an update.
+     */
+    fun isNewer(tag: String, currentVersion: String): Boolean {
+        val base = compare(baseVersion(tag), baseVersion(currentVersion))
+        return if (base != 0) base > 0 else false
+    }
+
+    /** The numeric part of a version, before any `-suffix`. `3.0.1-hermesx` → `3.0.1`. */
+    private fun baseVersion(version: String): String =
+        version.trim().removePrefix("v").substringBefore('-')
 
     /**
      * Compare two version strings (e.g. "1.0.10" vs "1.0.9").

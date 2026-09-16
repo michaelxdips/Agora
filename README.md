@@ -12,6 +12,7 @@
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
   [![Platform: Android](https://img.shields.io/badge/Platform-Android-green.svg)](https://developer.android.com)
   [![Kotlin](https://img.shields.io/badge/Kotlin-Native-blue.svg)](https://kotlinlang.org/)
+  [![Build APK](https://github.com/michaelxdips/Agora/actions/workflows/build.yml/badge.svg)](https://github.com/michaelxdips/Agora/actions/workflows/build.yml)
 
   <img src="assets/feature_graphic.png" alt="A BYOK AI app that takes back your data sovereignty." width="100%" />
 </div>
@@ -20,20 +21,83 @@
 > It builds from source, installs side by side with upstream Agora (`com.hermes.app` vs
 > `com.newoether.agora`), and the upstream user manual still applies to the shared product.
 
+---
+
+## At a glance
+
+| | Hermes X (this fork) | Upstream Agora |
+|---|---|---|
+| `applicationId` | `com.hermes.app` | `com.newoether.agora` |
+| `versionName` | `3.0.0-hermesx` (`versionCode` 31) | `2.1.0` (`versionCode` 31) |
+| Release signing identity | `[certificate DN omitted]` | `CN=Newo Ether` |
+| Release certificate SHA-256 | `7188ce70…aa56d7` | `5de26f26…be1aa29` |
+| Distribution | build from source | F-Droid, Google Play, GitHub Releases |
+| Update channel | **this fork's own GitHub Releases** | upstream's releases |
+| Wear OS app | `wear/` — same `applicationId`, same key (Data Layer requirement) | none |
+
+Because the package name, the signing key and the release channel all differ, the two apps coexist on
+one device and neither can silently replace the other. That is also why the in-app update check must
+never point at upstream — see [Update channel](#update-channel).
+
 ## What this fork adds
 
 | Addition | Where | Notes |
 |---|---|---|
 | **Autopilot memory** | `app/src/main/java/com/newoether/agora/autopilot/` | After a conversation goes idle, a reflection pass proposes memory facts and writes them with a before/after snapshot in its own Room DB (`hermes_autopilot.db`). Never extends upstream's DB. |
 | **Adaptation History + undo** | Settings → Memory & Data → *Adaptation History* | Every change is listed with a diff and a one-tap undo; a correction heuristic rolls back a bad adaptation automatically. Daily cap of 5. |
-| **Persona system** | `personas/`, `app/src/main/assets/personas/` | Vendored Caveman and Ponytail rule texts (MIT, pinned refs in `personas/upstream.lock`) injected as delimited blocks into the active-memory file, removed without trace when switched off. |
+| **Persona system** | `personas/`, `app/src/main/assets/personas/` | Vendored Caveman (`v2.6.0`) and Ponytail (`v4.10.0`) rule texts (MIT, pinned refs + SHA-256 in `personas/upstream.lock`) injected as delimited blocks into the active-memory file, removed without trace when switched off. |
 | **Wear OS module** | `wear/` | Standalone watch app: BYOK on the watch itself, or pairing with the phone app over the Data Layer. Typing, voice input, an offline queue with exactly-once delivery, and held-question cards. |
+| **Update checker** | `app/src/main/java/com/newoether/agora/util/UpdateChecker.kt` | Points at *this* fork's releases; daily check on launch, plus a manual check in Settings → About. |
 | **Upstream sync automation** | `scripts/upstream_sync.sh`, `.github/workflows/upstream-sync.yml` | Dry-run by default; the merge is scripted and the CI job runs it on a schedule. |
 | **Touchpoint guard** | `scripts/touchpoint_guard.sh`, `UPSTREAM_TOUCHPOINTS.md` | Upstream files are read-mostly. Every deliberate edit to one is registered with a line budget, and the guard fails the build when an unregistered edit or a blown budget appears. |
 
 Rebranding is confined to `applicationId` (`com.hermes.app`), the display name, and resource
 overlays — no upstream behaviour is rewritten. The full list of edited upstream files, with reasons
 and budgets, is in [`UPSTREAM_TOUCHPOINTS.md`](UPSTREAM_TOUCHPOINTS.md).
+
+## Update channel
+
+The About screen checks GitHub for a newer release of **this fork** and offers a link to the release
+page. Three things make that non-trivial in a fork, and all three are settled in code:
+
+| Property | Value | Why it matters |
+|---|---|---|
+| Repository queried | `michaelxdips/Agora` (via `HermesBuildInfo.FORK_REPO`) | Querying upstream's releases would offer an APK with a different package name and a different signing key. Installing it over Hermes X fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, so it is a *wrong* offer, not a missed one. |
+| Version comparison | segment-wise; numeric outranks non-numeric | `3.0.1` beats `3.0.0-hermesx`; a plain release beats the same number with a fork suffix; `v1.2.3-rc1` is ordered instead of collapsing to `0`. |
+| Failure mode | always `null` | Offline, rate-limited or "no releases yet" all mean *no update*, never a fabricated one. A `CancellationException` is rethrown rather than swallowed. |
+
+**Current state: the fork has no releases yet, so the check correctly returns `null` and the About
+screen shows "You're up to date".** Publishing a release is what switches the check on — no code
+change is needed.
+
+Tagging rule: use a version above `3.0.0-hermesx` (e.g. `v3.0.1`). The fork also carries upstream's
+older tags (`v2.1.0`, `v2.0.0`, …) from the fork point; a release built from one of those is
+correctly *not* offered as an update.
+
+## Wear OS companion
+
+The watch app is standalone (no phone required) and pairs with the phone app when one is present.
+Both APKs share `com.hermes.app` **and the same signing key** — the Data Layer refuses to pair
+otherwise.
+
+| Data Layer path | Direction | Type | Purpose |
+|---|---|---|---|
+| `/hermes/pair` | watch → phone | Message | Pairing request (protocol version + product name) |
+| `/hermes/pair/ack` | phone → watch | Message | Result of the request, rendered as text on the watch |
+| `/hermes/config` | phone → watch | DataItem | Base URL, API key, model; deleted from the store once consumed |
+| `/hermes/memory` | phone → watch | DataItem | Memory snapshot for the watch's core context |
+
+The watch looks for the `hermes_phone` capability (`CapabilityClient.FILTER_REACHABLE`), declared
+statically in `app/src/{fdroid,play}/res/values/wear.xml`. If no reachable node advertises it, the
+watch says so explicitly — `No phone app found. Install it and open it once, or use a key on the
+watch.` — and BYOK on the watch keeps working.
+
+Phone side: `autopilot/wearsync/` (`PairingListenerService`, `WatchSync`, `SettingsWatchSetupPage`).
+Watch side: `wear/` (`WearPairing`, `WearListeners`, `WearOfflineQueue`, `WearQueueDrainer`).
+
+Known limit: the phone → watch **push** half has never been exercised end to end. Two emulators
+share no Google account, and the Data Layer requires both devices to be signed in to the same one.
+Recorded as HS4 in [`STATUS.md`](STATUS.md) rather than claimed as working.
 
 ## Screenshots
 
@@ -51,7 +115,8 @@ test-build screenshots, not marketing shots.
 </tr>
 </table>
 
-More evidence lives in [`evidence/`](evidence/) and is indexed in [`STATUS.md`](STATUS.md).
+More evidence lives in [`evidence/`](evidence/) (27 tracked files: screenshots, session logs and the
+probe scripts that produced them) and is indexed in [`STATUS.md`](STATUS.md).
 
 ## Inherited from upstream
 
@@ -68,8 +133,13 @@ Everything below is Agora's, unchanged, and is documented in full in the
 
 ## Build from source
 
-Targets **Android SDK 36** with **JDK 21**. Submodules are required (`thirdparty/llama.cpp`,
-`thirdparty/proot`).
+| Requirement | Version used here |
+|---|---|
+| JDK | 21 (Temurin 21.0.12.1+1) |
+| Android SDK | `compileSdk 36`, `targetSdk 36`, `build-tools 36.0.0`, `ndk 28.2.13676358`, `cmake 3.22.1` |
+| Gradle | wrapper 9.5.1 |
+| `minSdk` | 26 (phone) · 30 (watch) |
+| Submodules | `thirdparty/llama.cpp`, `thirdparty/proot`, `thirdparty/talloc` |
 
 ```bash
 git clone --recurse-submodules https://github.com/michaelxdips/Agora.git
@@ -77,10 +147,16 @@ cd Agora
 
 export JAVA_HOME=<path-to-jdk-21>
 export ANDROID_HOME=<path-to-android-sdk>
+export ANDROID_SDK_ROOT="$ANDROID_HOME"   # the emulator refuses to start without it
 
-./gradlew assembleFdroidDebug          # or assemblePlayDebug
-./gradlew :app:testFdroidDebugUnitTest # JVM unit tests
-bash scripts/touchpoint_guard.sh       # upstream-edit guard
+./gradlew assembleFdroidDebug           # or assemblePlayDebug
+./gradlew assembleFdroidRelease         # needs a keystore, see below
+./gradlew :wear:assembleDebug           # watch APK
+./gradlew :app:testFdroidDebugUnitTest  # JVM unit tests
+./gradlew :wear:testDebugUnitTest
+./gradlew verifyKotlinFileSize          # source-size policy
+bash scripts/touchpoint_guard.sh        # upstream-edit guard
+SYNC_DRY_RUN=1 bash scripts/upstream_sync.sh
 ```
 
 Release builds sign through `local.properties` (`storeFile`, `storePassword`, `keyAlias`,
@@ -89,6 +165,63 @@ committed — a fresh clone builds debug only until you supply your own key.
 
 The F-Droid flavor needs `./build-proot.sh` to have run before packaging (the CI workflow does this
 for you). The `play` flavor does not.
+
+Install over an existing build of the *same* signing identity, or uninstall first:
+
+```bash
+adb uninstall com.hermes.app     # debug and release are signed differently here
+adb install app/build/outputs/apk/fdroid/debug/app-fdroid-debug.apk
+```
+
+### Measured build outputs
+
+| Artifact | Size (bytes) |
+|---|---|
+| `app/build/outputs/apk/fdroid/debug/app-fdroid-debug.apk` | 65,313,312 |
+| `app/build/outputs/apk/fdroid/release/app-fdroid-release.apk` | 49,499,989 |
+| `wear/build/outputs/apk/release/wear-release.apk` | 2,735,771 |
+
+## Verification
+
+The fork's rule is that no status is claimed without a command behind it. Current numbers, all
+reproducible on a clean checkout:
+
+| Gate | Result |
+|---|---|
+| `:app:testFdroidDebugUnitTest` | **2,558 tests, 0 failures, 0 errors** (393 XML reports) |
+| `:wear:testDebugUnitTest` | **61 tests, 0 failures, 0 errors** (6 XML reports) |
+| `verifyKotlinFileSize` | pass |
+| `scripts/touchpoint_guard.sh` | **PASS** — 14 registered upstream touchpoints, 13 currently carrying a diff |
+| `SYNC_DRY_RUN=1 scripts/upstream_sync.sh` | exit 0 |
+| CI (`.github/workflows/build.yml`) | green on `main` — unit tests + F-Droid release build |
+
+`git status --porcelain` is clean, and no build artifact, keystore or `local.properties` is tracked.
+
+## Staying in sync with upstream
+
+This fork tracks `newo-ether/Agora` (`master`). `main` is currently **65 commits ahead of the fork
+point** (`914e7c8d`), and upstream is **4 commits ahead** of that same point — those four are not in
+`main` yet. Upstream keeps moving, and the sync protocol is built so that a merge is a *reviewed*
+event, not a silent one:
+
+```bash
+git fetch upstream
+SYNC_DRY_RUN=1 bash scripts/upstream_sync.sh   # resolve in a throwaway worktree, report only
+bash scripts/upstream_sync.sh                  # real merge on main
+bash scripts/touchpoint_guard.sh               # must pass after the merge
+```
+
+Conflict policy ([`UPSTREAM_SYNC.md`](UPSTREAM_SYNC.md)):
+
+1. Conflict in a **registered touchpoint** → keep ours, then re-apply the Hermes edit.
+2. Conflict in a **Hermes-only** path → keep ours (upstream cannot legitimately touch it).
+3. Conflict **anywhere else** → abort, leave `main` untouched, fail the job. Upstream moved a
+   contract we depend on.
+
+The script then runs the unit tests and the F-Droid debug build *in the merged tree*, so the result
+is evidence about what is being promoted rather than about the branch that existed before the merge.
+An upstream change to `development/*.md` or `ARCHITECTURE.md` is reported as a contract change
+(N10) and must be re-read before further feature work.
 
 ## Documentation
 
@@ -103,18 +236,34 @@ for you). The `play` flavor does not.
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Upstream's runtime, persistence, providers, tools, and data flows. |
 | [`V2_BACKLOG.md`](V2_BACKLOG.md) | Candidate work with a cost/benefit table, including the "never" column. |
 | [`PRIVACY.md`](PRIVACY.md) · [`NOTICE.md`](NOTICE.md) | Privacy policy and attribution. |
+| [User manual](https://newo-ether.github.io/Agora/) | Upstream's docs site — applies to the shared product. |
 
 The audit and mandate documents this fork accumulated while it was being built (`GAP_ANALYSIS.md`,
 `AUDIT_PLAN.md`, `AUDIT_REPORT.md`, `CLEANUP_SCAN.md`, `CLEANUP_REPORT.md`, `HANDOVER.md`,
 `MEGA_PROMPT_*.md`) are deliberately **not** in the repository. Where one of them is cited as the
 source of a recorded result, `STATUS.md` says so.
 
+## Known limitations
+
+Stated plainly, because a fork that hides its gaps cannot be trusted with the parts that work:
+
+- **No published releases yet.** The update check is wired and proven, but until a release exists it
+  honestly reports "up to date". Builds are source-only.
+- **Phone → watch push is unproven** (HS4): needs two Data-Layer-paired devices with the same Google
+  account. The watch's own paths (BYOK, offline queue, core context) are verified on the API 34 wear
+  image.
+- **No automated device test in CI.** Instrumented tests run locally against an emulator; CI covers
+  JVM unit tests and the release build.
+- **`main` is the only long-lived branch.** Feature work happens on branches; `main` must always
+  build.
+
 ## Contributing
 
-Issues and pull requests are welcome. Two rules matter more than the rest:
+Issues and pull requests are welcome. Three rules matter more than the rest:
 
 1. **`main` must always build.** Work on a branch and merge only after verification.
 2. **Never disable a test or a guard to make a gate pass.**
+3. **Never force-push.**
 
 ## License
 

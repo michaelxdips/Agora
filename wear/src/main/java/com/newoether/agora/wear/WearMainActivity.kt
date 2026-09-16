@@ -111,7 +111,6 @@ class WearMainActivity : ComponentActivity() {
             WearHermesTheme {
                 WearChatScreen(
                     spokenQuestion = spoken,
-                    ttsReady = ttsReady,
                     voiceUnavailable = voiceUnavailable,
                     onSpeak = ::speak,
                     onStartListening = ::startListening,
@@ -181,7 +180,6 @@ private const val MAX_ANSWER_LINES = 12
 @Composable
 private fun WearChatScreen(
     spokenQuestion: MutableStateFlow<String?>,
-    ttsReady: kotlinx.coroutines.flow.StateFlow<Boolean>,
     voiceUnavailable: kotlinx.coroutines.flow.StateFlow<String?>,
     onSpeak: (String) -> Boolean,
     onStartListening: () -> Unit,

@@ -90,8 +90,13 @@ object WearCrypto {
         return generator.generateKey()
     }
 
-    /** Base64 helper for the Data Layer payload, which is a `DataMap` of strings. */
-    fun encode(payload: ByteArray): String = Base64.encodeToString(payload, Base64.NO_WRAP)
-
+    /**
+     * Base64 helper for the Data Layer payload, which is a `DataMap` of strings.
+     *
+     * `encode` used to sit here next to `decode` with **zero callers**: the watch only ever receives
+     * a payload (the phone base64-encodes on its side, in `WatchSync`). Removed under the "three
+     * pieces of evidence" rule — no reference in `wear/src` or `app/src`, not an entry point, and
+     * `:wear:testDebugUnitTest` stays green without it. Add it back with its first caller.
+     */
     fun decode(value: String): ByteArray? = runCatching { Base64.decode(value, Base64.NO_WRAP) }.getOrNull()
 }

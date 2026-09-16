@@ -271,18 +271,21 @@ The git-credential-manager token (`gho_…`, scopes `gist, repo, workflow`) has 
 | topics | (none) | `android`, `kotlin`, `byok`, `llm`, `wear-os`, `agora-fork` |
 | visibility | PUBLIC | PUBLIC (unchanged) |
 | default branch | `master` | `main` |
-| `main` on origin | `44d07698` | `cf35fb18` (build-verified — see §6) plus report-only commits after it |
+| `main` on origin | `44d07698` | `cf35fb18` (build-verified — see §6) plus docs-only commits after it |
 | tags on origin | (not measured before) | 30 local == 30 remote unique refs, all pushed (`--tags` → `Everything up-to-date`) |
 
-**Every commit after the build-verified `cf35fb18` touches `CLEANUP_REPORT.md` and nothing else**, so
-the inputs that §6 proved are byte-identical to the tip. Reproduce with:
+**Every commit after the build-verified `cf35fb18` touches only documentation** (`CLEANUP_REPORT.md`
+and `CLEANUP_SCAN.md`) **and no source, asset, resource or build file**, so the inputs that §6 proved
+are byte-identical to the tip. Reproduce with:
 
 ```
-git diff --name-only cf35fb18..origin/main      # -> CLEANUP_REPORT.md
+git diff --name-only cf35fb18..origin/main      # -> CLEANUP_REPORT.md, CLEANUP_SCAN.md
+git diff --name-only cf35fb18..origin/main | grep -vE '^CLEANUP_(REPORT|SCAN)\.md$'   # -> empty
 ```
 
-This is deliberate: a report whose last line names the commit that contains it can never be accurate,
-so the report names the commit it *verified* and proves the rest is prose.
+That second line is the load-bearing one: it must print nothing. This is deliberate — a report whose
+last line names the commit that contains it can never be accurate, so the report names the commit it
+*verified* and proves the rest is prose.
 
 Final tree assertion re-run before pushing: `git ls-files | grep -E "local.properties|\.jks$|\.keystore$"` → **empty**.
 
@@ -462,6 +465,16 @@ owner as an open question in `CLEANUP_SCAN.md` §7.1.
    repository was broken for every fresh Windows clone and nobody had noticed.
 4. **A pre-existing startup ANR on the emulator** is recorded in §4.9 and was *not* fixed — it is
    outside this mandate and is not cleanup-induced.
+5. **Two numbers in my own first draft of these documents were wrong and are now corrected.** I
+   described the MiOutfit font family as "~62 MB total, which is *legitimate product content*" and
+   lumped it with history-only build output; measured, it is 58.2 MB of `res/font` blobs of which
+   only **19.7 MB** is tracked at HEAD (the variable font plus four JetBrains Mono), the other
+   38.4 MB being static faces that **upstream's own** `91530c8c` deleted. I also wrote "None of these
+   are tracked at HEAD" directly beneath a blob list that included `mioutfit_variable.ttf`, which *is*
+   tracked. Both are fixed in the correction commit; the diff is in the history rather than hidden.
+   The reason I checked at all is that an itemised blob scan contradicted a number I had written from
+   memory of an earlier command's output — which is exactly the failure mode this mandate exists to
+   catch.
 
 ---
 

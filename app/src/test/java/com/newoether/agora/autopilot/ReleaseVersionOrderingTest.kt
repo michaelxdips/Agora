@@ -54,4 +54,15 @@ class ReleaseVersionOrderingTest {
         assertTrue(UpdateChecker.isNewer("v3.1.0", "3.0.1-hermesx"))
         assertTrue(UpdateChecker.isNewer("v4.0.0", "3.0.1"))
     }
+
+    @Test
+    fun `the published v3_0_3 release is offered to every earlier install and to none of its own`() {
+        // The tag this session actually published. Both directions matter: a device on 3.0.2 must be
+        // told about it, and a device already on it must not be told about it forever — the defect
+        // that shipped with v3.0.1 and is pinned above for that tag.
+        assertTrue("v3.0.3 must be offered to a 3.0.2-hermesx install", UpdateChecker.isNewer("v3.0.3", "3.0.2-hermesx"))
+        assertTrue(UpdateChecker.isNewer("v3.0.3", "3.0.0-hermesx"))
+        assertFalse("3.0.3-hermesx must not be offered v3.0.3", UpdateChecker.isNewer("v3.0.3", "3.0.3-hermesx"))
+        assertFalse(UpdateChecker.isNewer("v3.0.3", "3.0.3"))
+    }
 }

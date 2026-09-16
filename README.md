@@ -29,7 +29,7 @@
 | | Hermes X (this fork) | Upstream Agora |
 |---|---|---|
 | `applicationId` | `com.hermes.app` | `com.newoether.agora` |
-| `versionName` | `3.0.2-hermesx` (`versionCode` 33) | `2.1.0` (`versionCode` 31) |
+| `versionName` | `3.0.3-hermesx` (`versionCode` 34) | `2.1.0` (`versionCode` 31) |
 | Release signing identity | `[certificate DN omitted]` | `CN=Newo Ether` |
 | Release certificate SHA-256 | `7188ce70…aa56d7` | `5de26f26…be1aa29` |
 | Distribution | [GitHub Releases](https://github.com/michaelxdips/Agora/releases/latest) — phone + watch APK | F-Droid, Google Play, GitHub Releases |
@@ -67,9 +67,15 @@ page. Three things make that non-trivial in a fork, and all three are settled in
 | Version comparison | segment-wise; numeric outranks non-numeric | `3.0.1` beats `3.0.0-hermesx`; a plain release beats the same number with a fork suffix; `v1.2.3-rc1` is ordered instead of collapsing to `0`. |
 | Failure mode | always `null` | Offline, rate-limited or "no releases yet" all mean *no update*, never a fabricated one. A `CancellationException` is rethrown rather than swallowed. |
 
-**Current state: releases are live** — [`v3.0.2`](https://github.com/michaelxdips/Agora/releases/tag/v3.0.2)
+The live release is checked in both directions by
+`app/src/test/.../autopilot/ReleaseVersionOrderingTest.kt`: `v3.0.3` **is** offered to a
+`3.0.2-hermesx` install and **is not** offered to a `3.0.3-hermesx` one — the second direction is the
+defect that shipped with `v3.0.1` (a device on a release was offered that same release on every
+launch).
+
+**Current state: releases are live** — [`v3.0.3`](https://github.com/michaelxdips/Agora/releases/tag/v3.0.3)
 is the current one, and `v3.0.1` is marked *pre-release* because it shipped a debug-signed phone APK
-and the update-check defect described below. Every APK on `v3.0.2` carries `versionName 3.0.2-hermesx`.
+and the update-check defect described below. Every APK on `v3.0.3` carries `versionName 3.0.3-hermesx`.
 
 **A defect the first release exposed, and the fix:** the fork's own version string carries a suffix
 (`3.0.2-hermesx`) while a GitHub tag does not (`v3.0.2`). Segment-wise a numeric segment outranks a
@@ -91,8 +97,8 @@ signing certificate differ, so mixing APKs from two different releases breaks pa
 
 | App | File | Size (bytes) | SHA-256 |
 |---|---|---|---|
-| Phone (Android 8+, `minSdk` 26) | [`app-fdroid-release.apk`](https://github.com/michaelxdips/Agora/releases/latest/download/app-fdroid-release.apk) | 49,616,015 | `429901bc368a7a4daa0f58ac4ad60d68e977ddabcab856cb6fc69d31247def9c` |
-| Watch (Wear OS 3+, `minSdk` 30) | [`wear-release.apk`](https://github.com/michaelxdips/Agora/releases/latest/download/wear-release.apk) | 2,768,539 | `36bbfd02432a063fb4eaa064a64e48750b751dfab73ecc8a402612d469262e64` |
+| Phone (Android 8+, `minSdk` 26) | [`app-fdroid-release.apk`](https://github.com/michaelxdips/Agora/releases/latest/download/app-fdroid-release.apk) | 49,616,015 | `32de63ec9673989869df44fb20aa96f97f4d78fec3b1319a5ce06faa35c4c7fd` |
+| Watch (Wear OS 3+, `minSdk` 30) | [`wear-release.apk`](https://github.com/michaelxdips/Agora/releases/latest/download/wear-release.apk) | 2,763,831 | `ae5cfbc298dc69322cab3d3c88708ca4ece47df450a02087008b4cfaceff2fa5` |
 
 `SHA256SUMS` ships in the same release for `sha256sum -c`. Verify the signing identity before
 installing:
@@ -104,7 +110,7 @@ apksigner verify --print-certs app-fdroid-release.apk
 # SHA-256 7188ce700b7407485e4a588cc1ef779fba4bd47c635338b05f61d5fc90aa56d7
 ```
 
-Both APKs in `v3.0.2` carry that certificate. It is a **self-signed** release key (the same one the
+Both APKs in `v3.0.3` carry that certificate. It is a **self-signed** release key (the same one the
 project's own `local.properties` points at), not a store key; the value of checking it is that it
 must match on both APKs, because that is the condition the Data Layer enforces.
 
@@ -135,11 +141,54 @@ watch.` — and BYOK on the watch keeps working.
 Phone side: `autopilot/wearsync/` (`PairingListenerService`, `WatchSync`, `SettingsWatchSetupPage`).
 Watch side: `wear/` (`WearPairing`, `WearListeners`, `WearOfflineQueue`, `WearQueueDrainer`).
 
+### What the watch shows, and why it can
+
+A watch screen is a bad place for markup. `WearChatClient.parseContent` used to return the provider's
+`content` verbatim, so a model answering `**Jawaban:** 14` or `$\frac{1}{2}$` put those characters in
+front of the user on a display that has no Markdown renderer and no math font.
+`WearAnswerText.render` is now the single decision point — pure Kotlin, no new dependency, so the
+watch module stays small:
+
+| Input | On the watch |
+|---|---|
+| `**bold**`, `_x_`, `~~strike~~`, `` `code` `` | `bold`, `x`, `strike`, `code` |
+| `# Heading`, `- item`, `> quote` | `Heading`, `• item`, `quote` |
+| `\| a \| b \|` table rows | `a  b` |
+| `[text](url)` | `text` |
+| ` ``` ` fences | dropped, the code inside is kept |
+| `\frac{1}{2}` | `1/2` · `\frac{x+1}{2}` → `(x+1)/2` |
+| `x^{2}`, `H_{2}O` | `x²`, `H₂O` |
+| `\sum_{i=1}^{n}`, `\int`, `\sqrt{9}` | `∑ᵢ₌₁ⁿ`, `∫`, `√9` |
+| `\times \le \ge \ne \pm \infty \pi \Delta \theta \mu` | `× ≤ ≥ ≠ ± ∞ π Δ θ µ` |
+| `⁲⁳₏₝₞₟ ⏻⏼` | readable fallbacks — **no font on this image has them** |
+
+"Has a glyph" is measured, not assumed: the five fonts on the Wear OS image were pulled off the device
+and their cmaps read (`DroidSans` 2,797 · `DroidSansMono` 873 · `NotoSansSymbols` 4,616 + 124 ·
+`NotoColorEmoji` 1,449 → union **8,755 codepoints**). `NotoSansMath-Regular.ttf` is **not on the
+image**. `WearFontCoverage.kt` is generated from those cmaps and `WearAnswerTextCoverageTest` fails if
+the renderer ever emits a character outside them — it caught `U+2072` passing straight through.
+
+Layout was measured on five screen profiles with real `wm size` / `wm density` overrides, coordinate
+space verified before every dump:
+
+| Profile | Screen | Text column | % of width |
+|---|---|---|---|
+| small round (the AVD) | 384 px @320 = 192.0 dp | 132.0 dp | 68.8 % |
+| large round | 454 px @320 = 227.0 dp | 163.0 dp | 71.8 % |
+| **Xiaomi Watch 2** | 466 px @326 = **228.7 dp** | **165.9 dp** | **72.5 %** |
+
+No element is cut off or outside the round mask at the Xiaomi Watch 2 geometry, and every `Button` is
+≥ 48 dp on all five profiles. Two defects were found by running it rather than reading it: **every
+answer crashed the app** (`verticalScroll` inside a `ScalingLazyColumn` item is an
+`IllegalStateException` — the user-visible symptom was that the answer never appeared), and the voice
+fallback was collected but rendered nowhere. Both are fixed; see
+[`evidence/wear-render-2026-09-16.md`](evidence/wear-render-2026-09-16.md) for the raw output.
+
 Known limit: the phone → watch **push** half has never been exercised end to end on this machine.
 Both emulators have `Accounts: 0` (`adb shell dumpsys account`), and the Data Layer requires both
 devices to be signed in to the same Google account, so `CapabilityClient.FILTER_REACHABLE` returns
 no node and the watch honestly reports `No phone app found…`. The signing half *is* verified: both
-APKs on `v3.0.2` carry the same certificate, which is the other condition the Data Layer enforces.
+APKs on `v3.0.3` carry the same certificate, which is the other condition the Data Layer enforces.
 Recorded as HS4 in [`STATUS.md`](STATUS.md) rather than claimed as working.
 
 ## Screenshots
@@ -236,13 +285,18 @@ reproducible on a clean checkout:
 
 | Gate | Result |
 |---|---|
-| `:app:testFdroidDebugUnitTest` | **2,561 tests, 0 failures, 0 errors** (394 XML reports) |
-| `:wear:testDebugUnitTest` | **61 tests, 0 failures, 0 errors** (6 XML reports) |
+| `:app:testFdroidDebugUnitTest` | **2,562 tests, 0 failures, 0 errors** (394 XML reports) |
+| `:wear:testDebugUnitTest` | **82 tests, 0 failures, 0 errors** (8 XML reports) |
 | `verifyKotlinFileSize` | pass |
 | `scripts/touchpoint_guard.sh` | **PASS** — 14 registered upstream touchpoints, 13 currently carrying a diff |
 | `SYNC_DRY_RUN=1 scripts/upstream_sync.sh` | exit 0 |
 | CI (`.github/workflows/build.yml`) | green on `main` — unit tests + release-signed F-Droid build |
 | Both release APKs | `apksigner verify --print-certs` → `7188ce70…aa56d7` on **both** (the Data Layer pairing condition) |
+| Published assets | re-downloaded from `releases/latest/download` → HTTP 200, `sha256sum -c SHA256SUMS` **OK** for both |
+
+The wear count rose from 61 to 82 with the render work: `WearAnswerTextTest` (the mapping),
+`WearAnswerTextCoverageTest` (every emitted character against the device's real font cmaps), and
+`WearAnswerLeakTest` (the regression that was red before the fix).
 
 `git status --porcelain` is clean, and no build artifact, keystore or `local.properties` is tracked.
 
@@ -296,14 +350,19 @@ source of a recorded result, `STATUS.md` says so.
 
 Stated plainly, because a fork that hides its gaps cannot be trusted with the parts that work:
 
-- **Releases are source-signed, not store-signed.** `v3.0.2` exists and both APKs carry the same
+- **Releases are source-signed, not store-signed.** `v3.0.3` exists and both APKs carry the same
   release certificate, so the update check is live; but the key is self-signed and the F-Droid flavor
   is only built by CI (a local `assembleFdroidRelease` on a machine without the NDK toolchain and
   `make` produces an APK **without** the PRoot runtime).
 - **Phone → watch push is unproven** (HS4): needs two Data-Layer-paired devices with the same Google
   account. Both emulators here report `Accounts: 0`, so the watch reports `No phone app found…` by
   design. The watch's own paths (BYOK, offline queue, core context) are verified on the API 34 wear
-  image, and the signing condition the Data Layer enforces is verified on both release APKs.
+  image, the pairing *decision logic* is covered by 8 unit tests, and the signing condition the Data
+  Layer enforces is verified on both release APKs.
+- **Answer quality with the memory core context is unmeasured** (HS2): a local mock has no knowledge,
+  so "does 500 tokens of memory make the watch's answers better?" cannot be answered here. Its *cost*
+  is measured — a 1,625-byte snapshot becomes a 1,624-char / 406 estimated-token `system` message —
+  and the feature is kept because it is the only thing that makes an answer about *this* user.
 - **No automated device test in CI.** Instrumented tests run locally against an emulator; CI covers
   JVM unit tests and the release build.
 - **`main` is the only long-lived branch.** Feature work happens on branches; `main` must always

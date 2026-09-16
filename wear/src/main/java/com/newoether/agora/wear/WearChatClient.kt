@@ -172,6 +172,11 @@ class WearChatClient(private val config: WearConfig) {
      * `null`, and `takeIf { it.isNotBlank() }` let them through because "null" is not blank. A user
      * whose provider answered `content: null` was shown the word "null" as the answer. A wrong
      * answer is worse than an honest failure, so a JSON null must fail here.
+     *
+     * **The answer is rendered before it is returned.** This is the one place provider text becomes
+     * watch text: a model that answers in Markdown or LaTeX (`**Jawaban:**`, `$\frac{1}{2}$`) used to
+     * put the markup itself on a 384 px screen, which has no renderer for either. [WearAnswerText]
+     * does the conversion with no dependency; see it for the mapping and its limits.
      */
     private fun parseContent(raw: String): String? {
         val root = runCatching { json.parseToJsonElement(raw) as? JsonObject }.getOrNull() ?: return null
@@ -183,7 +188,8 @@ class WearChatClient(private val config: WearConfig) {
         val primitive = candidate as? JsonPrimitive ?: return null
         // A JSON null inside the primitive is also possible for a hand-built element.
         if (primitive is JsonNull) return null
-        return runCatching { primitive.content }.getOrNull()?.takeIf { it.isNotBlank() }
+        val text = runCatching { primitive.content }.getOrNull()?.takeIf { it.isNotBlank() } ?: return null
+        return WearAnswerText.render(text).takeIf { it.isNotBlank() }
     }
 
 }

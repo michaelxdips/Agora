@@ -16,11 +16,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -462,17 +460,22 @@ private fun WearChatScreen(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                     ) {
                         // A long answer used to be handed to the card unbounded, and the card grew
-                        // past the round screen with no way to reach the rest. A ceiling plus its own
-                        // scroll keeps the answer readable on a 384 px watch.
+                        // past the round screen with no way to reach the rest.
+                        //
+                        // The answer is NOT put in its own `verticalScroll`: this Text is an item of a
+                        // ScalingLazyColumn, and a scrollable child measured with an infinite maximum
+                        // height is an `IllegalStateException` — found on the device, where every
+                        // answer crashed the app with
+                        //   "Vertically scrollable component was measured with an infinity maximum
+                        //    height constraints, which is disallowed".
+                        // The list scrolls; the text is capped and ellipsised by MAX_ANSWER_LINES.
                         Text(
                             text = answer,
                             textAlign = TextAlign.Start,
                             style = MaterialTheme.typography.bodyMedium,
                             maxLines = MAX_ANSWER_LINES,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .verticalScroll(rememberScrollState()),
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                 }

@@ -244,8 +244,10 @@ Both documented setup paths — type your own key, and pair with the phone — a
 Two cold launches on the emulator produced `Input dispatching timed out … MainActivity is not
 responding. Waited 5000ms for MotionEvent`. This is **not cleanup-induced**:
 
-- my commits changed **no application code** — `git diff --stat 44d07698..HEAD` lists only
-  `CLEANUP_SCAN.md`, `V2_BACKLOG.md`, `scripts/audit_gate0.sh`, `scripts/audit_test_counts.py`;
+- my commits changed **no application code** — `git diff --name-only 44d07698..HEAD` lists only
+  `CLEANUP_SCAN.md`, `CLEANUP_REPORT.md`, `V2_BACKLOG.md`, `scripts/audit_gate0.sh`,
+  `scripts/audit_test_counts.py`, and the two `personas/.gitattributes` files added in §6
+  (**942 insertions, 0 deletions** — nothing was removed or edited, only added);
 - the `LaunchedEffect` that runs `PersonaStartup.run` / `AutopilotTriggerObserver` /
   `MemorySnapshotPusher` on the composition's scope was introduced by `30c6298f`
   (`hermes: phase 6 persona system`, 2026-09-15 00:40), which is an **ancestor of `44d07698`**;
@@ -269,8 +271,8 @@ The git-credential-manager token (`gho_…`, scopes `gist, repo, workflow`) has 
 | topics | (none) | `android`, `kotlin`, `byok`, `llm`, `wear-os`, `agora-fork` |
 | visibility | PUBLIC | PUBLIC (unchanged) |
 | default branch | `master` | `main` |
-| `main` on origin | `44d07698` | `d3dcca1e` (pushed) |
-| tags on origin | 20 | 30 (all local tags pushed) |
+| `main` on origin | `44d07698` | `8781ef5b` — `d3dcca1e` → `2b8f3f07` → `cf35fb18` → `8781ef5b` |
+| tags on origin | (not measured before) | 30 local == 30 remote unique refs, all pushed (`--tags` → `Everything up-to-date`) |
 
 Final tree assertion re-run before pushing: `git ls-files | grep -E "local.properties|\.jks$|\.keystore$"` → **empty**.
 

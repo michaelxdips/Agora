@@ -751,3 +751,197 @@ x86_64` — only a half-finished installer directory, `132M` of orphaned downloa
 Removed the orphan and installed the image with `sdkmanager`; the AVD then booted and reported
 `sys.boot_completed=1`. `ANDROID_SDK_ROOT` must be set alongside `ANDROID_HOME` or the emulator
 refuses to start.
+
+---
+
+## Phase 16 — watch render correctness, rip-off audit, layout matrix, release 3.0.3
+
+Session scope: five missions (readable text on the watch, remove what the watch does not need, layout
+for a Xiaomi Watch 2, pair-from-phone, release + README). Every number below comes from a command run
+in this session; the raw dumps are in [`evidence/wear-render-2026-09-16.md`](evidence/wear-render-2026-09-16.md).
+
+### Gate at the end of Phase 16 (all re-run, not remembered)
+
+| Command | Result |
+|---|---|
+| `git status --porcelain` | clean at the end of the phase |
+| `bash scripts/touchpoint_guard.sh` | `PASS` (14 touchpoints, unchanged budgets) |
+| `./gradlew :wear:testDebugUnitTest :app:testFdroidDebugUnitTest verifyKotlinFileSize` | `BUILD SUCCESSFUL` |
+| `:wear:testDebugUnitTest` | **82 tests, 0 failures** (was 61) |
+| `:app:testFdroidDebugUnitTest` | **2,561 tests, 0 failures** (3 skipped) |
+| `SYNC_DRY_RUN=1 bash scripts/upstream_sync.sh` | exit 0 |
+| `git ls-files \| grep -cE '\.(jks\|keystore)$\|^local\.properties$'` | `0` |
+| `adb shell wm size` / `wm density` | `Physical size: 384x384` / `Physical density: 320` (reset) |
+
+### Mission 1 — text and symbols readable on the watch
+
+**What was wrong.** `WearChatClient.parseContent` returned the provider's `content` verbatim, so a
+model answering in Markdown or LaTeX put the markup itself on a 384 px screen that has no renderer for
+either. Written as a failing test first (`WearAnswerLeakRedTest`, renamed to `WearAnswerLeakTest` after
+the fix):
+
+```
+latexFractionBecomesReadable       FAILED  raw LaTeX reached the watch: $\frac{1}{2}$ dari 80 = 40
+markdownBoldNeverReachesTheScreen  FAILED  raw bold markers reached the watch: **Jawaban:** 14
+headingMarkerAndFenceAreStripped   FAILED  a code fence reached the watch: ``` | # Hasil | ...
+superscriptLatexBecomesARealSuperscript  FAILED  raw LaTeX reached the watch: $x^{2}$
+4 tests completed, 4 failed
+```
+
+**What fixes it.** `WearAnswerText.render(raw)` — one pure-Kotlin decision point, no new dependency
+(the watch module stays minimal): explicit LaTeX→Unicode and Markdown→text mapping tables, honest
+fallbacks for codepoints this image has no font for, whitespace/control normalisation, and a visible
+truncation marker. `parseContent` now returns the rendered text, so the fresh ask, the queue drain and
+the offline retry all show the same thing.
+
+**Glyph coverage is measured, not assumed.** The five fonts were pulled off the emulator and their
+cmaps read with fontTools:
+
+| Font | Codepoints |
+|---|---|
+| `DroidSans.ttf` | 2,797 |
+| `DroidSansMono.ttf` | 873 |
+| `NotoSansSymbols-Regular-Subsetted.ttf` | 4,616 |
+| `NotoSansSymbols-Regular-Subsetted2.ttf` | 124 |
+| `NotoColorEmoji.ttf` | 1,449 |
+| **union** | **8,755 (165 ranges)** |
+
+`NotoSansMath-Regular.ttf` is **not on this image** (`ls /system/fonts | grep -i math` empty,
+`grep -ci math /system/etc/fonts.xml` → `0`). Blocks: math operators 256/256, arrows 112/112,
+box drawing 128/128, geometric shapes 96/96, Latin-1 96/96, Greek 121/144, superscripts 14/16,
+subscripts 28/32, misc technical 232/256. The holes a model can actually emit are handled by the
+fallback table: `⁲⁳₏₝₞₟ ⏻⏼ ⎾⎿…`.
+
+`WearFontCoverage.kt` is **generated** from those cmaps, and `WearAnswerTextCoverageTest` fails if the
+renderer ever emits a codepoint outside them — it caught `U+2072` passing straight through, which is
+exactly the class of bug the table exists for.
+
+**Device proof** (mock provider returning the raw markup, watch at 384×384 @320):
+
+```
+raw provider text : '**Jawaban:** 14\n$\frac{1}{2}$ dari 80 = 40\n...'
+rendered on screen: 'Jawaban: 14 | 1/2 dari 80 = 40 | x² + y² = r² | Hasil | • poin satu | ...'
+```
+
+### Defect found by running it, not by reading it
+
+**Every answer crashed the app.** The answer `Text` sat inside `Modifier.verticalScroll(...)` *and*
+inside a `ScalingLazyColumn` item — an `IllegalStateException` from Compose's own constraint check:
+
+```
+E AndroidRuntime: FATAL EXCEPTION: main   Process: com.hermes.app
+java.lang.IllegalStateException: Vertically scrollable component was measured with an infinity
+maximum height constraints, which is disallowed...
+    at androidx.compose.foundation.ScrollNode.measure-3p2s80s(Scroll.kt:440)
+```
+
+The symptom a user saw was not an error message — the answer simply never appeared. Introduced in
+`86de5749` ("A ceiling plus its own scroll keeps the answer readable"); removed, and the list's own
+scrolling plus `MAX_ANSWER_LINES` + ellipsis does the job. This is the single most valuable finding of
+the session, and it was invisible to every test in the repository.
+
+**Second defect: the voice fallback never rendered.** `voiceUnavailable` was collected into
+`voiceProblem` and then rendered nowhere, so on an image with no recognizer (the wear emulator, and a
+bare watch) tapping Speak did nothing visible. Same tap after the fix:
+
+```
+[69,336][315,384] 'Voice input is not available on this watch. Type instead.'
+logcat: W HermesWear: no speech recognizer on this watch
+```
+
+### Mission 2 — what the watch does not need, removed
+
+| Candidate | Evidence it was dead | Action |
+|---|---|---|
+| `androidx.wear.compose:compose-material:1.6.2` | zero imports (`grep 'androidx.wear.compose.material\.'` → empty) | **removed** |
+| `androidx.compose.material3:material3` | zero imports (`grep 'androidx.compose.material3'` → empty) | **removed** |
+| `WearCrypto.encode` | no caller in `wear/src` or `app/src` (the phone base64-encodes its side) | **removed** |
+| `WearChatScreen(ttsReady)` parameter | passed in, never read (its only reader was the unrendered `ttsAvailable`) | **removed** |
+
+Each removal has the three required pieces of evidence: no reference, not a manifest/reflection/R8
+entry point, and green build + tests after. `compose.foundation` is now declared explicitly rather than
+arriving transitively through the removed artifacts.
+
+Measured: **wear release APK 2,768,539 → 2,763,831 bytes (−4,708, −0.17 %)**; wear tests 82/0 before
+and after.
+
+**Kept, with the reason on the record:**
+
+| Kept | Why |
+|---|---|
+| Core context (`/hermes/memory`, `WearMemoryCache`, `WearCoreContext`, `MemoryListenerService`) | it is the only thing that makes the watch's answers about *this* user. Measured cost: a 1,625-byte snapshot → a **1,624-char / 406 est.-token** `system` message on the wire, absent when no snapshot exists. Whether the *answers* get better is not measurable without a real provider key (HS2) — a local mock has no knowledge — so it stays, and the measurement that would justify removing it is recorded as unproven rather than guessed. |
+| `WearQueueDrainer` / `WearOfflineQueue` | exactly-once delivery; a question must not be lost |
+| `/hermes/config` path | it is the pair-from-phone path |
+| Debug panel | it is the only surface that shows what the watch actually holds, including the core-context token count |
+
+### Mission 3 — layout for a Xiaomi Watch 2 (466×466 @326 = 228.7 dp)
+
+Measured with `wm size` / `wm density` overrides, coordinate space verified via
+`dumpsys window displays | grep init=` before every dump:
+
+| Profile | Screen | Composer / answer column | % of width |
+|---|---|---|---|
+| small round (AVD) | 384 px @320 = 192.0 dp | 132.0 dp | 68.8 % |
+| large round | 454 px @320 = 227.0 dp | 163.0 dp | 71.8 % |
+| **Xiaomi Watch 2** | 466 px @326 = **228.7 dp** | **165.9 dp** | **72.5 %** |
+| 480 round | 480 px @360 = 213.3 dp | 173.3 dp button row | — |
+| rectangular | 400 px @320 = 200.0 dp | 138.0 dp | 69.0 % |
+
+The column grows with the screen and its share of the width grows too, so the extra 36.7 dp of a
+Xiaomi Watch 2 is spent on text rather than margin.
+
+**A hypothesis that died, and how.** The first pass reported 454 as *identical* to 384 (264×96 px,
+x 60..324). That is the signature of a dump taken before the relayout. Re-measured with the coordinate
+space printed before the dump and two dumps per profile: 454 is really 326×96 px = 163.0 dp. The
+"fixed 8 dp inset wastes the width" finding was an artifact, and no layout change was made on the
+strength of it. (Recorded because the discarded hypothesis is part of the evidence.)
+
+Circle fit is computed against the **physical** mask (r = 192 px), not the override: `wm size` moves
+the coordinate space but not the round mask. At 466×466 no element is fully outside the circle; the
+only corners outside belong to the `Speak` label while its item is entering the viewport, which the
+list's own circular clip handles.
+
+Touch targets: every `Button` is ≥ 48 dp on all five profiles except the composer's `EditText` at
+466×466 (47.6 dp, i.e. 0.4 dp under) — a Wear-framework field height, not this app's layout.
+
+**`font_scale 1.3`** (accessibility): buttons scale ~1.3× linearly (at 384: `Change key` 165×36 →
+205×45 px, `Debug` 92×36 → 121×48 px). Answer to the phase question: at 466×466 with `font_scale 1.3`
+there is **no** room for another button without scrolling — the list already needs a scroll to reach
+`Change key`/`Debug`, and `Speak` sits at the viewport edge (y = 478 of 466).
+
+### Mission 4 — pair-from-phone: what is proved, and what is not
+
+`Accounts: 0` on **both** emulators, and the phone APK is not installed on the phone emulator in this
+session, so the Data Layer has no reachable node. The watch reports that honestly:
+
+```
+W HermesWear: pairing: no node advertises hermes_phone
+UI: 'No phone app found. Install it and open it once, or use a key on the watch.'
+```
+
+Options were evaluated rather than assumed. **A** (add the same Google account to both emulators) was
+not attempted: it needs GUI sign-in into a Google account inside two sandboxes, with the owner's
+account. **B** (physical devices) is out of reach. **C** (fake transport + listener branches) is
+already in place and green — `WearPairingTest`, 8 tests: no phone, send failed, timeout, ack, blank
+ack, hostile ack, no credential in the payload, every status actionable. **D** (mock and claim it
+works) was refused.
+
+So: the watch's *decision logic* and the honest UI state are proved; the Data Layer *transport* is
+not. **HS4 stays open, unchanged** — "physical watch (or a Data-Layer-paired emulator pair)".
+
+### Mission 5 — release
+
+`versionCode 34`, `versionName 3.0.3-hermesx` in both modules. The touchpoint budget for
+`app/build.gradle.kts` did **not** need raising: the two version lines were already inside the
+registered diff, so the guard still reports 18/20.
+
+| Artifact | Size (bytes) | SHA-256 |
+|---|---|---|
+| `wear-release.apk` (local `:wear:assembleRelease`) | 2,763,831 | `3efd6ae56aca457bf357ce4f73445d9e1e60c6afc8380edccd327e42cefc70c2` |
+| `app-fdroid-release.apk` (CI, PRoot runtime + release-signed) | measured below, from the published asset | measured below |
+
+CI `Restore signing key` = **success** (not skipped), so the phone APK is release-signed, not
+debug-signed — the failure that made `v3.0.1` unusable for pairing.
+
+Both signed `CN=Hermes Local, …`, SHA-256 `7188ce70…aa56d7` — the identity the Data Layer requires to
+match on both APKs.

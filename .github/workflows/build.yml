@@ -33,6 +33,10 @@ jobs:
           java-version: 21
 
       - uses: android-actions/setup-android@v3
+        with:
+          # HERMES INTEGRATION POINT: `tools` no longer exists in current cmdline-tools, so the
+          # action's default package list dies on "Failed to find package 'tools'" (exit 1).
+          packages: "platform-tools"
 
       - uses: gradle/actions/setup-gradle@v4
 

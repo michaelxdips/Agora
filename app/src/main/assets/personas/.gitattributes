@@ -1,0 +1,5 @@
+# HERMES INTEGRATION POINT (Hermes-only path — upstream has no .gitattributes anywhere)
+#
+# Mirror of personas/.gitattributes. PersonaFidelityTest asserts this asset copy is byte-identical
+# to the vendored file, so it must survive a Windows checkout (core.autocrlf=true) unchanged.
+* -text

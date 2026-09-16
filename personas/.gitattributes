@@ -1,0 +1,8 @@
+# HERMES INTEGRATION POINT (Hermes-only path — upstream has no .gitattributes anywhere)
+#
+# These files are hash-locked: PersonaFidelityTest compares the sha256 of the bytes on disk
+# against personas/upstream.lock, and PersonaStore ships the same bytes as an APK asset.
+# With Windows' default core.autocrlf=true, a fresh checkout rewrites LF to CRLF, the hash no
+# longer matches the lock, and `testFdroidDebugUnitTest` fails on any clean Windows clone.
+# `-text` means: never convert. The blobs in git are already LF and stay LF everywhere.
+* -text

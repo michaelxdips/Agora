@@ -271,8 +271,18 @@ The git-credential-manager token (`gho_…`, scopes `gist, repo, workflow`) has 
 | topics | (none) | `android`, `kotlin`, `byok`, `llm`, `wear-os`, `agora-fork` |
 | visibility | PUBLIC | PUBLIC (unchanged) |
 | default branch | `master` | `main` |
-| `main` on origin | `44d07698` | `8781ef5b` — `d3dcca1e` → `2b8f3f07` → `cf35fb18` → `8781ef5b` |
+| `main` on origin | `44d07698` | `cf35fb18` (build-verified — see §6) plus report-only commits after it |
 | tags on origin | (not measured before) | 30 local == 30 remote unique refs, all pushed (`--tags` → `Everything up-to-date`) |
+
+**Every commit after the build-verified `cf35fb18` touches `CLEANUP_REPORT.md` and nothing else**, so
+the inputs that §6 proved are byte-identical to the tip. Reproduce with:
+
+```
+git diff --name-only cf35fb18..origin/main      # -> CLEANUP_REPORT.md
+```
+
+This is deliberate: a report whose last line names the commit that contains it can never be accurate,
+so the report names the commit it *verified* and proves the rest is prose.
 
 Final tree assertion re-run before pushing: `git ls-files | grep -E "local.properties|\.jks$|\.keystore$"` → **empty**.
 

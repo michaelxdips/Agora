@@ -141,7 +141,12 @@ by prefix. That is deliberate: `main/res/values/strings.xml` must not be edited,
 
 ## 8. Root documentation
 
-`AGENTS.md`, `ARCHITECTURE.md`, `AUDIT_REPORT.md`, `GAP_ANALYSIS.md`, `HANDOVER.md`, `NOTICE.md`,
-`PRIVACY.md`, `README.md`, `ROADMAP.md`, `STATUS.md`, `UPSTREAM_SYNC.md`, `UPSTREAM_TOUCHPOINTS.md`,
-`CODE_MAP.md` (this file). Root Markdown is allowed as a *class* by the guard, so a new document does
-not need a registry entry — see the comment in `scripts/touchpoint_guard.sh` for why that is safe.
+`AGENTS.md`, `ARCHITECTURE.md`, `CODE_MAP.md` (this file), `NOTICE.md`, `PRIVACY.md`, `README.md`,
+`ROADMAP.md`, `STATUS.md`, `UPSTREAM_SYNC.md`, `UPSTREAM_TOUCHPOINTS.md`, `V2_BACKLOG.md`. Root
+Markdown is allowed as a *class* by the guard, so a new document does not need a registry entry — see
+the comment in `scripts/touchpoint_guard.sh` for why that is safe.
+
+The audit and mandate documents this fork accumulated (`GAP_ANALYSIS.md`, `AUDIT_PLAN.md`,
+`AUDIT_REPORT.md`, `CLEANUP_SCAN.md`, `CLEANUP_REPORT.md`, `HANDOVER.md`, `MEGA_PROMPT_*.md`) were
+moved out of the repository before it was published. `STATUS.md` flags each place where one of them
+is cited as the source of a recorded result.

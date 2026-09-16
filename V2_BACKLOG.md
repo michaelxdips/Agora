@@ -23,7 +23,7 @@ maintenance — makin tinggi makin berat), **blast** (radius kerusakan kalau sal
 | 8 | Memory viewer read-only di watch | 3 | 2 | 2 | 2 | 0 | LATER | Tumpang tindih dengan #1; setelah #1 stabil |
 | 9 | Quick-reply suggestions di watch | 2 | 3 | 3 | 2 | 0 | NEVER | Bukan inti misi (auto-adapt / aksesibilitas); biaya model tinggi |
 | 10 | Persona quick-toggle di tile | 3 | 3 | 2 | 2 | 0 | NEVER (tunda) | Persona sendiri sedang rusak (A-003/A-010/A-011) — perbaiki dulu |
-| 11 | Rotasi API key watch | 2 | 1 | 2 | 2 | 0 | NEVER | Threat model belum butuh; lihat AUDIT_REPORT "explicitly not recommended" |
+| 11 | Rotasi API key watch | 2 | 1 | 2 | 2 | 0 | NEVER | Threat model belum butuh; lihat temuan audit "explicitly not recommended" |
 | 12 | Streaming respons di watch | 2 | 2 | 3 | 2 | 0 | NEVER | Keputusan lama (WearChatClient KDoc) masih benar; layar kecil, jawaban pendek |
 
 ## Aturan gauntlet (dari mandat v2.1 §5.3) — checklist per kandidat BUILD

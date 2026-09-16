@@ -58,7 +58,8 @@ evidence table for each phase.
 - [x] One real upstream merge completed per protocol (stress merge tagged
       `sync-2026-09-14-stress` → `e360491c`; `upstream/master` itself was already an ancestor of `main`)
 - [x] `main` fully green: unit tests + both flavor debug builds + touchpoint guard + contract check
-- [x] `ROADMAP.md` / `STATUS.md` finalised; HANDOVER section for the future Wear OS phase
+- [x] `ROADMAP.md` / `STATUS.md` finalised; handover section written for the future Wear OS phase
+      (the separate `HANDOVER.md` was later moved out of the repository)
 ## Phase 6b — Persona System (Caveman + Ponytail)
 
 > The "Phase 6" label is used twice in this repo's history — this section and the Sync/Handover one
@@ -105,7 +106,8 @@ which refuses to write unless the persona regression tests pass.
 - [x] About links point at the fork's tracker, not upstream's
 - See `STATUS.md` §Phase 13 for the evidence table.
 
-## Open (audit v2.1 — see `AUDIT_PLAN.md` §2.6 and `V2_BACKLOG.md`)
+## Open (audit v2.1 — see `V2_BACKLOG.md`; the audit documents themselves were moved out of the
+repository before publication)
 
 - Persona updates: the lock file is shipped in assets and is now seeded into `filesDir`
   (`PersonaRepository.seedLockFromAssets`) so the in-app check can read it.

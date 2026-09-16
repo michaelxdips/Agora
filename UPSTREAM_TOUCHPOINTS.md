@@ -59,7 +59,7 @@ marker. Upstream behaviour is added to, never removed.
 
 ### Planned touchpoints (Phase 2 output, filled with real paths)
 
-Phase 2 (`GAP_ANALYSIS.md`) pre-registered the two files above as the only expected integration
+Phase 2 (gap analysis) pre-registered the two files above as the only expected integration
 sites. Both are now real entries in the data block. The embedding pipeline and `SkillManager` are
 consumed read/write-only through their existing public API from the autopilot package, so they need
 no entry.

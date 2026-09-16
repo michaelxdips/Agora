@@ -1,52 +1,62 @@
 <div align="center">
-  <img src="app/src/main/assets/agora_transparent_large.png" alt="Agora Logo" width="120" />
+  <img src="app/src/main/assets/agora_transparent_large.png" alt="Hermes X" width="120" />
 
   # Hermes X
 
-  **BYOK LLM client with multi-provider access, agentic workflows, and remote device control.**
+  **An Android BYOK LLM client with agentic tools — and a Wear OS companion app.**
 
-  > **Hermes X** is a fork of [Agora](https://github.com/newo-ether/Agora) by the Agora authors (MIT).
-  > Maintainer of this fork: **Michael** ([`michaelxdips`](https://github.com/michaelxdips/Agora)).
-  > Attribution is unchanged — see `NOTICE.md`. Everything below is upstream's README and describes
-  > the shared product; the fork's additions (autopilot, personas, the watch module) are documented in
-  > `ROADMAP.md`, `STATUS.md` and `CODE_MAP.md`.
+  A fork of [Agora](https://github.com/newo-ether/Agora) by the Agora authors (MIT).
+  Maintained by **Michael** ([`michaelxdips`](https://github.com/michaelxdips)).
+  Upstream attribution is unchanged — see [`NOTICE.md`](NOTICE.md).
 
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
   [![Platform: Android](https://img.shields.io/badge/Platform-Android-green.svg)](https://developer.android.com)
   [![Kotlin](https://img.shields.io/badge/Kotlin-Native-blue.svg)](https://kotlinlang.org/)
 
-  [Website](https://agora.newoether.com) · [User Manual](https://newo-ether.github.io/Agora/)
-
-  <img src="assets/feature_graphic.png" alt="Agora — A BYOK AI app that takes back your data sovereignty." width="100%" />
+  <img src="assets/feature_graphic.png" alt="A BYOK AI app that takes back your data sovereignty." width="100%" />
 </div>
 
-## Introducing Agora
+> **Not published on any store.** Upstream Agora ships on F-Droid and Google Play; this fork does not.
+> It builds from source, installs side by side with upstream Agora (`com.hermes.app` vs
+> `com.newoether.agora`), and the upstream user manual still applies to the shared product.
 
-[![Watch Introducing Agora on YouTube](https://i.ytimg.com/vi/P0p5PzROC0I/maxresdefault.jpg)](https://youtu.be/P0p5PzROC0I)
+## What this fork adds
 
-[Watch on YouTube](https://youtu.be/P0p5PzROC0I)
+| Addition | Where | Notes |
+|---|---|---|
+| **Autopilot memory** | `app/src/main/java/com/newoether/agora/autopilot/` | After a conversation goes idle, a reflection pass proposes memory facts and writes them with a before/after snapshot in its own Room DB (`hermes_autopilot.db`). Never extends upstream's DB. |
+| **Adaptation History + undo** | Settings → Memory & Data → *Adaptation History* | Every change is listed with a diff and a one-tap undo; a correction heuristic rolls back a bad adaptation automatically. Daily cap of 5. |
+| **Persona system** | `personas/`, `app/src/main/assets/personas/` | Vendored Caveman and Ponytail rule texts (MIT, pinned refs in `personas/upstream.lock`) injected as delimited blocks into the active-memory file, removed without trace when switched off. |
+| **Wear OS module** | `wear/` | Standalone watch app: BYOK on the watch itself, or pairing with the phone app over the Data Layer. Typing, voice input, an offline queue with exactly-once delivery, and held-question cards. |
+| **Upstream sync automation** | `scripts/upstream_sync.sh`, `.github/workflows/upstream-sync.yml` | Dry-run by default; the merge is scripted and the CI job runs it on a schedule. |
+| **Touchpoint guard** | `scripts/touchpoint_guard.sh`, `UPSTREAM_TOUCHPOINTS.md` | Upstream files are read-mostly. Every deliberate edit to one is registered with a line budget, and the guard fails the build when an unregistered edit or a blown budget appears. |
 
-## Download
-
-[![F-Droid](https://img.shields.io/badge/F--Droid-Install-blue?logo=fdroid)](https://f-droid.org/packages/com.newoether.agora/)
-&nbsp;&nbsp;
-[![Google Play](https://img.shields.io/badge/Google_Play-Install-blue?logo=google-play)](https://play.google.com/store/apps/details?id=com.newoether.agora)
-&nbsp;&nbsp;
-[![GitHub Releases](https://img.shields.io/badge/GitHub-Releases-blue?logo=github)](https://github.com/newo-ether/Agora/releases)
-
-Agora is an open-source Android client for using your own model accounts and endpoints. It stores conversations locally, sends model requests directly to the selected provider, supports non-linear message branches and Context Compact, and can extend agent runs with MCP, automation, search, memory, local models, and remote shell tools.
+Rebranding is confined to `applicationId` (`com.hermes.app`), the display name, and resource
+overlays — no upstream behaviour is rewritten. The full list of edited upstream files, with reasons
+and budgets, is in [`UPSTREAM_TOUCHPOINTS.md`](UPSTREAM_TOUCHPOINTS.md).
 
 ## Screenshots
 
+Captured on the `hermes_x86_64` emulator and the `hermes_wear5` AVD during phase verification —
+test-build screenshots, not marketing shots.
+
 <table>
 <tr>
-<td width="33%"><img src="assets/screenshot_1.jpg" alt="Chat" width="100%"/></td>
-<td width="33%"><img src="assets/screenshot_2.jpg" alt="Tools" width="100%"/></td>
-<td width="33%"><img src="assets/screenshot_3.jpg" alt="Settings" width="100%"/></td>
+<td width="50%"><img src="evidence/phase0-6/08-adaptation-history.png" alt="Adaptation History" width="100%"/></td>
+<td width="50%"><img src="evidence/p8-03-wear-chat-release.png" alt="Wear OS chat" width="100%"/></td>
+</tr>
+<tr>
+<td><b>Phone —</b> Adaptation History: the autopilot toggle, the daily cap, and the undo list.</td>
+<td><b>Watch —</b> the chat screen: composer, voice, and the held-question queue.</td>
 </tr>
 </table>
 
-## Features
+More evidence lives in [`evidence/`](evidence/) and is indexed in [`STATUS.md`](STATUS.md).
+
+## Inherited from upstream
+
+Everything below is Agora's, unchanged, and is documented in full in the
+[upstream user manual](https://newo-ether.github.io/Agora/) and [`ARCHITECTURE.md`](ARCHITECTURE.md):
 
 - **Nine built-in provider types:** OpenAI, Anthropic, Google Gemini, DeepSeek, Qwen/DashScope, OpenRouter, Groq, Ollama, and Local llama.cpp; custom endpoints support OpenAI-compatible, Google, or Anthropic protocols.
 - **Tree-structured conversations:** edit or regenerate earlier messages without discarding alternative branches.
@@ -56,39 +66,57 @@ Agora is an open-source Android client for using your own model accounts and end
 - **Portable data:** versioned `.agora` ZIP archives, ChatGPT/Claude imports, and scheduled backups.
 - **Customizable UI:** Material 3 themes, fonts, haptics, thinking/tool presentation, and 12 explicit interface languages plus system default.
 
-Conch application-layer encryption is enabled when an API key is configured. A blank-key Conch endpoint sends plain JSON and should use HTTPS. External providers and tools receive only the data needed for the feature you invoke; see the privacy documentation for the full boundary.
+## Build from source
+
+Targets **Android SDK 36** with **JDK 21**. Submodules are required (`thirdparty/llama.cpp`,
+`thirdparty/proot`).
+
+```bash
+git clone --recurse-submodules https://github.com/michaelxdips/Agora.git
+cd Agora
+
+export JAVA_HOME=<path-to-jdk-21>
+export ANDROID_HOME=<path-to-android-sdk>
+
+./gradlew assembleFdroidDebug          # or assemblePlayDebug
+./gradlew :app:testFdroidDebugUnitTest # JVM unit tests
+bash scripts/touchpoint_guard.sh       # upstream-edit guard
+```
+
+Release builds sign through `local.properties` (`storeFile`, `storePassword`, `keyAlias`,
+`keyPassword`). That file and any `*.jks` are excluded via `.git/info/exclude` and are never
+committed — a fresh clone builds debug only until you supply your own key.
+
+The F-Droid flavor needs `./build-proot.sh` to have run before packaging (the CI workflow does this
+for you). The `play` flavor does not.
 
 ## Documentation
 
-- 📖 **[User Manual](https://newo-ether.github.io/Agora/)** — 28 maintained manual pages covering setup, providers, Context Compact, MCP, automation, tools, privacy, and data management.
-- 🏗️ **[Architecture Guide](ARCHITECTURE.md)** — current runtime, persistence, providers, tools, and data flows.
-- 🧰 **[Development documentation](development/documentation-maintenance.md)** — internal contracts, baselines, and documentation-maintenance policy.
+| Document | What it is |
+|---|---|
+| [`AGENTS.md`](AGENTS.md) | The fork's ground rules. Read this before touching anything. |
+| [`ROADMAP.md`](ROADMAP.md) | Phases delivered, with the evidence table for each. |
+| [`STATUS.md`](STATUS.md) | The evidence log: command output, test counts, APK hashes, and the audit findings that were not fixed. |
+| [`CODE_MAP.md`](CODE_MAP.md) | One row per file this fork owns, with a "worth a close read?" column. |
+| [`UPSTREAM_TOUCHPOINTS.md`](UPSTREAM_TOUCHPOINTS.md) | Every edited upstream file and its line budget. |
+| [`UPSTREAM_SYNC.md`](UPSTREAM_SYNC.md) | How an upstream merge is performed here. |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Upstream's runtime, persistence, providers, tools, and data flows. |
+| [`V2_BACKLOG.md`](V2_BACKLOG.md) | Candidate work with a cost/benefit table, including the "never" column. |
+| [`PRIVACY.md`](PRIVACY.md) · [`NOTICE.md`](NOTICE.md) | Privacy policy and attribution. |
 
-Public manuals live under `docs/<locale>/`. Internal engineering documents live under `development/`.
+The audit and mandate documents this fork accumulated while it was being built (`GAP_ANALYSIS.md`,
+`AUDIT_PLAN.md`, `AUDIT_REPORT.md`, `CLEANUP_SCAN.md`, `CLEANUP_REPORT.md`, `HANDOVER.md`,
+`MEGA_PROMPT_*.md`) are deliberately **not** in the repository. Where one of them is cited as the
+source of a recorded result, `STATUS.md` says so.
 
-## Getting Started
+## Contributing
 
-1. Install Agora and open **Settings** from the conversation drawer.
-2. Add credentials under **Providers**.
-3. Sync and enable models under **Models**.
-4. Select a model from the chat bottom bar and send a message.
+Issues and pull requests are welcome. Two rules matter more than the rest:
 
-See the [Getting Started manual](https://newo-ether.github.io/Agora/getting-started/).
+1. **`main` must always build.** Work on a branch and merge only after verification.
+2. **Never disable a test or a guard to make a gate pass.**
 
-### Build from source
+## License
 
-The current project targets Android SDK 36 and uses JDK 21 in its repository workflow. Install Android Studio plus the required SDK/NDK components, then use the root project scripts and instructions.
-
-## Tech stack
-
-Kotlin, Jetpack Compose Material 3, Coroutines/Flow, Room, DataStore, OkHttp/SSE, `kotlinx.serialization`, Android NDK/CMake, llama.cpp, Coil, and Markdown/LaTeX rendering.
-
-## Privacy
-
-Agora does not relay chat completions or run general analytics. Conversations remain in app-managed local storage, while configured providers and tools are contacted directly when used. Optional update checks and explicitly submitted ratings have documented network destinations. After a crash, one report is kept locally and is sent only if the user confirms on the next launch; it contains diagnostics but no conversation text or credentials. Secret settings normally use an Android Keystore AES-GCM envelope, but legacy values and a deliberate encryption-failure fallback can remain plaintext in DataStore; exported secrets are also unencrypted inside a selected `.agora` archive.
-
-Read [Privacy & Security](https://newo-ether.github.io/Agora/privacy/) and the repository [Privacy Policy](PRIVACY.md).
-
-## Contributing and license
-
-Contributions are welcome through issues and pull requests. Agora is released under the [MIT License](LICENSE).
+MIT, unchanged from upstream — see [`LICENSE`](LICENSE). The fork does not relicense any upstream
+file. The bundled persona rule texts are third-party MIT works, credited in [`NOTICE.md`](NOTICE.md).

@@ -11,13 +11,14 @@ No proof = phase not done. Human-setup items are marked **[HS]** and never block
 
 Written at the start of the resume/verify session, from repository state only. Repo root
 `C:\Users\Michael\Documents\Chatapp\Agora`, branch `main`, HEAD `4f1babff`, tree clean except
-untracked `HANDOVER.md` (inspected, coherent, committed as part of this session).
+untracked `HANDOVER.md` (inspected, coherent, committed in that session; the document has since
+been moved out of the repository).
 
 | Phase | Verdict at reconstruction | What was missing |
 |---|---|---|
 | 0 — Environment & First Build | **VERIFIED-DONE** | JDK 21.0.12.1, SDK `platforms;android-36` / `build-tools;36.0.0` / `ndk;28.2.13676358` / `cmake;3.22.1` all installed; `thirdparty/llama.cpp` (58), `thirdparty/proot` (10), `thirdparty/talloc` (4) non-empty; `assembleFdroidDebug` green; APK installed **and launched** on the `hermes_x86_64` emulator with screenshot proof |
 | 1 — Fork Hygiene, Rebrand, Sync Automation | **VERIFIED-DONE** | `applicationId = "com.hermes.app"` (touchpoint #1); 15 overlay files under `app/src/fdroid/res/` (all 12 upstream `app_name` locales covered); keystore + `local.properties` git-excluded; both labels live; sync dry-run exit 0; Hermes and upstream Agora installed and launched side by side on the emulator |
-| 2 — GAP_ANALYSIS.md | **VERIFIED-DONE** | Nothing. `GAP_ANALYSIS.md` exists and every cited path was re-verified against the tree this session |
+| 2 — GAP_ANALYSIS.md | **VERIFIED-DONE** | Nothing. `GAP_ANALYSIS.md` existed and every cited path was re-verified against the tree in that session (it has since been moved out of the repository) |
 | 3 — Autopilot Memory v1 | **VERIFIED-DONE** | Sources, triggers, notifier, caps, provenance present; 48 autopilot JVM tests green; **3/3 instrumented tests pass on the emulator**, including the primary verification (facts land in the real Agora store, undo restores byte-for-byte) |
 | 4 — Adaptation History + Auto-Rollback | **VERIFIED-DONE** | Nothing. UI page, presenter, correction heuristic, retention constants and circuit-breaker test all present and green |
 | 5 — Autopilot Skills v1 | **VERIFIED-DONE** | Nothing. Candidate detector, synthesizer, `SkillManager` write path and 9 tests present and green |
@@ -126,14 +127,14 @@ weakening of the guard. Upstream-owned files remain budget-checked and unregiste
 
 Exit criteria: every claim cites an existing file path; expected touchpoints registered.
 
-**VERIFIED-DONE.** `GAP_ANALYSIS.md` (94,611 bytes) cites 60 full repo-relative paths; 58 exist on
+**VERIFIED-DONE.** `GAP_ANALYSIS.md` (94,611 bytes; moved out of the repository since) cites 60 full repo-relative paths; 58 exist on
 disk. The two that do not are self-declared non-existent by the document itself and are named as
 files **to create**, not as existing code:
 
 | Cited path | Verdict | Evidence |
 |---|---|---|
-| `app/src/main/java/com/newoether/agora/ui/settings/SettingsAdaptationHistoryPage.kt` | does not exist, and `GAP_ANALYSIS.md:1573-1576` says so explicitly ("it does **not** exist; it is named in §4.2 purely as the file to create"). Phase 4 delivered it in the Hermes-only path instead: `app/src/main/java/com/newoether/agora/autopilot/SettingsAdaptationHistoryPage.kt`. | `sed -n '1573,1576p' GAP_ANALYSIS.md` |
-| `memories/active_memory.md` | an **entry name inside the export zip**, not a repo file: `DataExporter.kt:618-623` writes it, `DataImporter.kt:499-507` reads it (`GAP_ANALYSIS.md:198`). | `grep -n 'memories/active_memory.md' GAP_ANALYSIS.md` |
+| `app/src/main/java/com/newoether/agora/ui/settings/SettingsAdaptationHistoryPage.kt` | does not exist, and `GAP_ANALYSIS.md:1573-1576`, moved out of the repository since, says so explicitly ("it does **not** exist; it is named in §4.2 purely as the file to create"). Phase 4 delivered it in the Hermes-only path instead: `app/src/main/java/com/newoether/agora/autopilot/SettingsAdaptationHistoryPage.kt`. | `sed -n '1573,1576p' GAP_ANALYSIS.md` |
+| `memories/active_memory.md` | an **entry name inside the export zip**, not a repo file: `DataExporter.kt:618-623` writes it, `DataImporter.kt:499-507` reads it (`GAP_ANALYSIS.md:198`; moved out of the repository since). | `grep -n 'memories/active_memory.md' GAP_ANALYSIS.md` |
 
 Spot-check of cited paths against the tree (line numbers read back from the working tree):
 
@@ -148,7 +149,7 @@ Spot-check of cited paths against the tree (line numbers read back from the work
 Pre-registered touchpoints: both planned files became real entries in the `GUARD:DATA` block
 (`SettingsScreen.kt`, `MainActivity.kt`) — see the registry table in `UPSTREAM_TOUCHPOINTS.md`.
 
-Verification command: `python -c` path-existence sweep over every backticked path in `GAP_ANALYSIS.md`.
+Verification command: `python -c` path-existence sweep over every backticked path in `GAP_ANALYSIS.md` (run before that document left the repository).
 
 ---
 
@@ -272,7 +273,7 @@ ref `upstream/sim` built in a temp worktree; it is not part of `main` or of any 
 | Secrets in git history | **none** | guard §3 passes; `git log --all --diff-filter=A --name-only` has no `local.properties` / `*.jks` / `*.keystore` |
 | N10 contract re-read trigger | n/a | the stress merge changed no `development/*.md` or `ARCHITECTURE.md` |
 
-Stress merge tagged `sync-2026-09-14-stress` → `e360491c`. `HANDOVER.md` written (Wear OS
+Stress merge tagged `sync-2026-09-14-stress` → `e360491c`. `HANDOVER.md` written, since moved out of the repository (Wear OS
 prerequisites, HS registry, from-scratch verification recipe, deliberate limitations).
 
 ---
@@ -584,7 +585,7 @@ a real change if the archive had not been measured entry by entry.
 
 ## Phase 13 — the update feature, the adversarial audit, and the "null" answer
 
-Full detail is in `AUDIT_REPORT.md` (Pass 6). The summary a reviewer needs:
+Full detail is in `AUDIT_REPORT.md` (Pass 6; moved out of the repository since). The summary a reviewer needs:
 
 ### Gate at the end of Phase 13 (all re-run clean)
 
@@ -622,7 +623,7 @@ wire ack uses `reason.wireText`.
 | Watch PSS | **27,255 KB** | `dumpsys meminfo` |
 | Phone cold start | **5,279 ms** median (4,829–7,523, n=3) | `am start -W` |
 | Phone PSS | **246,226 KB** | `dumpsys meminfo` |
-| API-key canary in logcat, before and after a real request | **0 occurrences** | `logcat -d` grep, with the debug APK installed so the read works — see the Pass-6 correction in `AUDIT_REPORT.md` |
+| API-key canary in logcat, before and after a real request | **0 occurrences** | `logcat -d` grep, with the debug APK installed so the read works — see the Pass-6 correction in `AUDIT_REPORT.md`, moved out of the repository since |
 | API-key canary in `hermes_wear_config.bin` | not present in plaintext; file is 173 bytes of ciphertext | `run-as cat` on the debug APK, after proving the read returns the file |
 
 The 60 s `readTimeout` is **not** exercised (the mock's slow mode is 8 s; measuring the timeout would

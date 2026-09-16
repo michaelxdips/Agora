@@ -17,9 +17,10 @@
   <img src="assets/feature_graphic.png" alt="A BYOK AI app that takes back your data sovereignty." width="100%" />
 </div>
 
-> **Not published on any store.** Upstream Agora ships on F-Droid and Google Play; this fork does not.
-> It builds from source, installs side by side with upstream Agora (`com.hermes.app` vs
-> `com.newoether.agora`), and the upstream user manual still applies to the shared product.
+> **Not published on any store.** Upstream Agora ships on F-Droid and Google Play; this fork ships
+> only through [its own GitHub Releases](https://github.com/michaelxdips/Agora/releases/latest).
+> It installs side by side with upstream Agora (`com.hermes.app` vs `com.newoether.agora`), and the
+> upstream user manual still applies to the shared product.
 
 ---
 
@@ -28,10 +29,10 @@
 | | Hermes X (this fork) | Upstream Agora |
 |---|---|---|
 | `applicationId` | `com.hermes.app` | `com.newoether.agora` |
-| `versionName` | `3.0.0-hermesx` (`versionCode` 31) | `2.1.0` (`versionCode` 31) |
+| `versionName` | `3.0.2-hermesx` (`versionCode` 33) | `2.1.0` (`versionCode` 31) |
 | Release signing identity | `[certificate DN omitted]` | `CN=Newo Ether` |
 | Release certificate SHA-256 | `7188ce70…aa56d7` | `5de26f26…be1aa29` |
-| Distribution | build from source | F-Droid, Google Play, GitHub Releases |
+| Distribution | [GitHub Releases](https://github.com/michaelxdips/Agora/releases/latest) — phone + watch APK | F-Droid, Google Play, GitHub Releases |
 | Update channel | **this fork's own GitHub Releases** | upstream's releases |
 | Wear OS app | `wear/` — same `applicationId`, same key (Data Layer requirement) | none |
 
@@ -66,13 +67,52 @@ page. Three things make that non-trivial in a fork, and all three are settled in
 | Version comparison | segment-wise; numeric outranks non-numeric | `3.0.1` beats `3.0.0-hermesx`; a plain release beats the same number with a fork suffix; `v1.2.3-rc1` is ordered instead of collapsing to `0`. |
 | Failure mode | always `null` | Offline, rate-limited or "no releases yet" all mean *no update*, never a fabricated one. A `CancellationException` is rethrown rather than swallowed. |
 
-**Current state: the fork has no releases yet, so the check correctly returns `null` and the About
-screen shows "You're up to date".** Publishing a release is what switches the check on — no code
-change is needed.
+**Current state: releases are live** — [`v3.0.2`](https://github.com/michaelxdips/Agora/releases/tag/v3.0.2)
+is the current one, and `v3.0.1` is marked *pre-release* because it shipped a debug-signed phone APK
+and the update-check defect described below. Every APK on `v3.0.2` carries `versionName 3.0.2-hermesx`.
 
-Tagging rule: use a version above `3.0.0-hermesx` (e.g. `v3.0.1`). The fork also carries upstream's
+**A defect the first release exposed, and the fix:** the fork's own version string carries a suffix
+(`3.0.2-hermesx`) while a GitHub tag does not (`v3.0.2`). Segment-wise a numeric segment outranks a
+non-numeric one, so `compare(tag, installed) > 0` was **true for the version already installed** — a
+device on `3.0.1-hermesx` was offered `v3.0.1` on every launch. `UpdateChecker.isNewer` now compares
+base versions (suffix dropped) and treats a suffix-only difference as not-an-update; the regression is
+pinned by `app/src/test/.../autopilot/ReleaseVersionOrderingTest.kt`, which failed
+(`expected:<0> but was:<1>`) before the fix.
+
+Tagging rule: use a version above `3.0.0-hermesx` (e.g. `v3.0.2`). The fork also carries upstream's
 older tags (`v2.1.0`, `v2.0.0`, …) from the fork point; a release built from one of those is
 correctly *not* offered as an update.
+
+## Downloads
+
+Every release carries **both** APKs, built from the same commit, signed with the **same
+certificate** — the Wear OS Data Layer refuses to pair a phone and a watch whose package name *or*
+signing certificate differ, so mixing APKs from two different releases breaks pairing.
+
+| App | File | Size (bytes) | SHA-256 |
+|---|---|---|---|
+| Phone (Android 8+, `minSdk` 26) | [`app-fdroid-release.apk`](https://github.com/michaelxdips/Agora/releases/latest/download/app-fdroid-release.apk) | 49,616,015 | `429901bc368a7a4daa0f58ac4ad60d68e977ddabcab856cb6fc69d31247def9c` |
+| Watch (Wear OS 3+, `minSdk` 30) | [`wear-release.apk`](https://github.com/michaelxdips/Agora/releases/latest/download/wear-release.apk) | 2,768,539 | `36bbfd02432a063fb4eaa064a64e48750b751dfab73ecc8a402612d469262e64` |
+
+`SHA256SUMS` ships in the same release for `sha256sum -c`. Verify the signing identity before
+installing:
+
+```bash
+sha256sum -c SHA256SUMS
+apksigner verify --print-certs app-fdroid-release.apk
+# [certificate DN omitted]
+# SHA-256 7188ce700b7407485e4a588cc1ef779fba4bd47c635338b05f61d5fc90aa56d7
+```
+
+Both APKs in `v3.0.2` carry that certificate. It is a **self-signed** release key (the same one the
+project's own `local.properties` points at), not a store key; the value of checking it is that it
+must match on both APKs, because that is the condition the Data Layer enforces.
+
+The phone APK is the F-Droid flavor built by CI, so it includes the PRoot runtime
+(`libproot_exec.so`, `libproot_loader.so`, `libtalloc.so`) that a local build on a machine without
+the NDK toolchain cannot produce. CI signs it with the release key from the repository's
+`KEYSTORE_BASE64` / `KEYSTORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD` secrets; without those secrets
+the workflow falls back to the debug key and the phone APK would no longer pair with the watch APK.
 
 ## Wear OS companion
 
@@ -95,8 +135,11 @@ watch.` — and BYOK on the watch keeps working.
 Phone side: `autopilot/wearsync/` (`PairingListenerService`, `WatchSync`, `SettingsWatchSetupPage`).
 Watch side: `wear/` (`WearPairing`, `WearListeners`, `WearOfflineQueue`, `WearQueueDrainer`).
 
-Known limit: the phone → watch **push** half has never been exercised end to end. Two emulators
-share no Google account, and the Data Layer requires both devices to be signed in to the same one.
+Known limit: the phone → watch **push** half has never been exercised end to end on this machine.
+Both emulators have `Accounts: 0` (`adb shell dumpsys account`), and the Data Layer requires both
+devices to be signed in to the same Google account, so `CapabilityClient.FILTER_REACHABLE` returns
+no node and the watch honestly reports `No phone app found…`. The signing half *is* verified: both
+APKs on `v3.0.2` carry the same certificate, which is the other condition the Data Layer enforces.
 Recorded as HS4 in [`STATUS.md`](STATUS.md) rather than claimed as working.
 
 ## Screenshots
@@ -177,9 +220,14 @@ adb install app/build/outputs/apk/fdroid/debug/app-fdroid-debug.apk
 
 | Artifact | Size (bytes) |
 |---|---|
-| `app/build/outputs/apk/fdroid/debug/app-fdroid-debug.apk` | 65,313,312 |
-| `app/build/outputs/apk/fdroid/release/app-fdroid-release.apk` | 49,499,989 |
-| `wear/build/outputs/apk/release/wear-release.apk` | 2,735,771 |
+| `app/build/outputs/apk/fdroid/debug/app-fdroid-debug.apk` | 65,313,396 |
+| `app/build/outputs/apk/fdroid/release/app-fdroid-release.apk` (local build, **no PRoot runtime**) | 49,499,989 |
+| `app/build/outputs/apk/fdroid/release/app-fdroid-release.apk` (CI build, published as `v3.0.2`) | 49,616,015 |
+| `wear/build/outputs/apk/release/wear-release.apk` (published as `v3.0.2`) | 2,768,539 |
+
+The two phone numbers differ by 16,026 bytes, and that difference *is* the PRoot runtime: a local
+`assembleFdroidRelease` cannot run `build-proot.sh` (it needs the NDK toolchain and `make`, neither of
+which exists on this machine or in its WSL image), so only the CI artifact is a complete F-Droid build.
 
 ## Verification
 
@@ -188,12 +236,13 @@ reproducible on a clean checkout:
 
 | Gate | Result |
 |---|---|
-| `:app:testFdroidDebugUnitTest` | **2,558 tests, 0 failures, 0 errors** (393 XML reports) |
+| `:app:testFdroidDebugUnitTest` | **2,561 tests, 0 failures, 0 errors** (394 XML reports) |
 | `:wear:testDebugUnitTest` | **61 tests, 0 failures, 0 errors** (6 XML reports) |
 | `verifyKotlinFileSize` | pass |
 | `scripts/touchpoint_guard.sh` | **PASS** — 14 registered upstream touchpoints, 13 currently carrying a diff |
 | `SYNC_DRY_RUN=1 scripts/upstream_sync.sh` | exit 0 |
-| CI (`.github/workflows/build.yml`) | green on `main` — unit tests + F-Droid release build |
+| CI (`.github/workflows/build.yml`) | green on `main` — unit tests + release-signed F-Droid build |
+| Both release APKs | `apksigner verify --print-certs` → `7188ce70…aa56d7` on **both** (the Data Layer pairing condition) |
 
 `git status --porcelain` is clean, and no build artifact, keystore or `local.properties` is tracked.
 
@@ -247,11 +296,14 @@ source of a recorded result, `STATUS.md` says so.
 
 Stated plainly, because a fork that hides its gaps cannot be trusted with the parts that work:
 
-- **No published releases yet.** The update check is wired and proven, but until a release exists it
-  honestly reports "up to date". Builds are source-only.
+- **Releases are source-signed, not store-signed.** `v3.0.2` exists and both APKs carry the same
+  release certificate, so the update check is live; but the key is self-signed and the F-Droid flavor
+  is only built by CI (a local `assembleFdroidRelease` on a machine without the NDK toolchain and
+  `make` produces an APK **without** the PRoot runtime).
 - **Phone → watch push is unproven** (HS4): needs two Data-Layer-paired devices with the same Google
-  account. The watch's own paths (BYOK, offline queue, core context) are verified on the API 34 wear
-  image.
+  account. Both emulators here report `Accounts: 0`, so the watch reports `No phone app found…` by
+  design. The watch's own paths (BYOK, offline queue, core context) are verified on the API 34 wear
+  image, and the signing condition the Data Layer enforces is verified on both release APKs.
 - **No automated device test in CI.** Instrumented tests run locally against an emulator; CI covers
   JVM unit tests and the release build.
 - **`main` is the only long-lived branch.** Feature work happens on branches; `main` must always

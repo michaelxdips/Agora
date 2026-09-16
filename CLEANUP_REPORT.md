@@ -408,15 +408,36 @@ green, with no local file copied in.
 | Local tags | 30 | 30 |
 | Tags on origin | 30 unique refs (40 `ls-remote` lines incl. `^{}` derefs) | 30 unique refs (40 lines) |
 
-**On the 157.8 MB of history-only build output.** The largest blobs in history are
-`wear/build/**` APKs/dex (39.5 MB + 19.0 MB + 14.3 MB) and five `app/release/app-release.apk`
-copies (~15 MB each), plus the MiOutfit font family (~62 MB total, which is *legitimate product
-content*). None are tracked at HEAD. They are reachable from `main` through **upstream's own
-commits** (`28b474dc`, `a32289aa`, …) and the one Phase-7 `wear/build` commit that `2f8d080e`
-removed from tracking. The mandate authorises a history rewrite for **secrets only** (§2), and none
-were found; rewriting would invalidate all 30 tags and break the upstream-sync story that
-`UPSTREAM_SYNC.md` and `upstream_sync.sh` exist to maintain. **Recommendation: leave the history
-alone.** Flagged for the owner as an open question in `CLEANUP_SCAN.md` §7.1.
+**On the 157.8 MB of history-only build output** (689 blobs: `git rev-list --objects --all` filtered
+to `\.apk|/build/|\.dex$`, summed; itemised in `CLEANUP_SCAN.md` §3.3). The largest are
+`wear/build/**` APKs/dex (39.5 MB + 19.0 MB + 14.3 MB) and five `app/release/app-release.apk` copies
+(~15 MB each). **None of the 689 is tracked at HEAD** — verified: `git ls-files | grep -E
+'\.apk$|/build/|\.dex$'` is empty. They are reachable from `main` through **upstream's own commits**
+(`28b474dc`, `a32289aa`, …) and the one Phase-7 `wear/build` commit that `2f8d080e` removed from
+tracking.
+
+The MiOutfit family is a separate story and does **not** belong in that 157.8 MB. Blob history holds
+14 `res/font` entries totalling **58.2 MB**, and they split cleanly:
+
+| Font blobs | Bytes | Size | Status |
+|---|---:|---:|---|
+| `mioutfit_variable.ttf` | 20,235,120 | 19.3 MB | **tracked at HEAD** — the live font |
+| 4 × JetBrains Mono (bold/italic/bolditalic/regular) | 465,592 | 0.4 MB | **tracked at HEAD** — live |
+| 4 × `outfit_*.otf` | 21,096 | 0.02 MB | history-only (upstream's own refactor) |
+| 5 × static `mioutfit_*.ttf` (bold/medium/regular/light/extralight) | 40,278,708 | 38.4 MB | history-only |
+| **total** | **61,000,516** | **58.2 MB** | **19.7 MB of it is live product content** |
+
+The five static MiOutfit faces were deleted by **upstream commit `91530c8c` "refactor: consolidate
+MiOutfit font resources"**, which replaced them with the variable font. That commit is an ancestor of
+`44d07698`, so it predates this cleanup; `git diff --name-status 44d07698..HEAD` shows **0 deleted
+files**, i.e. this cleanup removed no font and no tracked file at all. Only 19.7 MB is legitimate
+product content still in use; the other 38.4 MB is history-only dead weight left by upstream's own
+refactor.
+
+The mandate authorises a history rewrite for **secrets only** (§2), and none were found; rewriting
+would invalidate all 30 tags and break the upstream-sync story that `UPSTREAM_SYNC.md` and
+`upstream_sync.sh` exist to maintain. **Recommendation: leave the history alone.** Flagged for the
+owner as an open question in `CLEANUP_SCAN.md` §7.1.
 
 `git count-objects -vH` → `in-pack: 35718`, `size-pack: 142.80 MiB`, `packs: 2`, `garbage: 0`.
 

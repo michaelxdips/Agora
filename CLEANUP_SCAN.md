@@ -130,26 +130,35 @@ Legend: **P** production · **T** test-code · **A** test-artifact · **E** evid
 ### 3.3 Largest blobs in history — 11311 blobs, 512.5 MB of content
 
 ```
-39,494,077  wear/build/outputs/apk/debug/wear-debug.apk
-20,235,120  app/src/main/res/font/mioutfit_variable.ttf
-19,047,704  wear/build/intermediates/dex/debug/mergeExtDexDebug/classes.dex
-15,515,329  app/release/app-release.apk
-15,235,462  app/release/app-release.apk   ×3
-15,219,078  app/release/app-release.apk
-14,348,336  wear/build/intermediates/dex/debug/mergeExtDexDebug/classes2.dex
- 8,134,160  app/src/main/res/font/mioutfit_extralight.ttf
- 8,086,468  app/src/main/res/font/mioutfit_light.ttf
- 8,032,644  app/src/main/res/font/mioutfit_regular.ttf
- 8,012,600  app/src/main/res/font/mioutfit_medium.ttf
- 7,920,548  app/src/main/res/font/mioutfit_bold.ttf
- 4,043,766  app/src/fdroid/assets/alpine-minirootfs.tar.gz
+39,494,077  wear/build/outputs/apk/debug/wear-debug.apk          history-only
+20,235,120  app/src/main/res/font/mioutfit_variable.ttf         ** TRACKED AT HEAD (live font) **
+19,047,704  wear/build/intermediates/dex/debug/mergeExtDexDebug/classes.dex    history-only
+15,515,329  app/release/app-release.apk                          history-only
+15,235,462  app/release/app-release.apk   ×3                     history-only
+15,219,078  app/release/app-release.apk                          history-only
+14,348,336  wear/build/intermediates/dex/debug/mergeExtDexDebug/classes2.dex   history-only
+ 8,134,160  app/src/main/res/font/mioutfit_extralight.ttf       history-only (upstream 91530c8c)
+ 8,086,468  app/src/main/res/font/mioutfit_light.ttf            history-only (upstream 91530c8c)
+ 8,032,644  app/src/main/res/font/mioutfit_regular.ttf          history-only (upstream 91530c8c)
+ 8,012,600  app/src/main/res/font/mioutfit_medium.ttf           history-only (upstream 91530c8c)
+ 7,920,548  app/src/main/res/font/mioutfit_bold.ttf             history-only (upstream 91530c8c)
+ 4,043,766  app/src/fdroid/assets/alpine-minirootfs.tar.gz      history-only
 ```
 
 **Blobs matching `*.apk` / `/build/` / `*.dex`: 689 blobs, 157.8 MB** — 30.8 % of all history bytes.
 
-**None of these are tracked at HEAD.** Measured:
+**The five static `mioutfit_*.ttf` faces and the one `mioutfit_variable.ttf` must not be lumped
+together.** `mioutfit_variable.ttf` **is** tracked at HEAD (`git rev-parse HEAD:…` →
+`33765fb589f9af6b18ed13d78f0ca43a755daca2`, 20,235,120 B) — it is the live font. The five static
+faces (40,278,708 B = 38.4 MB) are history-only: upstream's `91530c8c "refactor: consolidate MiOutfit
+font resources"` deleted them in favour of the variable font, and that commit is an ancestor of
+`44d07698`. So of the 58.2 MB of `res/font` blobs in history, **19.7 MB is live product content**
+(variable font + 4 JetBrains Mono) and **38.4 MB is history-only dead weight left by upstream**.
+
+**Of the 689 build-output blobs, none is tracked at HEAD.** Measured:
 
 ```
+git ls-files | grep -E '\.apk$|/build/|\.dex$'                                  → EMPTY
 git ls-files | grep -cE 'build/|app/release|\.apk$|\.cxx|\.gradle/|captures/'   → 0
 git ls-files app/src/main/jniLibs app/src/fdroid/jniLibs                        → 0
 git ls-files app/src/fdroid/assets/alpine-minirootfs.tar.gz                     → 0

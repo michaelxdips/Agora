@@ -180,6 +180,10 @@ configuration is laid out, which produced a wrong number twice before the check 
 | 480 round | 480 px @360 = 213.3 dp | 336 px = 149.3 dp | 70.0 % |
 | rectangular | 400 px @320 = 200.0 dp | 276 px = 138.0 dp | 69.0 % |
 
+The answer card measures the same width as the composer at every profile (both are
+`fillMaxWidth().padding(horizontal = 8.dp)`), which is the cross-check that the numbers describe the
+element they claim to.
+
 No element is cut off or outside the round mask at the Xiaomi Watch 2 geometry, and every `Button` is
 ≥ 48 dp on all five profiles. Two defects were found by running it rather than reading it: **every
 answer crashed the app** (`verticalScroll` inside a `ScalingLazyColumn` item is an

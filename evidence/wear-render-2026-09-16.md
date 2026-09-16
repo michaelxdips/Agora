@@ -204,13 +204,22 @@ agree, and refuse to report otherwise. Every row below passed all three:
    fresh after 3s: 276x96 px (x 62..338)   stable: 138.0 dp (69.0% of 400)
 ```
 
-| Profile | Screen | Text column | % of width |
-|---|---|---|---|
-| small round | 384 px @320 = 192.0 dp | 132.0 dp | 68.8 % |
-| large round | 454 px @320 = 227.0 dp | 163.0 dp | 71.8 % |
-| **Xiaomi Watch 2** | 466 px @326 = **228.7 dp** | **165.9 dp** | **72.5 %** |
-| 480 round | 480 px @360 = 213.3 dp | 149.3 dp | 70.0 % |
-| rectangular | 400 px @320 = 200.0 dp | 138.0 dp | 69.0 % |
+| Profile | Screen | Text column | % of width | Answer card | % of width |
+|---|---|---|---|---|---|
+| small round | 384 px @320 = 192.0 dp | 264 px = 132.0 dp | 68.8 % | 264 px = 132.0 dp | 68.8 % |
+| large round | 454 px @320 = 227.0 dp | 326 px = 163.0 dp | 71.8 % | 326 px = 163.0 dp | 71.8 % |
+| **Xiaomi Watch 2** | 466 px @326 = **228.7 dp** | **338 px = 165.9 dp** | **72.5 %** | **338 px = 165.9 dp** | **72.5 %** |
+| 480 round | 480 px @360 = 213.3 dp | 336 px = 149.3 dp | 70.0 % | 336 px = 149.3 dp | 70.0 % |
+| rectangular | 400 px @320 = 200.0 dp | 276 px = 138.0 dp | 69.0 % | 276 px = 138.0 dp | 69.0 % |
+
+The two columns agree **exactly** at every profile. They are independently laid out elements (the
+composer's `EditText` and the answer card's `Text`, both `fillMaxWidth().padding(horizontal = 8.dp)`),
+so this agreement is a cross-check that the measurement is reading the thing it claims to read.
+
+An earlier `answer_matrix.py` pass reported 466 and 480 as "answer not on screen" while the composer
+still held the typed question — i.e. the ask had not finished, not that the card was missing. The
+re-run (`_workbench/answer_card.py`) waits for an answer node whose width **differs** from the previous
+profile's, and omits the row instead of reporting a stale one when it cannot observe it.
 
 The column grows with the screen and its *share* of the width grows too, so the extra 36.7 dp of a
 Xiaomi Watch 2 is used for text rather than thrown away in margin. No layout change was warranted;

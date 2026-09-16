@@ -81,12 +81,16 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
-    implementation("androidx.compose.material3:material3")
     // Wear Material 3 — the real design system for this form factor: ScreenScaffold, Card, Button,
     // ListHeader, TimeText. Not hand-rolled "minimal" surfaces.
     implementation("androidx.wear.compose:compose-material3:1.6.2")
     implementation("androidx.wear.compose:compose-foundation:1.6.2")
-    implementation("androidx.wear.compose:compose-material:1.6.2")
+    // HERMES INTEGRATION POINT (mission 2): `androidx.wear.compose:compose-material:1.6.2` and
+    // `androidx.compose.material3:material3` were removed. Evidence: zero imports of either in
+    // wear/src (grep 'androidx.wear.compose.material\.' and 'androidx.compose.material3' → empty),
+    // neither is a manifest/reflection entry point, and :wear:assembleRelease + :wear:testDebugUnitTest
+    // stay green without them. Both dragged whole component sets onto a 2 MB watch APK.
+    implementation("androidx.compose.foundation:foundation")
 
     // Data Layer only: the one-time credential push, the read-only memory snapshot and pairing.
     implementation(libs.play.services.wearable)

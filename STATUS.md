@@ -904,9 +904,11 @@ space printed before the dump and two dumps per profile: 454 is really 326×96 p
 strength of it. (Recorded because the discarded hypothesis is part of the evidence.)
 
 Circle fit is computed against the **physical** mask (r = 192 px), not the override: `wm size` moves
-the coordinate space but not the round mask. At 466×466 no element is fully outside the circle; the
-only corners outside belong to the `Speak` label while its item is entering the viewport, which the
-list's own circular clip handles.
+the coordinate space but not the round mask. A `ScalingLazyColumn` dump reports the *clipped* bbox of
+an item crossing the viewport edge, so raw dumps contain rows that look like text outside the circle.
+Brought fully into view and re-measured, **no label has a corner outside the mask at 384, 454 or 466**
+(`outside=- by=0.0 px` for `Change key`, `Debug`, `Speak` and `Send` on all three), and label heights
+match the 384 baseline within 1 px — the larger screens do not stretch or shrink the text.
 
 Touch targets, measured on the clickable node (not its label) with a freshness gate, and each
 `FAIL` classified by whether its bounding box is **clipped by the viewport** or genuinely short:

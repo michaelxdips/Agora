@@ -196,17 +196,45 @@ scrollbar — a clickable `View` with no text inside — not a control.
 `wm size` moves the coordinate space but **not** the round mask (r = 192 px physical), so the test
 rescales override px back to physical px before applying `dx² + dy² ≤ r²`.
 
+A dump of a `ScalingLazyColumn` reports the **clipped** bbox of any item crossing the viewport edge,
+which is why raw dumps contain `outside=tl,bl,br` rows. Those are partially-scrolled items, not text
+cut off by the circle. The decisive measurement is to bring each label fully into view and re-measure
+(`_workbench/label_fit.py`):
+
 ```
-=== 466x466 @326 (228.7 dp) — corners vs PHYSICAL mask r=192 px ===
-   TextView    149x38 px  pos=(153,88)   outside=-      by=0.0 px  'Hermes X'
-   TextView    326x36 px  pos=(64,187)   outside=-      by=0.0 px  'Type a question'
-   TextView     73x36 px  pos=(69,336)   outside=-      by=0.0 px  'Send'
-   TextView     66x11 px  pos=(109,443)  outside=tl,bl  by=16.8 px  'Speak'
+=== 466 466x466 @326 = 228.7 dp ===
+    Change key    167x37   px =  82.0x 18.2 dp  centred at cy=361  outside=-  by=0.0 px
+    Debug          93x37   px =  45.6x 18.2 dp  centred at cy=230  outside=-  by=0.0 px
+    Speak          90x37   px =  44.2x 18.2 dp  centred at cy=234  outside=-  by=0.0 px
+    Send           74x37   px =  36.3x 18.2 dp  centred at cy=102  outside=-  by=0.0 px
+=== 454 454x454 @320 = 227.0 dp ===
+    Change key    165x36   px =  82.5x 18.0 dp  centred at cy=156  outside=-  by=0.0 px
+    Debug          92x36   px =  46.0x 18.0 dp  centred at cy=272  outside=-  by=0.0 px
+    Speak          88x36   px =  44.0x 18.0 dp  centred at cy=283  outside=-  by=0.0 px
+    Send           73x36   px =  36.5x 18.0 dp  centred at cy=167  outside=-  by=0.0 px
+=== 384 384x384 @320 = 192.0 dp ===
+    Change key    165x36   px =  82.5x 18.0 dp  centred at cy=193  outside=-  by=0.0 px
+    Debug          92x36   px =  46.0x 18.0 dp  centred at cy=152  outside=-  by=0.0 px
+    Speak          87x36   px =  43.5x 18.0 dp  centred at cy=305  outside=-  by=0.0 px
+    Send           73x36   px =  36.5x 18.0 dp  centred at cy=190  outside=-  by=0.0 px
 ```
 
-The only element with a corner outside the mask is the **partially scrolled** `Speak` label — the
-item is entering the viewport, so its clipped label sits near the bottom edge. `ScreenScaffold` +
-`ScalingLazyColumn` handle the actual circular clip; no element is fully outside the circle.
+**No label has a corner outside the mask at any profile, once it is on screen.** Label heights match
+the 384 baseline within 1 px at 454 (36 vs 36) and 466 (37 vs 36) — a font-rasterisation difference at
+326 dpi, not a scale change; the labels are not stretched or shrunk by the larger screen.
+
+The raw (uncentred) dump rows, kept for the record, with the reason each one reports `outside`:
+
+```
+=== 466x466 @326 ===
+   'Hermes X'        151x38 px  pos=(158,93)   outside=-          by=0.0 px
+   'Type a question' 338x37 px  pos=(64,192)   outside=-          by=0.0 px
+   'Send'             74x37 px  pos=(70,344)   outside=-          by=0.0 px
+   'Speak'            67x13 px  pos=(111,453)  outside=tl,bl,br   by=24.7 px   <- y2=466=viewport: item entering
+  [scrolled to bottom]
+   'Change key'      158x35 px  pos=(79,54)   outside=tl         by=2.6 px    <- y1=54: item leaving
+   'Debug'            93x37 px  pos=(69,168)  outside=-          by=0.0 px
+```
 
 ### E3 — does the UI use the extra width? (measured twice, on purpose)
 

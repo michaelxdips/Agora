@@ -185,26 +185,32 @@ item is entering the viewport, so its clipped label sits near the bottom edge. `
 
 ### E3 — does the UI use the extra width? (measured twice, on purpose)
 
-First pass reported 454 as identical to 384 — the signature of a stale frame. Re-measured with the
-coordinate space printed before the dump and two dumps per profile:
+The first pass reported 454 as identical to 384, and a later pass reported 466 as identical to 454 —
+both are the signature of a **stale frame**, not a measurement. `_workbench/measure_profile.py` makes
+freshness mechanical: poll `dumpsys window displays` until `cur=`/`app=` match the target, then require
+the measured bbox to differ from the previous profile's value, then require two consecutive dumps to
+agree, and refuse to report otherwise. Every row below passed all three:
 
 ```
-=== 384: init=384x384 320dpi ... cur=384x384 app=384x384 ===
-   pass1: field 264x96 px  x 60..324  = 132.0 dp  (68.8% of 384)
-   pass2: field 264x96 px  x 60..324  = 132.0 dp  (68.8% of 384)
-=== 454: init=384x384 320dpi ... base=454x454 320dpi cur=454x454 app=454x454 ===
-   pass1: field 326x96 px  x 64..390  = 163.0 dp  (71.8% of 454)
-   pass2: field 326x96 px  x 64..390  = 163.0 dp  (71.8% of 454)
-=== 454-again: (same numbers)
-=== 466: init=384x384 320dpi ... base=466x466 326dpi cur=466x466 app=466x466 ===
-   field 338x97 px = 165.9 dp  (72.5% of 466)
+=== 384x384 @320 = 192.0 dp ===   space: cur=384x384 app=384x384
+   fresh after 3s: 264x96 px (x 60..324)   stable: 132.0 dp (68.8% of 384)
+=== 454x454 @320 = 227.0 dp ===   space: cur=454x454 app=454x454
+   fresh after 3s: 326x96 px (x 64..390)   stable: 163.0 dp (71.8% of 454)
+=== 466x466 @326 = 228.7 dp ===   space: cur=466x466 app=466x466
+   fresh after 3s: 338x97 px (x 64..402)   stable: 165.9 dp (72.5% of 466)
+=== 480x480 @360 = 213.3 dp ===   space: cur=480x480 app=480x480
+   fresh after 3s: 336x108 px (x 72..408)  stable: 149.3 dp (70.0% of 480)
+=== 400x400 @320 = 200.0 dp ===   space: cur=400x400 app=400x400
+   fresh after 3s: 276x96 px (x 62..338)   stable: 138.0 dp (69.0% of 400)
 ```
 
-| Profile | Screen | Composer/answer column | % of width |
+| Profile | Screen | Text column | % of width |
 |---|---|---|---|
 | small round | 384 px @320 = 192.0 dp | 132.0 dp | 68.8 % |
 | large round | 454 px @320 = 227.0 dp | 163.0 dp | 71.8 % |
 | **Xiaomi Watch 2** | 466 px @326 = **228.7 dp** | **165.9 dp** | **72.5 %** |
+| 480 round | 480 px @360 = 213.3 dp | 149.3 dp | 70.0 % |
+| rectangular | 400 px @320 = 200.0 dp | 138.0 dp | 69.0 % |
 
 The column grows with the screen and its *share* of the width grows too, so the extra 36.7 dp of a
 Xiaomi Watch 2 is used for text rather than thrown away in margin. No layout change was warranted;

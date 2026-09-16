@@ -879,13 +879,20 @@ and after.
 Measured with `wm size` / `wm density` overrides, coordinate space verified via
 `dumpsys window displays | grep init=` before every dump:
 
-| Profile | Screen | Composer / answer column | % of width |
+| Profile | Screen | Text column (composer field) | % of width |
 |---|---|---|---|
-| small round (AVD) | 384 px @320 = 192.0 dp | 132.0 dp | 68.8 % |
-| large round | 454 px @320 = 227.0 dp | 163.0 dp | 71.8 % |
-| **Xiaomi Watch 2** | 466 px @326 = **228.7 dp** | **165.9 dp** | **72.5 %** |
-| 480 round | 480 px @360 = 213.3 dp | 173.3 dp button row | — |
-| rectangular | 400 px @320 = 200.0 dp | 138.0 dp | 69.0 % |
+| small round (AVD) | 384 px @320 = 192.0 dp | 264 px = 132.0 dp | 68.8 % |
+| large round | 454 px @320 = 227.0 dp | 326 px = 163.0 dp | 71.8 % |
+| **Xiaomi Watch 2** | 466 px @326 = **228.7 dp** | **338 px = 165.9 dp** | **72.5 %** |
+| 480 round | 480 px @360 = 213.3 dp | 336 px = 149.3 dp | 70.0 % |
+| rectangular | 400 px @320 = 200.0 dp | 276 px = 138.0 dp | 69.0 % |
+
+Every row was re-measured with a freshness check, because the naive version produced a wrong number
+twice: a dump can return the **previous** profile's layout if the configuration change has not been
+laid out yet. `_workbench/measure_profile.py` now polls `dumpsys window displays` until `cur=`/`app=`
+match the target, then requires the measured bbox to **differ** from the previous profile's value, then
+requires two consecutive dumps to agree — and refuses to report a number otherwise. All five rows above
+passed all three conditions.
 
 The column grows with the screen and its share of the width grows too, so the extra 36.7 dp of a
 Xiaomi Watch 2 is spent on text rather than margin.

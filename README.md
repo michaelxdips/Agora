@@ -168,14 +168,17 @@ and their cmaps read (`DroidSans` 2,797 · `DroidSansMono` 873 · `NotoSansSymbo
 image**. `WearFontCoverage.kt` is generated from those cmaps and `WearAnswerTextCoverageTest` fails if
 the renderer ever emits a character outside them — it caught `U+2072` passing straight through.
 
-Layout was measured on five screen profiles with real `wm size` / `wm density` overrides, coordinate
-space verified before every dump:
+Layout was measured on five screen profiles with real `wm size` / `wm density` overrides; every row was
+re-measured with a freshness check (a dump can return the *previous* profile's layout before the new
+configuration is laid out, which produced a wrong number twice before the check existed):
 
 | Profile | Screen | Text column | % of width |
 |---|---|---|---|
-| small round (the AVD) | 384 px @320 = 192.0 dp | 132.0 dp | 68.8 % |
-| large round | 454 px @320 = 227.0 dp | 163.0 dp | 71.8 % |
-| **Xiaomi Watch 2** | 466 px @326 = **228.7 dp** | **165.9 dp** | **72.5 %** |
+| small round (the AVD) | 384 px @320 = 192.0 dp | 264 px = 132.0 dp | 68.8 % |
+| large round | 454 px @320 = 227.0 dp | 326 px = 163.0 dp | 71.8 % |
+| **Xiaomi Watch 2** | 466 px @326 = **228.7 dp** | **338 px = 165.9 dp** | **72.5 %** |
+| 480 round | 480 px @360 = 213.3 dp | 336 px = 149.3 dp | 70.0 % |
+| rectangular | 400 px @320 = 200.0 dp | 276 px = 138.0 dp | 69.0 % |
 
 No element is cut off or outside the round mask at the Xiaomi Watch 2 geometry, and every `Button` is
 ≥ 48 dp on all five profiles. Two defects were found by running it rather than reading it: **every

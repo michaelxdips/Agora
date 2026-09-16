@@ -136,35 +136,60 @@ init=384x384 320dpi mMinSizeOfResizeableTaskDp=220 base=466x466 326dpi cur=466x4
 
 ### E2.3 — touch targets (clickable node, not the label)
 
+`buttons.py`'s first pass reported `FAIL` rows that are not small controls, and its 400/480 rows were
+the previous profile's frame. Proof of the staleness — 400's bboxes are byte-identical to 384's:
+
 ```
-=== 384 384x384 @320 = 192.0 dp ===
-   OK  Button 312x128 px = 156.0x64.0 dp  'Type a question'
-   OK  Button 264x96  px = 132.0x48.0 dp  'Type a question' (EditText)
-   OK  Button 300x100 px = 150.0x50.0 dp  'Send'
-   -- bottom --
-   OK  Button 312x104 px = 156.0x52.0 dp  'Debug'
-=== 466 466x466 @326 = 228.7 dp ===
-   OK  Button 386x130 px = 189.4x63.8 dp
-   FAIL Button 338x97 px = 165.9x47.6 dp   <- EditText: 0.4 dp under the 48 dp target
-   OK  Button 384x105 px = 188.5x51.5 dp  'Send'
-   -- bottom --
-   OK  Button 362x99 px = 177.7x48.6 dp  'Debug'
-   OK  Button 386x106 px = 189.4x52.0 dp  'Change key'
-=== 454 454x454 @320 = 227.0 dp ===
-   OK  Button 374x128 px = 187.0x64.0 dp
-   OK  Button 326x96 px = 163.0x48.0 dp
-   OK  Button 372x103 px = 186.0x51.5 dp
-   OK  Button 350x97 px = 175.0x48.5 dp
-   OK  Button 374x104 px = 187.0x52.0 dp
-=== 480 480x480 @360 = 213.3 dp ===
-   OK  Button 390x144 px = 173.3x64.0 dp
-   OK  Button 336x108 px = 149.3x48.0 dp
-   OK  Button 384x115 px = 170.7x51.1 dp
+384: [('312x128','36','128'), ('264x96','60','122'), ('300x100','42','268'), ('218x4','83','380'), ('278x87','53','0'), ('312x104','36','100')]
+400: [('312x128','36','128'), ('264x96','60','122'), ('300x100','42','268'), ('218x4','83','380'), ('278x87','53','0'), ('312x104','36','100')]
+384 vs 400 identical? True
 ```
 
-`Wear Material 3` gives every `Button` ≥ 48 dp except the composer's `EditText` at 466×466, where the
-Wear framework's own field height lands 0.4 dp under the guideline. Nothing in this app's own layout
-is under it.
+`targets2.py` re-measured with the freshness gate and resolved each clickable's label, then each
+`FAIL` was classified by geometry:
+
+```
+=== 384 384x384 @320 ===
+    OK   'Type a question'         264x96   px = 132.0x 48.0 dp  pos=(60,122)
+    OK   'Type a question'         312x128  px = 156.0x 64.0 dp  pos=(36,128)
+    OK   'Send'                    300x100  px = 150.0x 50.0 dp  pos=(42,268)
+    --   scrollbar-ish 218x4 px = 109.0x2.0 dp  pos=(83,380)
+  [bottom]
+    FAIL 'Change key'              278x87   px = 139.0x 43.5 dp  pos=(53,0)     <- y1=0, clipped
+    OK   'Debug'                   312x104  px = 156.0x 52.0 dp  pos=(36,100)
+=== 454 ===
+    OK   'Send' 372x103 = 186.0x51.5 dp     FAIL 'Speak' 276x36 = 138.0x18.0 dp pos=(89,418)  <- y2=454=viewport
+    OK   'Change key' 350x97 = 175.0x48.5 dp   OK 'Debug' 374x104 = 187.0x52.0 dp
+=== 466 ===
+    FAIL 'Type a question' 338x97 = 165.9x47.6 dp pos=(64,162)   <- FULLY VISIBLE: the one real shortfall
+    OK   'Send' 384x105 = 188.5x51.5 dp   FAIL 'Speak' 286x39 = 140.4x19.1 dp pos=(90,427)  <- y2=466=viewport
+    OK   'Change key' 362x99 = 177.7x48.6 dp   OK 'Debug' 386x106 = 189.4x52.0 dp
+=== 480 ===
+    OK   'Send' 384x115 = 170.7x51.1 dp   FAIL 'Change key' 358x107 = 159.1x47.6 dp pos=(61,11)  <- y1=11, clipped
+    OK   'Debug' 390x117 = 173.3x52.0 dp
+=== 400 ===
+    OK   'Send' 314x100 = 157.0x50.0 dp   FAIL 'Change key' 294x94 = 147.0x47.0 dp pos=(53,2)  <- y1=2, clipped
+    OK   'Debug' 324x104 = 162.0x52.0 dp
+```
+
+Classification, computed rather than eyeballed:
+
+```
+profile  label         h_px   y1    y2 viewport  verdict
+384      Change key      87     0    87      384  clipped at TOP (y1=0)
+454      Speak           36   418   454      454  clipped at BOTTOM (y2=454 == 454)
+466      Speak           39   427   466      466  clipped at BOTTOM (y2=466 == 466)
+466      EditText        97   162   259      466  FULLY VISIBLE -> real measurement
+480      Change key     107    11   118      480  clipped at TOP (y1=11)
+400      Change key      94     2    96      400  clipped at TOP (y1=2)
+```
+
+The single real sub-48 measurement is the composer field at 466×466: 97 px against a 48 dp target of
+97.8 px (326 dpi) = **0.39 dp under**. It is the framework's field height inside the Wear `Card`, not
+a value this app sets; the enclosing `Button` measures 63.8 dp.
+
+The `buttons.py` `FAIL` at 384/400 of `218x4 px = 109.0x2.0 dp` is the `ScalingLazyColumn`'s
+scrollbar — a clickable `View` with no text inside — not a control.
 
 ### E2.1 — circle fit, physical mask
 

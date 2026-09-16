@@ -184,8 +184,13 @@ The answer card measures the same width as the composer at every profile (both a
 `fillMaxWidth().padding(horizontal = 8.dp)`), which is the cross-check that the numbers describe the
 element they claim to.
 
-No element is cut off or outside the round mask at the Xiaomi Watch 2 geometry, and every `Button` is
-≥ 48 dp on all five profiles. Two defects were found by running it rather than reading it: **every
+No element is cut off or outside the round mask at the Xiaomi Watch 2 geometry. Touch targets were
+measured on the clickable node with a freshness gate: `Send`, `Change key` and `Debug` clear 48 dp
+everywhere (50.0–52.0 dp). The one real shortfall is the composer field at 466×466 — 165.9×47.6 dp,
+**0.39 dp** under the 48 dp target — which is the framework's own field height inside the Wear `Card`,
+not a value this layout sets. Rows that appear shorter in a dump are `ScalingLazyColumn` items clipped
+by the viewport edge, not small controls; the full table, including that distinction, is in
+[`STATUS.md`](STATUS.md). Two defects were found by running it rather than reading it: **every
 answer crashed the app** (`verticalScroll` inside a `ScalingLazyColumn` item is an
 `IllegalStateException` — the user-visible symptom was that the answer never appeared), and the voice
 fallback was collected but rendered nowhere. Both are fixed; see

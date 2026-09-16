@@ -908,8 +908,43 @@ the coordinate space but not the round mask. At 466×466 no element is fully out
 only corners outside belong to the `Speak` label while its item is entering the viewport, which the
 list's own circular clip handles.
 
-Touch targets: every `Button` is ≥ 48 dp on all five profiles except the composer's `EditText` at
-466×466 (47.6 dp, i.e. 0.4 dp under) — a Wear-framework field height, not this app's layout.
+Touch targets, measured on the clickable node (not its label) with a freshness gate, and each
+`FAIL` classified by whether its bounding box is **clipped by the viewport** or genuinely short:
+
+| Profile | Element | Size | Verdict |
+|---|---|---|---|
+| 384 | `Send` | 300x100 px = 150.0x50.0 dp | pass |
+| 384 | `Debug` | 312x104 px = 156.0x52.0 dp | pass |
+| 384 | `Change key` | 278x87 px = 139.0x43.5 dp | **clipped** (y1 = 0: item entering the viewport) |
+| 454 | `Send` / `Change key` / `Debug` | 51.5 / 48.5 / 52.0 dp | pass |
+| 454 | `Speak` | 276x36 px = 138.0x18.0 dp | **clipped** (y2 = 454 = viewport height) |
+| 466 | `Send` / `Change key` / `Debug` | 51.5 / 48.6 / 52.0 dp | pass |
+| 466 | `Speak` | 286x39 px = 140.4x19.1 dp | **clipped** (y2 = 466 = viewport height) |
+| 466 | composer `EditText` | 338x97 px = 165.9x47.6 dp | **0.39 dp short** — the only real sub-48 measurement |
+| 480 | `Send` / `Debug` | 51.1 / 52.0 dp | pass |
+| 480 | `Change key` | 358x107 px = 159.1x47.6 dp | **clipped** (y1 = 11) |
+| 400 | `Send` / `Debug` | 50.0 / 52.0 dp | pass |
+| 400 | `Change key` | 294x94 px = 147.0x47.0 dp | **clipped** (y1 = 2) |
+
+Two honest corrections to what an earlier pass of this document claimed:
+
+* **"every Button is ≥ 48 dp on all five profiles" was wrong.** It was written from a run whose
+  400/480 rows were a stale frame — their bounding boxes were byte-identical to 384's
+  (`312x128 pos=(36,128)`, `264x96 pos=(60,122)`, `300x100 pos=(42,268)`, …), which is not a
+  measurement. Re-measured with the freshness gate, 400 and 480 differ from 384 in every row.
+* **Most `FAIL` rows are not small controls.** A `ScalingLazyColumn` clips the item that is entering
+  or leaving the viewport, so the dumped bbox is a *partial* item: `Change key` at y1 = 0/2/11 and
+  `Speak` at y2 = viewport height. The element itself is a normal Wear `Button`; only the visible
+  slice was measured.
+
+The single real shortfall is the composer field at 466×466: 97 px against a 48 dp target of 97.8 px,
+i.e. **0.39 dp under**, at 326 dpi. It is the framework's own field height inside the Wear `Card`,
+not a value this app's layout sets, and the enclosing `Button` measures 63.8 dp. Left as-is,
+recorded rather than rounded up.
+
+`buttons.py` also counted the `ScalingLazyColumn`'s scrollbar (a 2–4 dp tall clickable `View` with no
+text inside) as a button; `targets2.py` names each clickable by the label inside it and reports the
+scrollbar separately.
 
 **`font_scale 1.3`** (accessibility): buttons scale ~1.3× linearly (at 384: `Change key` 165×36 →
 205×45 px, `Debug` 92×36 → 121×48 px). Answer to the phase question: at 466×466 with `font_scale 1.3`

@@ -226,7 +226,6 @@ private fun WearChatScreen(
     var showDebug by remember { mutableStateOf(false) }
     var debug by remember { mutableStateOf("") }
 
-    val ttsAvailable by ttsReady.collectAsState()
     val voiceProblem by voiceUnavailable.collectAsState()
 
     /**
@@ -624,10 +623,15 @@ private fun WearChatScreen(
                 }
             }
 
-            if (notice.isNotBlank()) {
+            if (notice.isNotBlank() || !voiceProblem.isNullOrBlank()) {
                 item {
                     Text(
-                        text = notice,
+                        // The voice fallback goes through the same line as every other notice.
+                        // `voiceUnavailable` was collected and then rendered **nowhere**, so the
+                        // fallback this screen's own KDoc promises ("the UI can say so instead of
+                        // nothing") never reached a user: on an image with no recognizer, tapping
+                        // Speak did nothing visible. Reading the flow here is the render site.
+                        text = voiceProblem?.takeIf { it.isNotBlank() } ?: notice,
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,

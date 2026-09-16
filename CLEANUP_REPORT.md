@@ -289,6 +289,40 @@ last line names the commit that contains it can never be accurate, so the report
 
 Final tree assertion re-run before pushing: `git ls-files | grep -E "local.properties|\.jks$|\.keystore$"` → **empty**.
 
+### Default-branch change — proof
+
+The claim `master → main` is verified two independent ways, because a stale claim here is invisible
+until a user clones the wrong branch:
+
+```
+# 1. the API's own view
+gh api repos/michaelxdips/Agora --jq .default_branch            → main
+
+# 2. what a user actually gets — clone with NO --branch flag
+git clone --no-checkout --depth 1 https://github.com/michaelxdips/Agora.git branchtest
+cd branchtest
+git symbolic-ref HEAD                                           → refs/heads/main
+git log --oneline -1                                            → a hermes: commit (not upstream's)
+test -e HEAD:personas/caveman/SKILL.md                          → present (Hermes work, not the upstream mirror)
+```
+
+The second check is the load-bearing one: `--branch main` in §6 proves nothing about the default,
+since it names the branch explicitly. An earlier clone in this session landed on `master`
+(`914e7c8d`, upstream's tip, `personas/` absent) because it ran **before** the default branch was
+switched; that is now impossible.
+
+**A stale local ref was found and fixed while checking this:** `refs/remotes/origin/HEAD` still said
+`refs/remotes/origin/master` long after the remote had moved. `git remote set-head origin -a` →
+`'origin/HEAD' has changed from 'master' and now points to 'main'`. That is a local-only ref — no
+commit, no push — but it makes every local `origin/HEAD`-relative command lie, so it is worth running
+once after any default-branch change.
+
+**`master` on the fork is a vestigial upstream mirror.** `git rev-list --left-right --count
+origin/master...upstream/master` → `0  4`: it adds nothing and is 4 upstream commits behind
+(`914e7c8d` 2026-09-13 vs `a37759f9` 2026-09-15). It is not the default, not pushed by this cleanup,
+and `UPSTREAM_SYNC.md` already documents `master` as the upstream branch and `main` as this fork's
+integration branch. Left untouched.
+
 ---
 
 ## §6 FRESH-CLONE PROOF

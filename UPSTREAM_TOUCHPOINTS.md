@@ -10,7 +10,7 @@ never remove upstream behaviour — add, don't rewrite.
 
 <!-- GUARD:DATA:START -->
 # path :: max=<changed lines allowed>
-app/build.gradle.kts :: max=16
+app/build.gradle.kts :: max=20
 settings.gradle.kts :: max=4
 gradle/libs.versions.toml :: max=10
 .github/workflows/build.yml :: max=12
@@ -32,7 +32,7 @@ app/src/main/java/com/newoether/agora/viewmodel/GenerationRequestBuilder.kt :: m
 
 | # | Path | Why | Phase |
 |---|------|-----|-------|
-| 1 | `app/build.gradle.kts` | `applicationId` → `com.hermes.app`; `testInstrumentationRunner`; androidTest deps for the instrumented verification | 1, 3 |
+| 1 | `app/build.gradle.kts` | `applicationId` → `com.hermes.app`; `testInstrumentationRunner`; androidTest deps for the instrumented verification. **Budget raised 16 → 20 (Phase 15):** `versionCode 31 → 32` and `versionName 3.0.0-hermesx → 3.0.1-hermesx` — the fork's first published release. The two version lines are the only addition; without the raise the guard would have failed on a change that ships the release | 1, 3, 15 |
 | 2 | `app/src/main/AndroidManifest.xml` | only if the fdroid overlay cannot carry a manifest change | 1 |
 | 3 | `app/src/main/res/values/strings.xml` | only if the fdroid resource overlay cannot carry `app_name` | 1 |
 | 4 | `app/src/main/java/com/newoether/agora/ui/settings/SettingsScreen.kt` | Adaptation History entry + `"adaptation"` dispatch + `initialCategory`; Phase 6 persona entry + `"personas"` dispatch |

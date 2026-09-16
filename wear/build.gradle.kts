@@ -29,8 +29,8 @@ android {
         applicationId = "com.hermes.app"
         minSdk = 30
         targetSdk = 36
-        versionCode = 31
-        versionName = "3.0.0-hermesx"
+        versionCode = 32
+        versionName = "3.0.1-hermesx"
     }
 
     signingConfigs {

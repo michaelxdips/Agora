@@ -1,0 +1,114 @@
+[
+  {
+    "task": 0,
+    "title": "Cancelled pairing leaves WearSignals.pairing stuck on Sending/Sent â setup screen becomes permanently read-only with Pair disabled (dead end until process kill)",
+    "file_line": "wear/src/main/java/com/newoether/agora/wear/WearSetupScreen.kt:89",
+    "severity": "P1",
+    "impact": "?",
+    "fix": "?"
+  },
+  {
+    "task": 0,
+    "title": "Corrupt-queue quarantine uses a fixed .corrupt name and re â¦(+3211 chars)\n21:17:05 assistant| .kt:393",
+    "file_line": "wear/src/main/java/com/newoether/agora/wear/WearSetupScreen.kt:89",
+    "severity": "P3",
+    "impact": "Ther â¦(+3092 chars)\n21:17:08 think    | ```json\n21:17:08 assistant| ever calls server.close().",
+    "fix": "Add `@After fun te â¦(+2412 chars)\n21:17:08 final    | status=completed duration=4127.48s summary: ```json { "
+  },
+  {
+    "task": 1,
+    "title": "Built-in providers with no explicit base URL can never be pushed to the watch â false \"No base URL or model selected\"",
+    "file_line": "app/src/main/java/com/newoether/agora/viewmodel/ProviderRegistry.kt:184-187 (surfaced at app/src/main/java/com/newoether/agora/autopilot/wearsync/PairingListenerService.kt:83-87 and app/src/main/java/com/newoether/agora/autopilot/wearsync/SettingsWatchSetupPage.kt:78)",
+    "severity": "P1",
+    "impact": "?",
+    "fix": "Normalize once at the push boundary: `val wireModel = ModelId.parse(registry.canonicalModelId(modelId)).apiModelName` and push that (the same expression GenerationRequestBuilder uses), so the watch receives the API model name. Do it inside WatchSync.sendConfigToWatch so both callers are covered."
+  },
+  {
+    "task": 2,
+    "title": "touchpoint_guard.sh silently drops every registered touchpoint budget when the upstream ref is absent (the default local path)",
+    "file_line": "scripts/touchpoint_guard.sh:25-32, 47-77",
+    "severity": "?",
+    "impact": "?",
+    "fix": "?"
+  },
+  {
+    "task": 2,
+    "title": "The registry's machine-parsed block is closed after one table row, so every later entry is invisible to the guard's own parser while the human table keeps growing",
+    "file_line": "UPSTREAM_TOUCHPOINTS.md:11-29",
+    "severity": "P3",
+    "impact": "The coverage claim in README.md and STATUS.md Phase 16 is only as good as a hand-carried table with no provenance and no way to re-derive it; a Wear OS image update that drops a glyph silently invalidates the \"honest fallbacks for codepoints this image has no font for\" behaviour while the test keeps passing.",
+    "fix": "Commit the generator (or a checked-in dump of the five cmaps it reads) next to the file and add a CI-indepe â¦(+3404 chars)\n21:33:36 think    | {"
+  },
+  {
+    "task": 2,
+    "title": "The wear module's Data-Layer manifest surface is never exercised by any gate â 82 JVM tests, zero instrumented tests, no `:wear:connectedAndroidTest` anywhere",
+    "file_line": "wear/build.gradle.kts:110-113, .github/workflows/build.yml:43-47",
+    "severity": "P3",
+    "impact": "The coverage claim in README.md and STATUS.md Phase 16 is only as good as a hand-carried table with no provenance and no way to re-derive it; a Wear OS image update that drops a glyph silently invalidates the \"honest fallbacks for codepoints this image has no font for\" behaviour while the test keeps passing.",
+    "fix": "Commit the generator (or a checked-in dump of the five cmaps it reads) next to the file and add a CI-indepe â¦(+3404 chars)\n21:33:36 think    | {"
+  },
+  {
+    "task": 2,
+    "title": "touchpoint_guard.sh silently drops every registered touch\n21:33:36 assistant| re-derives them, so the two can drift (and one already has â see the XML-count finding above).",
+    "file_line": "scripts/touchpoint_guard.sh:5,13",
+    "severity": "P3",
+    "impact": "?",
+    "fix": "Have `audit_gate0.sh` call this script for its totals (single implementation), or delete it and keep the inline heredoc; either way pin the expected per-suite counts so a partial run fails."
+  },
+  {
+    "task": 2,
+    "title": "The stale remote-tracking ref `origin/master` (fork point) is still present and is the guard's default upstream ref, so the two refs mean different things in the same repo",
+    "file_line": "scripts/touchpoint_guard.sh:5,13",
+    "severity": "?",
+    "impact": "?",
+    "fix": "?"
+  },
+  {
+    "task": 3,
+    "title": "WearChatClientTest never asserts the Authorization header â the test named for it asserts only the body",
+    "file_line": "wear/src/test/java/com/newoether/agora/wear/WearChatClientTest.kt:118 (test), :44-64 (server captures only requestLine/body)",
+    "severity": "?",
+    "impact": "?",
+    "fix": "?"
+  },
+  {
+    "task": 3,
+    "title": "Two LatexRendererTest tests compute a PASS/FAIL flag, print it, and never assert it",
+    "file_line": "app/src/test/java/com/newoether/agora/ui/components/LatexRendererTest.kt:40-65 and :86-100",
+    "severity": "P1",
+    "impact": "The test cannot detect the ordering being changed to an equivalent-but-different clause (e.g. `ORDER BY timestamp, id` or `ORDER BY id ASC, timestamp ASC`), and cannot detect a *third* query being added that omits ordering â the count only rises when the copied literal is added verbatim. It also silently measures the wrong file if  â¦(+3306 chars)\n21:24:28 assistant| leaves this green.",
+    "fix": "Record the outcome into a shared holder and assert after `load.join()`: e.g. `val published = AtomicBoolean(false); ... on success published.set(true) ...; load.join(); assertFalse(published.get())`, and use `assertFailsWith<CancellationException>` outside the launch."
+  },
+  {
+    "task": 3,
+    "title": "Concurrency test has no assertion at all and hides hangs with shutdownNow",
+    "file_line": "app/src/test/java/com/newoether/agora/ui/chat/message/IncrementalStreamingMarkdownTest.kt:490-510",
+    "severity": "P3",
+    "impact": "?",
+    "fix": "Use `TemporaryFolder()` as `@get:Rule` (as CircuitBreakerTest and SkillSynthesizerTest already do) and derive `filesDir` from `temporaryFolder.newFolder()`."
+  },
+  {
+    "task": 3,
+    "title": "CAPTCHA/vqd/offset scraper tests re-declare the production regexes inline, so they test the test's own copy",
+    "file_line": "app/src/test/java/com/newoether/agora/api/DuckDuckGoScraperTest.kt:248, :255, :271, :280, :292",
+    "severity": "?",
+    "impact": "?",
+    "fix": "?"
+  },
+  {
+    "task": 3,
+    "title": "Coverage guard asserts a tautology derived from its own data",
+    "file_line": "wear/src/test/java/com/newoether/agora/wear/WearAnswerTextCoverageTest.kt:83",
+    "severity": "P3",
+    "impact": "?",
+    "fix": "Use an explicit monotonic counter (`private var clock = 0L; timestamp = ++clock`) so ordering is stated rather than inherited from hash codes and wall clock."
+  },
+  {
+    "task": 3,
+    "title": "Production daily-cap rule has no test; the only exercise is an androidTest that reimplements it",
+    "file_line": "app/src/main/java/com/newoether/agora/autopilot/AutopilotSettings.kt:45-50 (untested); app/src/androidTest/java/com/newoether/agora/autopilot/AutopilotMemoryInstrumentedTest.kt:178-181",
+    "severity": "P3",
+    "impact": "?",
+    "fix": "Use an explicit monotonic counter (`private var clock = 0L; timestamp = ++clock`) so ordering is stated rather than inherited from hash codes and wall clock."
+  }
+]

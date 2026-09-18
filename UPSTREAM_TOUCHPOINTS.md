@@ -24,6 +24,7 @@ app/src/main/java/com/newoether/agora/util/UpdateChecker.kt :: max=130
 app/src/test/java/com/newoether/agora/util/UpdateCheckerTest.kt :: max=100
 app/src/main/java/com/newoether/agora/MainActivity.kt :: max=40
 app/src/main/java/com/newoether/agora/viewmodel/GenerationRequestBuilder.kt :: max=8
+app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt :: max=20
 
 | 13 | `.github/workflows/build.yml`, `.github/workflows/mkdocs.yml` | Phase 14 (audit A-015): both workflows triggered on `[master]` only. Upstream's default branch is `master`, but this fork works on `main`, so with `main` never listed **no CI job had ever run on a fork commit**. `main` is added alongside `master` (add, don't rewrite) and both files are registered here because the guard's ALLOWED class covers `upstream-sync.yml` alone. Budgets: 12 changed lines for build.yml (the two branch lists plus the marker comment, raised from 8 in the pre-publication pass to cover the `setup-android` package-list fix below), 4 for mkdocs.yml |
 <!-- GUARD:DATA:END -->

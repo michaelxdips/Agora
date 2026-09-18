@@ -7,6 +7,32 @@ No proof = phase not done. Human-setup items are marked **[HS]** and never block
 
 ---
 
+## CURRENT STATE — 2026-09-18 (read this first; everything below is dated history)
+
+Every number here was produced by a command run on this date. A phase section further down describes
+the repo **as it was when that phase closed** and may legitimately contradict this block.
+
+| | Value | Command |
+|---|---|---|
+| `main` HEAD | `2c2c10f1` | `git rev-parse --short main` |
+| Versions | `3.0.3-hermesx` / `versionCode` 34, both modules | `app/build.gradle.kts`, `wear/build.gradle.kts` |
+| Releases | `v3.0.3` (latest), `v3.0.2`, `v3.0.1` (pre-release) | `gh release list -R michaelxdips/Agora` |
+| App unit tests | **2562 tests, 0 failures, 0 errors, 3 skipped** (394 XML files) | `./gradlew :app:testFdroidDebugUnitTest`; plain **and** `--rerun-tasks`, twice |
+| Wear unit tests | **82 tests, 0 failures, 0 errors** (9 XML files) | `./gradlew :wear:testDebugUnitTest` |
+| Play flavor tests | 2545 tests, 0 failures, 0 errors, 3 skipped | `:app:testPlayDebugUnitTest` |
+| Upstream position | `main` is **83 ahead** of the fork point `914e7c8d`; upstream is **5 ahead** | `git rev-list --left-right --count upstream/master...main` |
+| Release certificate | `7188ce70…aa56d7` on **both** published APKs | `apksigner verify --print-certs` on the downloaded `v3.0.3` assets |
+| Published asset digests | match `SHA256SUMS` byte-for-byte | `sha256sum -c SHA256SUMS` |
+| Branch protection | **off** — `gh api …/branches/main/protection` → `404 Branch not protected` | same |
+| Wear instrumentation | **none** — `wear/src/androidTest` does not exist | `ls` |
+
+**Open, known-broken, do not claim otherwise:** the fork merges upstream through `a37759f9` only;
+upstream's tip `360ae4f8` pushes `SettingsModelsPage.kt` to 801 lines against the 800-line cap and
+turns the gate red (upstream's own CI is red for the same reason, run `35171806965`). See
+[`MEGA_PLAN.md`](MEGA_PLAN.md) for the reconciliation, the fix plan and the optimisation plan.
+
+---
+
 ## STATE REPORT — reconstruction of Phases 0–6 (Step 1, before any work)
 
 Written at the start of the resume/verify session, from repository state only. Repo root
@@ -741,8 +767,9 @@ signing identities, so an APK offered across that boundary cannot be installed o
 * The 24-hour `UPDATE_INTERVAL_MS` throttle was not exercised (it would need a day of wall-clock, or
   a clock the test cannot move without root). The manual "check for updates" path in Settings → About
   bypasses it and is what the device run above used.
-* The fork still has **0 releases**, so the shipped default state is "up to date". Creating a release
-  is the only thing that changes that; no code change is needed.
+* The fork's releases are live (`v3.0.3` latest, `v3.0.2`, `v3.0.1` pre-release — `gh release list`),
+  so this bullet's original claim ("0 releases") was true only of the phase that wrote it and is kept
+  here as dated history. See the CURRENT STATE block at the top of this file for the live numbers.
 
 ### Environment repaired during this session
 

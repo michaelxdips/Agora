@@ -167,10 +167,24 @@ Mergeability, measured with `git merge-tree --write-tree HEAD upstream/master`:
 `README.md` (upstream's provider-count edit and our fork README coexist; `git diff HEAD -- README.md`
 after the trial merge shows only the expected `Nine`→`Ten` provider line).
 
-**Answer to "what can we really pull":** four of the five cleanly; the fifth (`360ae4f8`) is blocked
-by *upstream's* broken budget, not by us. Recommended: merge **`a37759f9`** (verified 800 lines,
-merge clean, guard PASS against `a37759f9`) and hold `360ae4f8` until either upstream fixes it or we
-register a one-line touchpoint (F2).
+**Answer to "what we can really pull":** all five. `360ae4f8` was held for exactly one round because
+upstream's own commit breaks the 800-line cap; that is **solvable without waiting for upstream**:
+`SettingsModelsPage.kt` carries **10 imports that nothing in its body references** (verified by parsing
+the file and searching each imported symbol), and the policy rejects any baseline entry at or under
+the cap (`recordedLines <= maximumLines` → `INVALID_BASELINE`, and `KOTLIN_SOURCE_BASELINE_CAPS` is
+empty). Removing the dead imports takes the file from **801 → 791** lines with no behaviour change.
+
+Proved in a throwaway clone first (`git clone` + `git merge upstream/master` + the edit):
+
+```
+$ ./gradlew :app:compileFdroidDebugKotlin verifyKotlinFileSize
+Kotlin source size verified: 1027 files, maximum 800 lines at …ConversationSelectionControllerTest.kt
+BUILD SUCCESSFUL in 1m 32s
+```
+
+then applied to the real branch: `SettingsModelsPage.kt` 796 lines (791 + the 5-line marker comment),
+guard `ok … (15/20 lines)`, `touchpoint_guard: PASS (360ae4f8…)`. New touchpoint registered:
+`app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt :: max=20`.
 
 ---
 

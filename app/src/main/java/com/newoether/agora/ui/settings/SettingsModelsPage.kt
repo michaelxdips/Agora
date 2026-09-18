@@ -1,14 +1,13 @@
 package com.newoether.agora.ui.settings
 
-import androidx.compose.animation.AnimatedVisibility
+// HERMES INTEGRATION POINT: upstream commit 360ae4f8 (OpenCode Go) pushed this file to 801 physical
+// lines, one over build-logic's 800-line cap, and upstream's own CI is red for it (run 35171806965).
+// Ten imports below were never referenced anywhere in this file's body, so they were removed rather
+// than splitting the file or adding a baseline entry (the policy rejects any baseline entry at or
+// under the cap). No behaviour changes; the file is now 791 lines.
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.offset
 import androidx.compose.foundation.clickable
@@ -23,10 +22,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*

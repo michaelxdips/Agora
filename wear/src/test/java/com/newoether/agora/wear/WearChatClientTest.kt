@@ -49,6 +49,10 @@ class WearChatClientTest {
                     while (true) {
                         val line = reader.readLine() ?: break
                         if (line.isEmpty()) break
+                        // Capture every request header: the test named for the bearer token asserts
+                        // on it, and before this line was here the header was read and discarded, so
+                        // an Authorization regression could not fail that test.
+                        requests += "HEADER:" + line
                         if (line.startsWith("Content-Length:", ignoreCase = true)) {
                             contentLength = line.substringAfter(":").trim().toIntOrNull() ?: 0
                         }
@@ -118,6 +122,26 @@ class WearChatClientTest {
     fun theApiKeyTravelsAsABearerHeaderAndTheModelInTheBody() {
         serve(200, """{"choices":[{"message":{"content":"hi"}}]}""")
         clientForCurrentPort().ask("what is my project", "")
+
+        // The header half. It was missing: the test server discarded every request header, so this
+        // test — named for the bearer token — only ever checked the body, and dropping
+        // `Authorization` from the request would have left it green. The provider answers 401 for a
+        // missing key, so the bug would have surfaced only on a real watch.
+        val authorization = requests
+            .firstOrNull { it.startsWith("HEADER:", ignoreCase = true) && it.contains("Authorization:", ignoreCase = true) }
+            ?.removePrefix("HEADER:")
+        assertTrue(
+            "no Authorization header reached the provider; captured: ${requests.filter { it.startsWith("HEADER:") }}",
+            authorization != null,
+        )
+        assertTrue(
+            "the key must travel as a Bearer token, not bare: $authorization",
+            authorization!!.substringAfter(":").trim().startsWith("Bearer "),
+        )
+        assertTrue(
+            "the configured key must be the token: $authorization",
+            authorization.substringAfter("Bearer ").trim().isNotBlank(),
+        )
 
         val body = requests.first { it.startsWith("BODY:") }.removePrefix("BODY:")
         assertTrue("model missing from body: $body", body.contains("\"model\":\"test-model\""))

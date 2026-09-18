@@ -46,3 +46,28 @@ jobs:
       - name: Push main + tags
         if: success() && (github.event_name != 'workflow_dispatch' || !inputs.dry_run)
         run: git push origin main --tags
+
+      # HERMES INTEGRATION POINT: this job ran red on 2026-09-17 and 2026-09-18 and nobody was told —
+      # a scheduled job that fails silently is worse than no job, because the fork believes it is
+      # tracking upstream while it is not. GitHub does not notify on scheduled-workflow failure by
+      # default, so the failure opens (or reuses) a labelled issue instead.
+      - name: Report failure as an issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          BODY="The scheduled upstream sync failed at $(date -u +%Y-%m-%dT%H:%M:%SZ).
+
+          Run: $RUN_URL
+
+          The most likely cause is a conflict in a registered touchpoint that take-ours resolution
+          could not absorb, or a gate that failed in the merged tree. Check the run log; the merge
+          is aborted before anything is pushed, so \`main\` is unchanged."
+          EXISTING="$(gh issue list --label sync-failure --state open --limit 1 --json number --jq '.[0].number' 2>/dev/null || true)"
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "$BODY"
+          else
+            gh issue create --label sync-failure --title "upstream sync failing" --body "$BODY" \
+              || echo "::warning::could not open the sync-failure issue (label missing?)"
+          fi

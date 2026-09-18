@@ -184,10 +184,25 @@ class ProviderRegistry(
             providers[name]
         }
 
+    /**
+     * The base URL a request would actually use for [providerName], or null when there is none.
+     *
+     * HERMES INTEGRATION POINT: this returned **null for every built-in provider that has no
+     * explicitly configured base URL** (`takeIf { !isBuiltIn(providerName) }`), because a built-in's
+     * `defaultBaseUrl` was assumed to be reachable through the provider object instead. It is not:
+     * `getEffectiveBaseUrl` is what `GenerationRequestBuilder`, `ConversationTitleGenerator` and
+     * `ReflectionCaller` pass as `config.baseUrl`, and those call sites only fall back to the
+     * provider's own default when the value is null. So chat worked while every *consumer that asks
+     * the registry for a URL* — including the watch push — saw null and reported "No base URL or
+     * model selected" for a provider the user was actively chatting with.
+     *
+     * A built-in's `defaultBaseUrl` is a `LlmProvider` property, so returning it here is the same
+     * value the provider itself would fall back to; behaviour for a configured URL is unchanged.
+     */
     fun getEffectiveBaseUrl(providerName: String): String? {
         if (providerName == DebugProvider.PROVIDER_NAME) return null
         val configuredBaseUrl = settings.providerBaseUrls.value[providerName]?.takeIf { it.isNotBlank() }
-            ?: return providers[providerName]?.takeIf { !isBuiltIn(providerName) }?.defaultBaseUrl
+            ?: return providers[providerName]?.defaultBaseUrl?.takeIf { it.isNotBlank() }
         val customConfig = settings.customProviders.value.firstOrNull { it.name == providerName }
             ?: return configuredBaseUrl
         val resolution = sequenceOf(

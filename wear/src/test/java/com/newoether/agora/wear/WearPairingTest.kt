@@ -119,4 +119,35 @@ class WearPairingTest {
         assertTrue(PairingStatus.NoPhone.message.contains("phone"))
         assertTrue(PairingStatus.TimedOut.message.contains("phone"))
     }
+
+    /**
+     * A cancelled pairing must not leave the setup screen disabled.
+     *
+     * The screen derives `waitingForPhone` from `Sending`/`Sent` and disables the Pair button (and the
+     * credential fields) on it. `WearSignals.pairing` is process-wide and nothing else resets it, so a
+     * cancellation used to park it on `Sent` forever: the user could not retry and could not type a
+     * key — a dead end until the app was killed.
+     */
+    @Test
+    fun `a cancelled request leaves no in-flight status behind`() = runTest {
+        val transport = object : PairingTransport {
+            override suspend fun sendRequest(payload: ByteArray) = PairingSend.SENT
+            override suspend fun awaitAck(timeoutMs: Long): String? {
+                // What a real await does when the composition dies mid-wait.
+                throw kotlinx.coroutines.CancellationException("wrist down")
+            }
+        }
+        val seen = mutableListOf<PairingStatus>()
+
+        val thrown = runCatching { WearPairing.request(transport, onStatus = { seen += it }) }
+
+        assertTrue("cancellation must propagate, not be swallowed", thrown.exceptionOrNull() is kotlinx.coroutines.CancellationException)
+        // The decisive assertion: no state that the screen reads as "still waiting" is left behind.
+        val stuck = seen.lastOrNull()
+        assertTrue("a cancelled request left the status on $stuck", stuck == PairingStatus.Idle)
+        assertFalse(
+            "Sending/Sent disable the Pair button; neither may survive a cancellation",
+            seen.lastOrNull() == PairingStatus.Sending || seen.lastOrNull() == PairingStatus.Sent,
+        )
+    }
 }

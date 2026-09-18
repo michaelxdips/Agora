@@ -21,6 +21,8 @@ import org.junit.Test
 
 class LatexRendererTest {
 
+    // HERMES INTEGRATION POINT (#16): two dollar-case tests below printed PASS/FAIL without asserting.
+
     @Test
     fun testFullParagraph() {
         // Use representative non-English prose containing inline bandwidth and p-value formulas.
@@ -51,17 +53,21 @@ class LatexRendererTest {
             "\$p < 0.01\$" to true,
         )
         println("=== Dollar cases ===")
+        val failures = mutableListOf<String>()
         for ((input, shouldBeLatex) in cases) {
             val spans = parseLatexSpans(input, parseInlineDollarMath = true)
             val latexSpans = spans.filter { it.isLatex }
             val ok = if (shouldBeLatex) latexSpans.size == 1 else latexSpans.isEmpty()
             val status = if (ok) "PASS" else "FAIL"
             println("$status: '$input' -> $latexSpans")
-            if (!ok && shouldBeLatex) {
-                println("  All spans:")
-                spans.forEachIndexed { i, s -> println("    [$i] latex=${s.isLatex} '${s.content}'") }
+            if (!ok) {
+                failures += "'$input' expected ${if (shouldBeLatex) "exactly 1 LaTeX span" else "no LaTeX span"}, " +
+                    "got ${latexSpans.size}: ${spans.mapIndexed { i, s -> "[$i] latex=${s.isLatex} '${s.content}'" }}"
             }
         }
+        // The loop used to print PASS/FAIL and assert nothing, so every case could have regressed
+        // (and the FAIL lines would have sat in the build log unnoticed) without the test going red.
+        assertTrue("dollar-math cases regressed: $failures", failures.isEmpty())
     }
 
     @Test
@@ -90,13 +96,21 @@ class LatexRendererTest {
             "预算 \$5,000" to 0,               // bare dollar amount, no closing
         )
         println("=== Dollar amount cases ===")
+        val failures = mutableListOf<String>()
         for ((input, expectedLatexCount) in cases) {
             val spans = parseLatexSpans(input, parseInlineDollarMath = true)
             val latexCount = spans.count { it.isLatex }
             val ok = latexCount == expectedLatexCount
             println("${if (ok) "PASS" else "FAIL"}: '$input' -> $latexCount latex spans (expected $expectedLatexCount)")
-            if (!ok) spans.forEachIndexed { i, s -> println("  [$i] latex=${s.isLatex} '${s.content}'") }
+            if (!ok) {
+                failures += "'$input' expected $expectedLatexCount LaTeX spans, got $latexCount: " +
+                    spans.mapIndexed { i, s -> "[$i] latex=${s.isLatex} '${s.content}'" }
+            }
         }
+        // Same defect as testAllDollarCases: a PASS/FAIL print is not an assertion. A bare dollar
+        // amount being parsed as inline math is the exact regression this test exists for, and it
+        // used to be unable to fail.
+        assertTrue("dollar amounts were parsed as math: $failures", failures.isEmpty())
     }
 
     @Test

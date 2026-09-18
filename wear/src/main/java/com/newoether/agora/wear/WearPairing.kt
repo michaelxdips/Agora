@@ -157,20 +157,34 @@ object WearPairing {
         // instantly and a second tap reported `Connected` without the phone having answered at all.
         WearSignals.pairingAck.value = null
         onStatus(PairingStatus.Sending)
-        val sent = transport.sendRequest(requestPayload())
-        val afterSend = when (sent) {
-            PairingSend.NO_PHONE -> PairingStatus.NoPhone
-            PairingSend.FAILED -> PairingStatus.SendFailed
-            PairingSend.SENT -> PairingStatus.Sent
+        return try {
+            val sent = transport.sendRequest(requestPayload())
+            val afterSend = when (sent) {
+                PairingSend.NO_PHONE -> PairingStatus.NoPhone
+                PairingSend.FAILED -> PairingStatus.SendFailed
+                PairingSend.SENT -> PairingStatus.Sent
+            }
+            if (afterSend != PairingStatus.Sent) {
+                onStatus(afterSend)
+                return afterSend
+            }
+            onStatus(PairingStatus.Sent)
+            val ack = transport.awaitAck(timeoutMs)
+            val final = if (ack.isNullOrBlank()) PairingStatus.TimedOut else PairingStatus.Connected
+            onStatus(final)
+            final
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            // A cancelled request produces no return value — the coroutine is unwinding (wrist-down,
+            // configuration change, process death) so nobody reads the result. What it must not do is
+            // leave the process-wide status on `Sending`/`Sent`: the setup screen computes
+            // `waitingForPhone` from exactly those two states and disables the Pair button on it, and
+            // the text fields are read-only while waiting. A cancelled pairing therefore used to be a
+            // dead end — no retry, no way back to setup — until the process was killed.
+            //
+            // `Idle` is the honest state: no request is in flight any more. Re-thrown so the caller's
+            // cancellation still propagates, matching `WearPairingTransport` and `WatchSync`.
+            onStatus(PairingStatus.Idle)
+            throw cancelled
         }
-        if (afterSend != PairingStatus.Sent) {
-            onStatus(afterSend)
-            return afterSend
-        }
-        onStatus(PairingStatus.Sent)
-        val ack = transport.awaitAck(timeoutMs)
-        val final = if (ack.isNullOrBlank()) PairingStatus.TimedOut else PairingStatus.Connected
-        onStatus(final)
-        return final
     }
 }

@@ -3,6 +3,8 @@ package com.newoether.agora.api.openai
 import com.newoether.agora.api.*
 
 import com.newoether.agora.util.DebugLog
+import com.newoether.agora.api.util.Base64FileRegistry
+import com.newoether.agora.api.util.StreamingJsonRequest
 import com.newoether.agora.api.util.convertToOpenAiMessages
 import com.newoether.agora.api.util.prepareMessages
 import com.newoether.agora.api.util.RequestFormatException
@@ -106,7 +108,10 @@ abstract class BaseOpenAiProvider : LlmProvider {
                     listOf("hosted web search requires Responses API transport"),
                 )
             }
-            fun buildRequestBody(apiMessages: List<OpenAiMessage>): String {
+            fun buildRequestBody(
+                apiMessages: List<OpenAiMessage>,
+                base64Files: Base64FileRegistry,
+            ): Pair<String, StreamingJsonRequest?> {
                 val requestBodyJson = if (config.responsesApiEnabled) {
                     val request = OpenAiResponsesRequest(
                         model = config.modelId,
@@ -158,7 +163,7 @@ abstract class BaseOpenAiProvider : LlmProvider {
                         if (config.responsesApiEnabled) "input" else "messages",
                     ),
                 )
-                return requestBodyJson
+                return requestBodyJson to base64Files.prepare(requestBodyJson)
             }
 
             val headers = mutableMapOf("Content-Type" to "application/json")
@@ -177,12 +182,17 @@ abstract class BaseOpenAiProvider : LlmProvider {
                 while (endpointIndex < endpointUrls.size && !finished && !retryScheduled) {
                     val endpointUrl = endpointUrls[endpointIndex]
                     val resolvedRequest = config.resolveRequest(messages)
+                    val base64Files = Base64FileRegistry()
                     val apiMessages = convertToOpenAiMessages(
                         messages = resolvedRequest.messages,
                         systemPrompt = transformSystemPrompt(resolvedRequest.systemPrompt),
                         includeImages = config.includeImages,
+                        base64Files = base64Files,
                     )
-                    val requestBodyJson = buildRequestBody(apiMessages)
+                    val (requestBodyJson, streamingRequest) = buildRequestBody(
+                        apiMessages,
+                        base64Files,
+                    )
                     DebugLog.d(
                         "AgoraAPI",
                         "[$name] request transport=" +
@@ -195,7 +205,16 @@ abstract class BaseOpenAiProvider : LlmProvider {
                     // so a single flaky connection became a hard failure. Nothing has streamed at
                     // this point, so replaying is always safe.
                     val handle = try {
-                        HttpClient.streamPost(endpointUrl, requestBodyJson, headers)
+                        if (streamingRequest != null) {
+                            HttpClient.streamPostBody(
+                                endpointUrl,
+                                streamingRequest.body,
+                                headers,
+                                streamingRequest.diagnosticJson,
+                            )
+                        } else {
+                            HttpClient.streamPost(endpointUrl, requestBodyJson, headers)
+                        }
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {

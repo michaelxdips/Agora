@@ -1,6 +1,7 @@
 package com.newoether.agora.viewmodel
 
 import com.newoether.agora.api.openai.toResponsesInput
+import com.newoether.agora.api.util.Base64FileRegistry
 import com.newoether.agora.api.util.convertToOpenAiMessages
 import com.newoether.agora.model.Participant
 import com.newoether.agora.model.ToolCallData
@@ -47,6 +48,7 @@ class GenerationToolRoundBuilderTest {
         val durablePath = ApiPathAssembler.assemble(round.entities, round.entities)
         val input = convertToOpenAiMessages(
             projectProviderMessages(durablePath, includeStoredTranscriptions = false),
+            base64Files = Base64FileRegistry(),
         ).toResponsesInput(providerName = "OpenAI")
 
         assertEquals(

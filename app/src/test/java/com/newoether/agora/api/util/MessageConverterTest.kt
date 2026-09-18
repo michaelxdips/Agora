@@ -70,7 +70,11 @@ class MessageConverterTest {
         val msgs = listOf(
             ChatMessage(id = "u1", parentId = null, text = "hello", participant = Participant.USER)
         )
-        val result = convertToOpenAiMessages(msgs, "You are helpful")
+        val result = convertToOpenAiMessages(
+            msgs,
+            "You are helpful",
+            base64Files = Base64FileRegistry(),
+        )
         assertEquals("system", result.first().role)
         assertEquals("You are helpful", result.first().content!!.first().text)
     }
@@ -78,11 +82,11 @@ class MessageConverterTest {
     @Test
     fun convertToOpenAiMessages_userAndModelRoles() {
         val msg = ChatMessage(id = "u1", text = "hello", participant = Participant.USER)
-        val result = convertToOpenAiMessages(listOf(msg))
+        val result = convertToOpenAiMessages(listOf(msg), base64Files = Base64FileRegistry())
         assertEquals("user", result.first().role)
 
         val modelMsg = ChatMessage(id = "m1", text = "response", participant = Participant.MODEL)
-        val result2 = convertToOpenAiMessages(listOf(modelMsg))
+        val result2 = convertToOpenAiMessages(listOf(modelMsg), base64Files = Base64FileRegistry())
         assertEquals("assistant", result2.first().role)
     }
 
@@ -93,7 +97,11 @@ class MessageConverterTest {
             images = listOf("/nonexistent/image.jpg"),
             participant = Participant.USER
         )
-        val result = convertToOpenAiMessages(listOf(msg), includeImages = false)
+        val result = convertToOpenAiMessages(
+            listOf(msg),
+            includeImages = false,
+            base64Files = Base64FileRegistry(),
+        )
         assertEquals(1, result.first().content!!.size) // only text, no image
         assertEquals("text", result.first().content!!.first().type)
     }
@@ -101,7 +109,7 @@ class MessageConverterTest {
     @Test
     fun convertToOpenAiMessages_emptyText_addsVisibleFallbackPart() {
         val msg = ChatMessage(id = "u1", text = "", participant = Participant.USER)
-        val result = convertToOpenAiMessages(listOf(msg))
+        val result = convertToOpenAiMessages(listOf(msg), base64Files = Base64FileRegistry())
         assertEquals(1, result.first().content!!.size)
         assertEquals("[Attachment unavailable]", result.first().content!!.first().text)
     }

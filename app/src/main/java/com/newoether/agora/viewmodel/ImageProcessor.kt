@@ -18,6 +18,21 @@ data class VideoSliceConfig(
     val frameCount: Int,
 )
 
+internal fun imageSampleSizeForBounds(
+    width: Int,
+    height: Int,
+    maxEdge: Int = 2048,
+): Int {
+    require(width > 0 && height > 0)
+    require(maxEdge > 0)
+    val longestEdge = maxOf(width, height).toLong()
+    var scale = 1
+    while ((longestEdge + scale - 1L) / scale > maxEdge) {
+        scale = Math.multiplyExact(scale, 2)
+    }
+    return scale
+}
+
 class ImageProcessor(
     private val app: Application,
 ) {
@@ -33,13 +48,11 @@ class ImageProcessor(
             }
             if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@withContext null
 
-            var scale = 1
-            while (
-                bounds.outWidth / scale / 2 >= 1024 &&
-                bounds.outHeight / scale / 2 >= 1024
-            ) {
-                scale *= 2
-            }
+            val scale = imageSampleSizeForBounds(
+                bounds.outWidth,
+                bounds.outHeight,
+                MAX_IMAGE_EDGE.toInt(),
+            )
 
             coroutineContext.ensureActive()
             val decodeOptions = android.graphics.BitmapFactory.Options().apply {
@@ -88,10 +101,15 @@ class ImageProcessor(
                     MediaMetadataRetriever.OPTION_CLOSEST,
                 )
                 if (bitmap != null) {
+                    val boundedBitmap = bitmap.scaleToMaxEdge(MAX_IMAGE_EDGE.toInt())
                     val output = File(app.filesDir, "vid_${UUID.randomUUID()}_$index.jpg")
                     try {
                         val encoded = output.outputStream().use { stream ->
-                            bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, stream)
+                            boundedBitmap.compress(
+                                android.graphics.Bitmap.CompressFormat.JPEG,
+                                80,
+                                stream,
+                            )
                         }
                         check(encoded) { "Video frame encoding failed" }
                         coroutineContext.ensureActive()
@@ -100,7 +118,8 @@ class ImageProcessor(
                         output.delete()
                         throw failure
                     } finally {
-                        bitmap.recycle()
+                        boundedBitmap.recycle()
+                        if (boundedBitmap !== bitmap) bitmap.recycle()
                     }
                 }
                 timeUs += config.intervalMicros.coerceAtLeast(0L)
@@ -129,6 +148,26 @@ class ImageProcessor(
         }
     }
 
+    private fun android.graphics.Bitmap.scaleToMaxEdge(
+        maxEdge: Int,
+    ): android.graphics.Bitmap {
+        val longestEdge = maxOf(width, height)
+        if (longestEdge <= maxEdge) return this
+        val ratio = maxEdge.toDouble() / longestEdge.toDouble()
+        val targetWidth = maxOf(1, kotlin.math.round(width * ratio).toInt())
+        val targetHeight = maxOf(1, kotlin.math.round(height * ratio).toInt())
+        return android.graphics.Bitmap.createScaledBitmap(
+            this,
+            targetWidth,
+            targetHeight,
+            true,
+        )
+    }
+
     private fun openStream(source: String): java.io.InputStream? =
         AttachmentSourceReader.open(app, source)
+
+    private companion object {
+        const val MAX_IMAGE_EDGE = 2048L
+    }
 }

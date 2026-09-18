@@ -1,6 +1,5 @@
 package com.newoether.agora.ui.settings
 
-import com.newoether.agora.viewmodel.EmbeddingCacheFailureKind
 import com.newoether.agora.viewmodel.EmbeddingCacheRowPhase
 import com.newoether.agora.viewmodel.EmbeddingCacheRowReducer
 import com.newoether.agora.viewmodel.EmbeddingCacheRowSnapshot
@@ -10,73 +9,70 @@ import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class EmbeddingCacheActionStateTest {
     @Test
-    fun successTraceNeverEmitsIdleBeforeRecache() {
-        var row = EmbeddingCacheRowReducer.refreshRequested(null)
-        val trace = mutableListOf(row.phase)
-        row = EmbeddingCacheRowReducer.workActive(row, null); trace += row.phase
-        row = EmbeddingCacheRowReducer.workActive(row, progress(0, 40)); trace += row.phase
-        row = EmbeddingCacheRowReducer.workActive(row, progress(10, 40)); trace += row.phase
-        row = EmbeddingCacheRowReducer.finalizing(row); trace += row.phase
-        assertEquals(EmbeddingCacheRowPhase.CACHING, row.visualPhase)
-        row = EmbeddingCacheRowReducer.refreshed(row, 40, 40, true); trace += row.phase
-        assertEquals(
-            listOf(
-                EmbeddingCacheRowPhase.LOADING, EmbeddingCacheRowPhase.QUEUED,
-                EmbeddingCacheRowPhase.CACHING, EmbeddingCacheRowPhase.CACHING,
-                EmbeddingCacheRowPhase.FINALIZING, EmbeddingCacheRowPhase.RECACHE,
-            ),
-            trace,
-        )
+    fun fourStatesProjectOnlyRealWorkAndKnownCounts() {
+        assertEquals(4, EmbeddingCacheRowPhase.entries.size)
+        assertNull(EmbeddingCacheRowSnapshot().phase)
+        val loading = EmbeddingCacheRowReducer.refreshRequested(null)
+        assertEquals(EmbeddingCacheRowPhase.LOADING, loading.phase)
+        val cached = EmbeddingCacheRowReducer.refreshed(loading, 4, 10)
+        assertEquals(EmbeddingCacheRowPhase.CACHE, cached.phase)
+        val running = EmbeddingCacheRowReducer.workChanged(cached, true)
+        assertEquals(EmbeddingCacheRowPhase.CACHING, running.phase)
+        assertNull(running.progress)
+        assertEquals(EmbeddingCacheRowPhase.CACHE,
+            EmbeddingCacheRowReducer.workChanged(running, false).phase)
+        assertEquals(EmbeddingCacheRowPhase.RECACHE,
+            EmbeddingCacheRowReducer.refreshed(cached, 10, 10).phase)
+        assertEquals(EmbeddingCacheRowPhase.RECACHE,
+            EmbeddingCacheRowReducer.refreshed(null, 0, 0).phase)
     }
 
     @Test
-    fun followerLoadsAndWorkerFailureRetainsReliableProgress() {
-        val active = EmbeddingCacheRowReducer.workActive(null, progress(10, 40))
-        val follower = EmbeddingCacheRowReducer.workActive(active, null)
-        assertEquals(EmbeddingCacheRowPhase.QUEUED, follower.phase)
-        assertEquals(EmbeddingCacheRowPhase.LOADING, follower.visualPhase)
-        assertNull(follower.progress)
-
-        val failed = EmbeddingCacheRowReducer.failed(active, EmbeddingCacheFailureKind.WORK)
-        val refreshed = EmbeddingCacheRowReducer.refreshed(failed, 30, 40, false)
-        assertEquals(EmbeddingCacheRowPhase.FAILED, refreshed.phase)
-        assertEquals(30, refreshed.progress?.remaining)
-        assertEquals(EmbeddingCacheFailureKind.WORK, refreshed.failure)
-    }
-
-    @Test
-    fun refreshFailureIsRetryableWithoutDiscardingStableState() {
-        val initialFailure = EmbeddingCacheRowReducer.refreshFailed(null)
-        assertEquals(EmbeddingCacheRowPhase.FAILED, initialFailure.phase)
+    fun initialFailureHasNoFabricatedRowAndLaterFailureRetainsCounts() {
+        val failed = EmbeddingCacheRowReducer.refreshFailed(null)
+        assertNull(failed.phase)
+        assertTrue(failed.countFailed)
+        assertFalse(failed.countLoading)
+        assertNull(failed.cached)
         assertEquals(EmbeddingCacheRowPhase.LOADING,
-            EmbeddingCacheRowReducer.refreshRequested(initialFailure).phase)
-        val stable = EmbeddingCacheRowSnapshot(
-            EmbeddingCacheRowPhase.CACHE, cached = 4, indexableTotal = 10,
-        )
-        assertSame(stable, EmbeddingCacheRowReducer.refreshFailed(stable))
-        val finalizing = EmbeddingCacheRowReducer.finalizing(
-            EmbeddingCacheRowReducer.workActive(stable, progress(10, 40)),
-        )
-        val failedFinalRefresh = EmbeddingCacheRowReducer.refreshFailed(finalizing)
-        assertEquals(EmbeddingCacheRowPhase.FAILED, failedFinalRefresh.phase)
-        assertEquals(EmbeddingCacheFailureKind.REFRESH, failedFinalRefresh.failure)
+            EmbeddingCacheRowReducer.refreshRequested(failed).phase)
+        val stable = EmbeddingCacheRowReducer.refreshed(null, 4, 10)
+        val retained = EmbeddingCacheRowReducer.refreshFailed(stable)
+        assertEquals(EmbeddingCacheRowPhase.CACHE, retained.phase)
+        assertEquals(4, retained.cached)
+        assertEquals(10, retained.indexableTotal)
     }
 
     @Test
-    fun staleRefreshAndIncoherentWorkerPayloadCannotCorruptActiveState() {
-        val progress = progress(7, 20)
-        val active = EmbeddingCacheRowReducer.workActive(null, progress)
-        val refreshed = EmbeddingCacheRowReducer.refreshed(active, 20, 20, true)
-        val finalizing = EmbeddingCacheRowReducer.finalizing(active)
-        assertEquals(EmbeddingCacheRowPhase.FINALIZING, EmbeddingCacheRowReducer.refreshed(finalizing, 20, 20, false).phase)
-        assertEquals(EmbeddingCacheRowPhase.CACHING, refreshed.phase)
-        assertTrue(refreshed.progress == progress && refreshed.workActive)
+    fun workAndCountCompletionCannotOverrideEachOthersFacts() {
+        val loading = EmbeddingCacheRowReducer.refreshRequested(null)
+        val running = EmbeddingCacheRowReducer.workChanged(loading, true, progress(7, 20))
+        val known = EmbeddingCacheRowReducer.refreshed(running, 15, 20)
+        assertEquals(EmbeddingCacheRowPhase.CACHING, known.phase)
+        assertEquals(15, known.cached)
+        val stopped = EmbeddingCacheRowReducer.workChanged(known, false)
+        assertEquals(EmbeddingCacheRowPhase.CACHE, stopped.phase)
+        assertNull(stopped.progress)
+        assertEquals(EmbeddingCacheRowPhase.LOADING,
+            EmbeddingCacheRowReducer.workChanged(running, false).phase)
+        val failedCount = EmbeddingCacheRowReducer.refreshFailed(running)
+        assertEquals(EmbeddingCacheRowPhase.CACHING, failedCount.phase)
+        assertNull(EmbeddingCacheRowReducer.workChanged(failedCount, false).phase)
+    }
+
+    @Test
+    fun incoherentCountsAreRejectedInsteadOfClampedToComplete() {
+        org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
+            EmbeddingCacheRowReducer.refreshed(null, 11, 10)
+        }
+        org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
+            EmbeddingCacheRowReducer.refreshed(null, -1, 10)
+        }
         assertNull(workSnapshot(remaining = 5, permille = 400))
         assertNull(workSnapshot(remaining = 6, permille = 989))
     }
@@ -109,7 +105,6 @@ class EmbeddingCacheActionStateTest {
         assertTrue(child.indexOf("contentAlignment = androidx.compose.ui.Alignment.Center") <
             child.indexOf("when (phase)"))
         listOf(
-            "R.string.retry",
             "R.string.recache_action",
             "R.string.cache_action",
         ).forEach { label ->
@@ -153,6 +148,6 @@ class EmbeddingCacheActionStateTest {
         embeddingCacheWorkSnapshotOrNull(3, "EXACT", 4, 10, remaining, permille)
 
     private fun progress(processed: Int, total: Int) = EmbeddingCacheWorkSnapshot(
-        7, "RECONCILE", processed, total, total - processed, processed * 1000 / total,
+        7, "EXACT", processed, total, total - processed, processed * 1000 / total,
     )
 }

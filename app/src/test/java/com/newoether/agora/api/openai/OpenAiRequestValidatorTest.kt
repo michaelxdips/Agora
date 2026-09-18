@@ -9,6 +9,7 @@ import com.newoether.agora.api.OpenAiResponseInputContent
 import com.newoether.agora.api.OpenAiResponseInputItem
 import com.newoether.agora.api.OpenAiResponseOutputItem
 import com.newoether.agora.api.OpenAiResponsesRequest
+import com.newoether.agora.api.util.Base64FileRegistry
 import com.newoether.agora.api.util.RequestFormatException
 import com.newoether.agora.api.util.convertToOpenAiMessages
 import com.newoether.agora.model.ChatMessage
@@ -42,7 +43,10 @@ class OpenAiRequestValidatorTest {
             userPostpend = null,
             initialUserPrompt = "Create the compact context summary now.",
         )
-        val input = convertToOpenAiMessages(projected).toResponsesInput()
+        val input = convertToOpenAiMessages(
+            projected,
+            base64Files = Base64FileRegistry(),
+        ).toResponsesInput()
         val request = OpenAiResponsesRequest(model = "gpt-test", input = input)
 
         request.requireValidWireFormat("OpenAI")

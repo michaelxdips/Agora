@@ -32,7 +32,7 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
         with:
           # HERMES INTEGRATION POINT: `tools` no longer exists in current cmdline-tools, so the
           # action's default package list dies on "Failed to find package 'tools'" (exit 1).
@@ -73,9 +73,9 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
         with:
-          packages: "ndk;28.2.13676358"
+          packages: "platform-tools ndk;28.2.13676358"
 
       - name: Restore signing key
         if: ${{ env.KEYSTORE_BASE64 != '' }}

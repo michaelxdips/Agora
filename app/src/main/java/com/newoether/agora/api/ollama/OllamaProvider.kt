@@ -3,6 +3,7 @@ package com.newoether.agora.api.ollama
 import com.newoether.agora.api.*
 
 import com.newoether.agora.util.DebugLog
+import com.newoether.agora.api.util.Base64FileRegistry
 import com.newoether.agora.api.util.buildToolCallId
 import com.newoether.agora.api.util.RequestFormatException
 import com.newoether.agora.api.util.ProviderRetryPolicy
@@ -31,7 +32,6 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import java.io.File
 
 @Serializable
 internal data class OllamaChatRequest(
@@ -122,7 +122,10 @@ class OllamaProvider : LlmProvider {
             ?: return@flow emit(StreamEvent.Error(GenerationError.Configuration("Ollama base URL not configured")))
         val modelName = config.modelId
 
-        fun buildApiMessages(resolvedRequest: ProviderRequestInput): List<OllamaMessage> {
+        fun buildApiMessages(
+            resolvedRequest: ProviderRequestInput,
+            base64Files: Base64FileRegistry,
+        ): List<OllamaMessage> {
             val apiMessages = mutableListOf<OllamaMessage>()
             if (!resolvedRequest.systemPrompt.isNullOrBlank()) {
                 apiMessages.add(OllamaMessage(role = "system", content = resolvedRequest.systemPrompt))
@@ -189,13 +192,8 @@ class OllamaProvider : LlmProvider {
                 return@flatMap entries
             }
 
-            val images = if (config.includeImages && msg.participant == Participant.USER) msg.images.mapNotNull { imagePath ->
-                try {
-                    val file = File(imagePath)
-                    if (file.exists()) {
-                        android.util.Base64.encodeToString(file.readBytes(), android.util.Base64.NO_WRAP)
-                    } else null
-                } catch (e: Exception) { null }
+            val images = if (config.includeImages && msg.participant == Participant.USER) {
+                msg.images.mapNotNull(base64Files::register)
             } else null
 
             // Normal message: text + images only
@@ -236,9 +234,12 @@ class OllamaProvider : LlmProvider {
             JsonPrimitive(config.thinkingEnabled)
         }
 
-        fun buildRequestBody(resolvedRequest: ProviderRequestInput) = OllamaChatRequest(
+        fun buildRequestBody(
+            resolvedRequest: ProviderRequestInput,
+            base64Files: Base64FileRegistry,
+        ) = OllamaChatRequest(
             model = config.modelId,
-            messages = buildApiMessages(resolvedRequest),
+            messages = buildApiMessages(resolvedRequest, base64Files),
             stream = true,
             options = options,
             tools = config.tools,
@@ -259,9 +260,14 @@ class OllamaProvider : LlmProvider {
 
             while (attempt < maxAttempts && !completed) {
                 attempt++
-                val requestBody = buildRequestBody(config.resolveRequest(messages))
+                val base64Files = Base64FileRegistry()
+                val requestBody = buildRequestBody(
+                    config.resolveRequest(messages),
+                    base64Files,
+                )
                 requestBody.requireValidWireFormat()
                 val requestBodyJson = json.encodeToString(OllamaChatRequest.serializer(), requestBody)
+                val streamingRequest = base64Files.prepare(requestBodyJson)
                 requireValidSerializedRequest(
                     provider = "Ollama",
                     body = requestBodyJson,
@@ -274,7 +280,16 @@ class OllamaProvider : LlmProvider {
                         "tools=${config.tools?.size ?: 0}",
                 )
                 val handle = try {
-                    HttpClient.streamPost(url, requestBodyJson, headers)
+                    if (streamingRequest != null) {
+                        HttpClient.streamPostBody(
+                            url,
+                            streamingRequest.body,
+                            headers,
+                            streamingRequest.diagnosticJson,
+                        )
+                    } else {
+                        HttpClient.streamPost(url, requestBodyJson, headers)
+                    }
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (e: Exception) {

@@ -34,7 +34,6 @@ import androidx.compose.ui.unit.DpSize
 import com.newoether.agora.R
 import com.newoether.agora.api.ProviderDefaults
 import com.newoether.agora.viewmodel.EmbeddingCacheRowPhase
-import com.newoether.agora.viewmodel.EmbeddingCacheRowSnapshot
 import com.newoether.agora.ui.common.PersistedSliderFeedbackGate
 import com.newoether.agora.ui.components.clearFocusOnTap
 import com.newoether.agora.util.Constants
@@ -71,7 +70,6 @@ fun SettingsSearchPage(viewModel: ChatViewModel, onBack: () -> Unit) {
     }
     val actionTextMeasurer = rememberTextMeasurer()
     val actionLabelSizes = listOf(
-        stringResource(R.string.retry),
         stringResource(R.string.recache_action),
         stringResource(R.string.cache_action),
     ).map { label ->
@@ -153,6 +151,12 @@ fun SettingsSearchPage(viewModel: ChatViewModel, onBack: () -> Unit) {
         floatingActionButton = { if (showDocFab) DocumentationFab("search.md") }
     ) {
             SettingsGroupColumn {
+                if (cacheRows.values.any { it.countFailed && it.cached == null && !it.workActive }) {
+                    Text(
+                        text = "${stringResource(R.string.search_title)}: ${stringResource(R.string.tool_state_failed)}",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 SettingsGroup(
                     title = stringResource(R.string.memory_access_title),
                     items = listOf(
@@ -318,52 +322,38 @@ fun SettingsSearchPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                         embeddingModels.forEach { model ->
                             add {
                                 val isActive = model.id == activeEmbeddingModelId
-                                val cacheRow =
-                                    cacheRows[model.id] ?: EmbeddingCacheRowSnapshot.Loading
-                                val visualPhase = cacheRow.visualPhase
+                                val cacheRow = cacheRows[model.id]
+                                val visualPhase = cacheRow?.phase
                                 SettingsItem(
                                     headlineContent = { Text(model.name) },
                                     supportingContent = {
                                         val typeLabel = if (model.type == com.newoether.agora.data.EmbeddingModelType.REMOTE)
                                             stringResource(R.string.embedding_type_remote)
                                         else stringResource(R.string.embedding_type_local)
-                                        val progressLabel = cacheRow.progress?.let {
-                                            stringResource(
-                                                R.string.cache_work_remaining,
-                                                it.remaining,
-                                                it.processed,
-                                                it.total,
-                                            )
+                                        val countLabel = cacheRow?.cached?.let { cached ->
+                                            "$cached/${cacheRow.indexableTotal}"
+                                        }
+                                        val cacheLabel = when (visualPhase) {
+                                            EmbeddingCacheRowPhase.LOADING ->
+                                                stringResource(R.string.loading_label)
+                                            EmbeddingCacheRowPhase.CACHING -> countLabel
+                                            EmbeddingCacheRowPhase.CACHE -> {
+                                                val cached = requireNotNull(cacheRow?.cached)
+                                                val total = requireNotNull(cacheRow.indexableTotal)
+                                                "${total - cached} " +
+                                                    "${stringResource(R.string.not_cached)} " +
+                                                    "($cached/$total)"
+                                            }
+                                            EmbeddingCacheRowPhase.RECACHE ->
+                                                "${stringResource(R.string.cached)} ($countLabel)"
+                                            null -> null
                                         }
                                         Crossfade(
-                                            targetState = visualPhase,
+                                            targetState = listOfNotNull(typeLabel, cacheLabel).joinToString(" · "),
                                             animationSpec = tween(250),
                                             label = "embeddingCacheStatus-${model.id}",
-                                        ) { phase ->
-                                            val cacheLabel = when (phase) {
-                                                EmbeddingCacheRowPhase.LOADING,
-                                                EmbeddingCacheRowPhase.QUEUED ->
-                                                    stringResource(R.string.loading_label)
-                                                EmbeddingCacheRowPhase.CACHING,
-                                                EmbeddingCacheRowPhase.FINALIZING ->
-                                                    progressLabel
-                                                        ?: stringResource(R.string.loading_label)
-                                                EmbeddingCacheRowPhase.FAILED ->
-                                                    listOfNotNull(
-                                                        stringResource(R.string.tool_state_failed),
-                                                        progressLabel,
-                                                    ).joinToString(" · ")
-                                                EmbeddingCacheRowPhase.CACHE -> {
-                                                    val cached = cacheRow.cached ?: 0
-                                                    val total = cacheRow.indexableTotal ?: 0
-                                                    "${(total - cached).coerceAtLeast(0)} " +
-                                                        "${stringResource(R.string.not_cached)} " +
-                                                        "($cached/$total)"
-                                                }
-                                                EmbeddingCacheRowPhase.RECACHE ->
-                                                    stringResource(R.string.cached)
-                                            }
-                                            Text("$typeLabel · $cacheLabel")
+                                        ) { status ->
+                                            Text(status)
                                         }
                                     },
                                     leadingContent = {
@@ -389,9 +379,8 @@ fun SettingsSearchPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                                                         contentAlignment = androidx.compose.ui.Alignment.Center,
                                                     ) {
                                                         when (phase) {
-                                                            EmbeddingCacheRowPhase.CACHING,
-                                                            EmbeddingCacheRowPhase.FINALIZING -> {
-                                                                val progress = cacheRow.progress
+                                                            EmbeddingCacheRowPhase.CACHING -> {
+                                                                val progress = cacheRow?.progress
                                                                 if (progress == null) {
                                                                     CircularProgressIndicator(
                                                                         modifier = Modifier.size(24.dp),
@@ -405,24 +394,14 @@ fun SettingsSearchPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                                                                     )
                                                                 }
                                                             }
-                                                            EmbeddingCacheRowPhase.LOADING,
-                                                            EmbeddingCacheRowPhase.QUEUED ->
+                                                            EmbeddingCacheRowPhase.LOADING ->
                                                                 CircularProgressIndicator(
                                                                     modifier = Modifier.size(24.dp),
                                                                     strokeWidth = 3.dp,
                                                                 )
-                                                            EmbeddingCacheRowPhase.FAILED -> TextButton(
-                                                                onClick = {
-                                                                    viewModel.ragManager.retryCacheRow(model.id)
-                                                                },
-                                                            ) {
-                                                                Text(
-                                                                    stringResource(R.string.retry),
-                                                                    maxLines = 1,
-                                                                    softWrap = false,
-                                                                )
-                                                            }
+                                                            null -> Unit
                                                             EmbeddingCacheRowPhase.RECACHE -> TextButton(
+                                                                enabled = visualPhase == phase,
                                                                 onClick = { showRecacheConfirm = model.id },
                                                             ) {
                                                                 Text(
@@ -432,6 +411,7 @@ fun SettingsSearchPage(viewModel: ChatViewModel, onBack: () -> Unit) {
                                                                 )
                                                             }
                                                             EmbeddingCacheRowPhase.CACHE -> TextButton(
+                                                                enabled = visualPhase == phase,
                                                                 onClick = {
                                                                     viewModel.ragManager.cacheMessagesForModel(
                                                                         model.id,

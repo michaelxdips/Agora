@@ -9,7 +9,7 @@ import org.junit.Test
 
 internal class ApprovedFeatureSourceContractTest : UiSourceContractFixture() {
     @Test
-    fun cacheCountsAreRetainedPresentationAndLedgerOwnsActions() {
+    fun cacheCountsOwnActionsAndOnlyRunningWorkOwnsProgress() {
         val root = sourceRoot()
         val rag = source(root, "com/newoether/agora/viewmodel/RagManager.kt")
         val settings = source(root, "com/newoether/agora/ui/settings/SettingsSearchPage.kt")
@@ -30,15 +30,18 @@ internal class ApprovedFeatureSourceContractTest : UiSourceContractFixture() {
         assertFalse(rag.contains("ExistingWorkPolicy.REPLACE"))
         assertFalse(rag.contains("_cachingProgress"))
         assertTrue(rag.contains("EmbeddingCacheRowSnapshot") && rag.contains("scheduledCacheWorkIds"))
-        listOf("EmbeddingCacheRowReducer.finalizing", "_cacheCountLoading", "_cacheCountFailures", "_ledgerStates").let {
-            assertTrue(rag.contains(it.first()) && it.drop(1).none(rag::contains))
-        }
+        assertFalse(rag.contains("EmbeddingCacheRowReducer.finalizing"))
+        assertTrue(rag.contains("EmbeddingCacheRowReducer.workChanged"))
 
         assertTrue(settings.contains("viewModel.ragManager.cacheRows.collectAsState()") &&
             settings.contains("LaunchedEffect(embeddingModelIds) { viewModel.ragManager.loadCacheCounts() }"))
         assertTrue(settings.contains("EmbeddingCacheRowPhase.RECACHE"))
-        assertTrue(listOf("stringResource(R.string.loading_label)", "stringResource(R.string.tool_state_failed)",
-            "viewModel.ragManager.retryCacheRow(model.id)").all(settings::contains))
+        assertTrue(settings.contains("stringResource(R.string.loading_label)"))
+        assertFalse(settings.contains("retryCacheRow"))
+        assertFalse(settings.contains("EmbeddingCacheRowSnapshot.Loading"))
+        assertFalse(settings.contains("R.string.cache_work_remaining"))
+        assertTrue(settings.contains("targetState = listOfNotNull(typeLabel, cacheLabel)"))
+        assertEquals(2, settings.split("enabled = visualPhase == phase").size - 1)
         assertTrue(settings.split("animationSpec = tween(250)").size - 1 >= 2)
         assertTrue(settings.contains("modifier = Modifier.size(cacheActionSize)"))
         assertTrue(settings.contains("modifier = Modifier.size(24.dp)"))

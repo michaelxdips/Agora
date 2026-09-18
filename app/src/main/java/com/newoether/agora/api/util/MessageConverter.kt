@@ -1,6 +1,5 @@
 package com.newoether.agora.api.util
 
-import com.newoether.agora.util.DebugLog
 import com.newoether.agora.api.OpenAiContentPart
 import com.newoether.agora.api.OpenAiImageUrl
 import com.newoether.agora.api.OpenAiMessage
@@ -9,7 +8,6 @@ import com.newoether.agora.api.OpenAiRequestToolCall
 import com.newoether.agora.model.ChatMessage
 import com.newoether.agora.model.Participant
 import com.newoether.agora.util.Constants
-import java.io.File
 import java.security.MessageDigest
 
 fun buildToolCallId(toolName: String, arguments: String, prefix: String = Constants.TOOL_CALL_ID_PREFIX): String {
@@ -35,26 +33,12 @@ fun imageMimeType(imagePath: String): String = when {
     else -> "image/jpeg"
 }
 
-fun encodeImageToBase64(imagePath: String): Pair<String, String>? {
-    return try {
-        val file = File(imagePath)
-        if (!file.exists()) return null
-        val bytes = file.readBytes()
-        val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
-        imageMimeType(imagePath) to base64
-    } catch (e: Exception) {
-        DebugLog.e(
-            "AgoraAPI",
-            "Failed to encode image exception=${e.javaClass.simpleName}",
-        )
-        null
-    }
-}
 
-fun convertToOpenAiMessages(
+internal fun convertToOpenAiMessages(
     messages: List<ChatMessage>,
     systemPrompt: String? = null,
-    includeImages: Boolean = true
+    includeImages: Boolean = true,
+    base64Files: Base64FileRegistry,
 ): List<OpenAiMessage> {
     val apiMessages = mutableListOf<OpenAiMessage>()
 
@@ -145,16 +129,15 @@ fun convertToOpenAiMessages(
 
         if (includeImages && msg.participant == Participant.USER) {
             for (imagePath in msg.images) {
-                val encoded = encodeImageToBase64(imagePath)
-                if (encoded != null) {
-                    val (mimeType, base64) = encoded
-                    parts.add(
-                        OpenAiContentPart(
-                            type = "image_url",
-                            imageUrl = OpenAiImageUrl(url = "data:$mimeType;base64,$base64")
-                        )
-                    )
-                }
+                val placeholder = base64Files.register(imagePath) ?: continue
+                parts.add(
+                    OpenAiContentPart(
+                        type = "image_url",
+                        imageUrl = OpenAiImageUrl(
+                            url = "data:${imageMimeType(imagePath)};base64,$placeholder",
+                        ),
+                    ),
+                )
             }
         }
 

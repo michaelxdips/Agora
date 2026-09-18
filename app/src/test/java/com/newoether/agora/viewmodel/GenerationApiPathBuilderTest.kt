@@ -4,6 +4,7 @@ import com.newoether.agora.api.ToolDefinition
 import com.newoether.agora.api.ToolFunction
 import com.newoether.agora.api.ToolParameters
 import com.newoether.agora.api.ToolProperty
+import com.newoether.agora.api.util.Base64FileRegistry
 import com.newoether.agora.api.util.convertToOpenAiMessages
 import com.newoether.agora.api.util.prepareMessages
 import com.newoether.agora.data.local.MessageEntity
@@ -211,6 +212,7 @@ class GenerationApiPathBuilderTest {
         )
         val wire = convertToOpenAiMessages(
             prepareMessages(projected, path.providerConfig.maxContextWindow),
+            base64Files = Base64FileRegistry(),
         )
         val wireText = wire.flatMap { it.content.orEmpty() }.mapNotNull { it.text }.joinToString("\n")
 
@@ -262,6 +264,7 @@ class GenerationApiPathBuilderTest {
         assertFalse(failed.text.contains(rawError))
         val wire = convertToOpenAiMessages(
             prepareMessages(path.messages, path.providerConfig.maxContextWindow),
+            base64Files = Base64FileRegistry(),
         )
         assertEquals(listOf("user", "assistant", "user"), wire.map { it.role })
         val wireText = wire.flatMap { it.content.orEmpty() }.mapNotNull { it.text }.joinToString("\n")

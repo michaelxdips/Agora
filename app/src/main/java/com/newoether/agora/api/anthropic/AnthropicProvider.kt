@@ -7,6 +7,7 @@ import com.newoether.agora.model.ChatMessage
 import com.newoether.agora.model.MessageSegment
 import com.newoether.agora.model.Participant
 import com.newoether.agora.model.ThinkingLevels
+import com.newoether.agora.api.util.Base64FileRegistry
 import com.newoether.agora.api.util.buildToolCallId
 import com.newoether.agora.api.util.adaptToolRoundsForProvider
 import com.newoether.agora.api.util.RequestFormatException
@@ -32,7 +33,6 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import java.io.File
 
 @Serializable
 internal data class AnthropicRequest(
@@ -328,7 +328,10 @@ class AnthropicProvider(
             )
         }
 
-        fun buildRequestBody(resolvedRequest: ProviderRequestInput): AnthropicRequest {
+        fun buildRequestBody(
+            resolvedRequest: ProviderRequestInput,
+            base64Files: Base64FileRegistry,
+        ): AnthropicRequest {
             if (config.anthropicCacheEnabled && config.anthropicCacheTtl !in setOf("5m", "1h")) {
                 throw RequestFormatException(name, listOf("Invalid Anthropic cache duration"))
             }
@@ -371,6 +374,7 @@ class AnthropicProvider(
                                 buildNormalMessage(
                                     if (config.includeImages) message
                                     else message.copy(images = emptyList()),
+                                    base64Files,
                                 ),
                             )
                             index++
@@ -423,9 +427,14 @@ class AnthropicProvider(
 
             while (attempt < maxAttempts && !done) {
                 attempt++
-                val requestBody = buildRequestBody(config.resolveRequest(messages))
+                val base64Files = Base64FileRegistry()
+                val requestBody = buildRequestBody(
+                    config.resolveRequest(messages),
+                    base64Files,
+                )
                 requestBody.requireValidWireFormat()
                 val requestBodyJson = json.encodeToString(AnthropicRequest.serializer(), requestBody)
+                val streamingRequest = base64Files.prepare(requestBodyJson)
                 requireValidSerializedRequest(
                     provider = name,
                     body = requestBodyJson,
@@ -442,7 +451,16 @@ class AnthropicProvider(
                 // single flaky connection became a hard failure. Nothing has streamed at this
                 // point, so replaying is always safe.
                 val handle = try {
-                    HttpClient.streamPost(url, requestBodyJson, headers)
+                    if (streamingRequest != null) {
+                        HttpClient.streamPostBody(
+                            url,
+                            streamingRequest.body,
+                            headers,
+                            streamingRequest.diagnosticJson,
+                        )
+                    } else {
+                        HttpClient.streamPost(url, requestBodyJson, headers)
+                    }
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -654,18 +672,23 @@ class AnthropicProvider(
         return listOf(AnthropicContentPart(type = "tool_result", toolUseId = toolId, content = tc.result))
     }
 
-    private fun buildNormalMessage(msg: ChatMessage): AnthropicMessage {
+    private fun buildNormalMessage(
+        msg: ChatMessage,
+        base64Files: Base64FileRegistry,
+    ): AnthropicMessage {
         val parts = mutableListOf<AnthropicContentPart>()
         val imagePaths = if (msg.participant == Participant.USER) msg.images else emptyList()
         for (imagePath in imagePaths) {
-            val encoded = com.newoether.agora.api.util.encodeImageToBase64(imagePath)
-            if (encoded != null) {
-                val (mimeType, base64) = encoded
-                parts.add(AnthropicContentPart(
+            val placeholder = base64Files.register(imagePath) ?: continue
+            parts.add(
+                AnthropicContentPart(
                     type = "image",
-                    source = AnthropicImageSource(mediaType = mimeType, data = base64)
-                ))
-            }
+                    source = AnthropicImageSource(
+                        mediaType = com.newoether.agora.api.util.imageMimeType(imagePath),
+                        data = placeholder,
+                    ),
+                ),
+            )
         }
         // isNotBlank, NOT isNotEmpty: Anthropic rejects a whitespace-only text block with
         // 400 "text content blocks must contain non-whitespace text". Whitespace-only turns

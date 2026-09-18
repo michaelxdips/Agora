@@ -122,7 +122,7 @@ layout, states, density, or interaction design has been approved.
 - State changes inside a fixed layout slot use a 250 ms crossfade.
 - Async labels, leading icons, counts, and connection status must change in
   place without shifting the surrounding layout.
-- Embedding action slots reserve the largest localized Retry/Cache/Re-cache label plus the actual
+- Embedding action slots reserve the largest localized Cache/Re-cache label plus the actual
   TextButton padding at the current font scale, with 76 dp minimum width and 48 dp minimum height.
   The Crossfade and every child occupy those same bounds and center their contents. Neither the
   incoming button nor removal of the outgoing child may change the slot or move the progress ring.
@@ -139,12 +139,21 @@ layout, states, density, or interaction design has been approved.
   immediately. A process-owned two-permit coroutine semaphore wraps only actual connect/tool-discovery
   work, never backoff or UI collection; per-row tool counts are memoized by that row's tool snapshot.
 - Conversation Search keeps one fixed status slot and one fixed action slot per Embedding model.
-  Both slots crossfade for 250 ms. Before the first aggregate snapshot, active loading shows an
-  indeterminate progress state and no Cache/Re-cache action. Initial failure shows localized failure
-  status plus Retry; Retry immediately returns the unresolved row to loading. A later refresh failure
-  retains the last complete numeric snapshot and the ledger-owned action. Missing or failed data must
-  never be converted into a synthetic zero, uncached value, or available action. Cache versus Re-cache
-  is derived only from the semantic ledger; aggregate counts are presentation-only.
+  Both slots crossfade for 250 ms and expose exactly four states. Loading is shown only while the
+  embedding-message count-loading worker is running and no count snapshot is known; it uses an
+  indeterminate indicator and exposes no action. Cache is shown only when counts are known, at least
+  one eligible message still requires an embedding, and no cache worker is running; it exposes the
+  exact numeric status and Cache action. Progress is shown whenever the cache worker is running; it
+  replaces every action with the progress indicator. Re-cache is shown only when counts are known,
+  every eligible message has its required embedding, and no cache worker is running; it exposes the
+  exact numeric status and Re-cache action. Cache-worker activity takes precedence over count loading.
+  Missing data must never become synthetic zero or an available action. Failed, Retry, Queued,
+  Finalizing, or another label/action is not a fifth Conversation Search state. A failed count load
+  retains a prior complete snapshot; without one, the owner runs one replacement bounded load. If
+  both attempts fail, show a page-level error and suspend the affected cache status/action projection
+  while no cache worker runs. Explicit page re-entry may load again; no automatic polling or extra
+  model-row state/action is introduced. Messages
+  only inspected during reconciliation must not be displayed as newly cached progress or count.
 - Search Settings places `Show Uncached Notification` directly below Auto Cache only while Auto
   Cache is disabled. Its default-on stored value is retained while hidden; enabling Auto Cache hides
   the row rather than changing that value.

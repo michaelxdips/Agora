@@ -6,6 +6,7 @@ import com.newoether.agora.util.DebugLog
 import com.newoether.agora.model.ChatMessage
 import com.newoether.agora.model.MessageSegment
 import com.newoether.agora.model.ThinkingLevels
+import com.newoether.agora.api.util.Base64FileRegistry
 import com.newoether.agora.api.util.adaptToolRoundsForProvider
 import com.newoether.agora.api.util.RequestFormatException
 import com.newoether.agora.api.util.requireValidSerializedRequest
@@ -31,7 +32,6 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import java.io.File
 import java.util.UUID
 
 // Gemini thought summaries carry their headline as **bold** or a markdown heading.
@@ -242,7 +242,10 @@ class GeminiProvider(
             cleanModelName.contains("gemini-3", ignoreCase = true) ||
                 cleanModelName.contains("gemini-3.5", ignoreCase = true)
 
-        fun buildApiContents(resolvedMessages: List<ChatMessage>): List<ApiRequestContent> {
+        fun buildApiContents(
+            resolvedMessages: List<ChatMessage>,
+            base64Files: Base64FileRegistry,
+        ): List<ApiRequestContent> {
             val validatedPath = adaptToolRoundsForProvider(
                 messages = resolvedMessages,
                 providerName = name,
@@ -331,18 +334,16 @@ class GeminiProvider(
                     if (msg.text.isNotEmpty()) add(ApiRequestPart(text = msg.text))
                 }
             }
-            if (config.includeImages && msg.participant == Participant.USER) for (imagePath in msg.images) {
-                try {
-                    val file = File(imagePath)
-                    if (file.exists()) {
-                        val bytes = file.readBytes()
-                        val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
-                        parts.add(ApiRequestPart(inlineData = ApiInlineData(mimeType = com.newoether.agora.api.util.imageMimeType(imagePath), data = base64)))
-                    }
-                } catch (e: Exception) {
-                    DebugLog.e(
-                        "AgoraAPI",
-                        "[$name] failed to encode image exception=${e.javaClass.simpleName}",
+            if (config.includeImages && msg.participant == Participant.USER) {
+                for (imagePath in msg.images) {
+                    val placeholder = base64Files.register(imagePath) ?: continue
+                    parts.add(
+                        ApiRequestPart(
+                            inlineData = ApiInlineData(
+                                mimeType = com.newoether.agora.api.util.imageMimeType(imagePath),
+                                data = placeholder,
+                            ),
+                        ),
                     )
                 }
             }
@@ -430,8 +431,11 @@ class GeminiProvider(
             presencePenalty = config.presencePenalty
         ) else null
 
-        fun buildRequestBody(resolvedRequest: ProviderRequestInput) = ApiGenerateContentRequest(
-            contents = buildApiContents(resolvedRequest.messages),
+        fun buildRequestBody(
+            resolvedRequest: ProviderRequestInput,
+            base64Files: Base64FileRegistry,
+        ) = ApiGenerateContentRequest(
+            contents = buildApiContents(resolvedRequest.messages, base64Files),
             systemInstruction = resolvedRequest.systemPrompt
                 ?.takeIf(String::isNotBlank)
                 ?.let { ApiRequestContent(parts = listOf(ApiRequestPart(text = it))) },
@@ -459,9 +463,14 @@ class GeminiProvider(
 
             while (attempt < maxAttempts && !done) {
                 attempt++
-                val requestBody = buildRequestBody(config.resolveRequest(messages))
+                val base64Files = Base64FileRegistry()
+                val requestBody = buildRequestBody(
+                    config.resolveRequest(messages),
+                    base64Files,
+                )
                 requestBody.requireValidWireFormat(cleanModelName)
                 val requestJson = json.encodeToString(ApiGenerateContentRequest.serializer(), requestBody)
+                val streamingRequest = base64Files.prepare(requestJson)
                 requireValidSerializedRequest(
                     provider = name,
                     body = requestJson,
@@ -473,7 +482,16 @@ class GeminiProvider(
                         "thinking=${config.thinkingEnabled} tools=${tools.size}",
                 )
                 val handle = try {
-                    HttpClient.streamPost(finalUrlString, requestJson, headers)
+                    if (streamingRequest != null) {
+                        HttpClient.streamPostBody(
+                            finalUrlString,
+                            streamingRequest.body,
+                            headers,
+                            streamingRequest.diagnosticJson,
+                        )
+                    } else {
+                        HttpClient.streamPost(finalUrlString, requestJson, headers)
+                    }
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (e: Exception) {

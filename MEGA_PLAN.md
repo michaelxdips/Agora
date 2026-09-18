@@ -30,8 +30,8 @@ touched those classes. That is *consistent* with an infra cause but does **not**
 **Root cause: UNVERIFIED.** Do not write "environment" in STATUS.md; write "not reproduced, cause not
 isolated".
 
-**A real infra failure did show up in this session, and it reproduces on demand.** Two Gradle
-invocations sharing `app/build/test-results/` produce:
+**A real infra failure did show up in this session** — but my first explanation for it was **wrong**, and
+the correction matters more than the original claim:
 
 ```
 * What went wrong:
@@ -39,10 +39,16 @@ Execution failed for task ':app:testFdroidDebugUnitTest'.
 > java.nio.file.NoSuchFileException: …\app\build\test-results\testFdroidDebugUnitTest\binary\in-progress-results-generic.bin
 ```
 
-That aborts the whole test task and reports every XML from the previous run — i.e. it *looks* like
-mass failure while the tests themselves were never re-run. Stated as a hypothesis with its evidence,
-not as the answer: if the old agent had a second build running concurrently, that is exactly the
-signature it would have seen. Re-running alone: green, twice.
+I first attributed this to two Gradle invocations sharing `app/build/test-results/`. **Tested, and it
+did not hold:** the two runs that overlapped (one plain, one `--rerun-tasks`, same log file) both
+completed `BUILD SUCCESSFUL`, `EXIT=0`, with `grep -c NoSuchFileException` → **0**. So concurrency is
+*not* sufficient to reproduce it. The one time it happened, the preceding command was a `git stash -u`
++ `git checkout -b` + `git merge` **while a background Gradle run was in flight**, i.e. the build tree
+was being rewritten underneath a running build — a different mechanism, and still only **one**
+observation. **Cause: UNVERIFIED.** What *is* established is the consequence: that failure aborts the
+test task while the previous run's XML reports stay on disk, so a reader counting XML sees stale
+numbers — which is exactly the shape of "2562 tests, 29 failed". Recorded as a hypothesis about the old
+agent's run, not as the answer.
 
 Consequence: the P0 "29 failures / do not call v3.0.3 verified-green" verdict is **withdrawn**. CI run
 `35140681063` on `2c2c10f1` is `success`.

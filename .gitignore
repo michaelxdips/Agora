@@ -46,3 +46,5 @@ build/
 # Work logs at the repo root (build/test/gate output written by the agent session).
 # Kept out of git: they are scratch evidence, not artifacts the repo should carry.
 _*.log
+# Gate output directory written by scripts/audit_gate0.sh on every run.
+audit-evidence/

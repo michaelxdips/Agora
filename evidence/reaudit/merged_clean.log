@@ -1,0 +1,87 @@
+> Task :build-logic:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :build-logic:compileKotlin UP-TO-DATE
+> Task :build-logic:compileJava NO-SOURCE
+> Task :build-logic:pluginDescriptors UP-TO-DATE
+> Task :build-logic:processResources UP-TO-DATE
+> Task :build-logic:classes UP-TO-DATE
+> Task :build-logic:jar UP-TO-DATE
+
+> Task :verifyKotlinFileSize
+Kotlin source size verified: 1026 files, maximum 800 lines at app/src/test/java/com/newoether/agora/viewmodel/ConversationSelectionControllerTest.kt, 0 temporary baseline entries
+
+> Task :app:preBuild
+> Task :app:preFdroidDebugBuild
+> Task :app:generateFdroidDebugResources UP-TO-DATE
+> Task :app:packageFdroidDebugResources UP-TO-DATE
+> Task :app:processFdroidDebugNavigationResources UP-TO-DATE
+> Task :app:parseFdroidDebugLocalResources UP-TO-DATE
+> Task :app:generateFdroidDebugRFile UP-TO-DATE
+> Task :app:kspFdroidDebugKotlin UP-TO-DATE
+> Task :app:compileFdroidDebugKotlin UP-TO-DATE
+> Task :app:javaPreCompileFdroidDebug UP-TO-DATE
+> Task :app:compileFdroidDebugJavaWithJavac NO-SOURCE
+> Task :app:checkFdroidDebugAarMetadata UP-TO-DATE
+> Task :app:mapFdroidDebugSourceSetPaths UP-TO-DATE
+> Task :app:compileFdroidDebugNavigationResources UP-TO-DATE
+> Task :app:mergeFdroidDebugResources UP-TO-DATE
+> Task :app:createFdroidDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksFdroidDebug UP-TO-DATE
+> Task :app:processFdroidDebugMainManifest UP-TO-DATE
+> Task :app:processFdroidDebugManifest UP-TO-DATE
+> Task :app:processFdroidDebugManifestForPackage UP-TO-DATE
+> Task :app:processFdroidDebugResources UP-TO-DATE
+> Task :app:transformFdroidDebugClassesWithAsm UP-TO-DATE
+> Task :app:bundleFdroidDebugClassesToRuntimeJar UP-TO-DATE
+> Task :app:bundleFdroidDebugClassesToCompileJar UP-TO-DATE
+> Task :app:kspFdroidDebugUnitTestKotlin UP-TO-DATE
+> Task :app:preFdroidDebugUnitTestBuild
+> Task :app:compileFdroidDebugUnitTestKotlin UP-TO-DATE
+> Task :app:javaPreCompileFdroidDebugUnitTest UP-TO-DATE
+> Task :app:compileFdroidDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:generateFdroidDebugAssets UP-TO-DATE
+> Task :app:mergeFdroidDebugAssets UP-TO-DATE
+> Task :app:packageFdroidDebugUnitTestForUnitTest UP-TO-DATE
+> Task :app:processFdroidDebugUnitTestManifest UP-TO-DATE
+> Task :app:generateFdroidDebugUnitTestConfig UP-TO-DATE
+> Task :app:processFdroidDebugJavaRes UP-TO-DATE
+> Task :app:processFdroidDebugUnitTestJavaRes UP-TO-DATE
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+> Task :app:testFdroidDebugUnitTest
+
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+
+> Task :wear:preBuild
+> Task :wear:preDebugBuild
+> Task :wear:generateDebugResources UP-TO-DATE
+> Task :wear:packageDebugResources UP-TO-DATE
+> Task :wear:processDebugNavigationResources UP-TO-DATE
+> Task :wear:parseDebugLocalResources UP-TO-DATE
+> Task :wear:generateDebugRFile UP-TO-DATE
+> Task :wear:compileDebugKotlin UP-TO-DATE
+> Task :wear:javaPreCompileDebug UP-TO-DATE
+> Task :wear:compileDebugJavaWithJavac NO-SOURCE
+> Task :wear:checkDebugAarMetadata UP-TO-DATE
+> Task :wear:mapDebugSourceSetPaths UP-TO-DATE
+> Task :wear:compileDebugNavigationResources UP-TO-DATE
+> Task :wear:mergeDebugResources UP-TO-DATE
+> Task :wear:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :wear:extractDeepLinksDebug UP-TO-DATE
+> Task :wear:processDebugMainManifest UP-TO-DATE
+> Task :wear:processDebugManifest UP-TO-DATE
+> Task :wear:processDebugManifestForPackage UP-TO-DATE
+> Task :wear:processDebugResources UP-TO-DATE
+> Task :wear:bundleDebugClassesToRuntimeJar UP-TO-DATE
+> Task :wear:bundleDebugClassesToCompileJar UP-TO-DATE
+> Task :wear:preDebugUnitTestBuild
+> Task :wear:compileDebugUnitTestKotlin UP-TO-DATE
+> Task :wear:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :wear:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :wear:processDebugJavaRes UP-TO-DATE
+> Task :wear:processDebugUnitTestJavaRes UP-TO-DATE
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+> Task :wear:testDebugUnitTest
+
+BUILD SUCCESSFUL in 3m 11s
+60 actionable tasks: 3 executed, 57 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.5.1/userguide/configuration_cache_enabling.html
+EXIT=0

@@ -1,0 +1,26 @@
+> Task :build-logic:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :build-logic:compileKotlin UP-TO-DATE
+> Task :build-logic:compileJava NO-SOURCE
+> Task :build-logic:pluginDescriptors UP-TO-DATE
+> Task :build-logic:processResources UP-TO-DATE
+> Task :build-logic:classes UP-TO-DATE
+> Task :build-logic:jar UP-TO-DATE
+> Task :verifyKotlinFileSize FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':verifyKotlinFileSize' (registered by plugin 'buildlogic.kotlin-source-size').
+> Kotlin source file size verification failed:
+   - app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt: 801 lines (allowed 800; new_oversized_source)
+  Handwritten Kotlin files must stay at or below 800 physical lines.
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 2s
+5 actionable tasks: 1 executed, 4 up-to-date
+EXIT=1

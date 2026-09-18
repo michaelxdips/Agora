@@ -32,7 +32,11 @@ if git merge-base --is-ancestor "$TARGET" HEAD; then
     log "already up to date with $TARGET — nothing to merge."
     bash scripts/touchpoint_guard.sh "$TARGET" || exit 1
     # Gate 4 still runs: an already-merged upstream can have moved the contracts in an earlier sync.
-    CONTRACT_FILES="$(git diff --name-only "$(git merge-base "$TARGET" HEAD)" HEAD -- development ARCHITECTURE.md 2>/dev/null)"
+    # HERMES INTEGRATION POINT: this compared the *HEAD* side, so an upstream edit to a contract file
+    # was invisible (HEAD is our own branch — it never contains the upstream change until after the
+    # merge, and by then this check has already run). AGENTS.md rule 8 (N10) asks whether *upstream*
+    # moved a contract we build on, so the comparison is against $TARGET.
+    CONTRACT_FILES="$(git diff --name-only "$(git merge-base "$TARGET" HEAD)" "$TARGET" -- development ARCHITECTURE.md 2>/dev/null)"
     if [ -n "$CONTRACT_FILES" ]; then
         log "CONTRACT CHANGE since the merge base: $CONTRACT_FILES"
         log "N10 requires re-reading these before further feature work; record it in STATUS.md."
@@ -128,10 +132,23 @@ if [ "${SYNC_SKIP_BUILD:-0}" != "1" ]; then
     # `testFdroidDebugUnitTest` includes UpstreamContractSentinelTest, which asserts the upstream
     # memory/skill APIs, the active-memory injection site and the settings attach points by symbol.
     # That is what makes upstream API drift fail loudly here instead of silently at runtime.
-    export JAVA_HOME="${JAVA_HOME:-C:/Users/Michael/Documents/Chatapp/_tools/jdk21/jdk-21.0.12.1+1}"
-    export ANDROID_HOME="${ANDROID_HOME:-C:/Users/Michael/Documents/Chatapp/_tools/sdk}"
-    export ANDROID_SDK_ROOT="$ANDROID_HOME"
-    export PATH="$JAVA_HOME/bin:$PATH"
+    # HERMES INTEGRATION POINT: these two lines used to point at a machine that no longer exists
+    # (`Documents/Chatapp/_tools/...`), so the post-merge gate below ran with a JAVA_HOME that has no
+    # `java` in it and an ANDROID_HOME with no SDK — every sync would have reported "TESTS/BUILD
+    # FAILED" for a toolchain reason and aborted a merge that was actually fine. Resolved the same way
+    # `audit_gate0.sh` does it: env var first, then the toolchain this checkout actually has.
+    if [ -z "${JAVA_HOME:-}" ]; then
+        java_bin="$(command -v java 2>/dev/null)"
+        [ -n "$java_bin" ] && export JAVA_HOME="$(cd "$(dirname "$java_bin")/.." && pwd)"
+    fi
+    if [ -z "${ANDROID_HOME:-}" ] && [ -f local.properties ]; then
+        sdk_raw="$(sed -n 's/^sdk\.dir=//p' local.properties | head -1)"
+        sdk_raw="${sdk_raw//\\\\/\\}"
+        sdk_raw="${sdk_raw//\\:/:}"
+        export ANDROID_HOME="${sdk_raw//\\//}"
+    fi
+    export ANDROID_SDK_ROOT="${ANDROID_HOME:-}"
+    export PATH="${JAVA_HOME:-}/bin:$PATH"
     if ! ./gradlew :app:testFdroidDebugUnitTest :app:assembleFdroidDebug --console=plain \
         > "${SYNC_BUILD_LOG:-/tmp/hermes-sync-build.log}" 2>&1; then
         log "TESTS/BUILD FAILED after merge — main untouched. See ${SYNC_BUILD_LOG:-/tmp/hermes-sync-build.log}"
@@ -145,7 +162,9 @@ fi
 # ── gate 4: contract-change detector ────────────────────────────────────────
 # N10: an upstream change to the contracts Hermes builds on must be re-read before further feature
 # work. Detected, not silently absorbed.
-CONTRACT_FILES="$(git diff --name-only "$(git merge-base "$TARGET" HEAD)" HEAD -- development ARCHITECTURE.md 2>/dev/null)"
+# HERMES INTEGRATION POINT: same fix as the early-exit check above — compare the *upstream* side
+# ($TARGET), not HEAD, or an upstream contract change never trips N10.
+CONTRACT_FILES="$(git diff --name-only "$(git merge-base "$TARGET" HEAD)" "$TARGET" -- development ARCHITECTURE.md 2>/dev/null)"
 if [ -n "$CONTRACT_FILES" ]; then
     log "CONTRACT CHANGE: $CONTRACT_FILES"
     log "N10 requires re-reading these before further feature work; record it in STATUS.md."

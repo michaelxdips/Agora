@@ -298,7 +298,7 @@ reproducible on a clean checkout:
 | Gate | Result |
 |---|---|
 | `:app:testFdroidDebugUnitTest` | **2,562 tests, 0 failures, 0 errors** (394 XML reports) |
-| `:wear:testDebugUnitTest` | **82 tests, 0 failures, 0 errors** (8 XML reports) |
+| `:wear:testDebugUnitTest` | **82 tests, 0 failures, 0 errors** (9 XML reports) |
 | `verifyKotlinFileSize` | pass |
 | `scripts/touchpoint_guard.sh` | **PASS** — 14 registered upstream touchpoints, 13 currently carrying a diff |
 | `SYNC_DRY_RUN=1 scripts/upstream_sync.sh` | exit 0 |
@@ -314,8 +314,8 @@ The wear count rose from 61 to 82 with the render work: `WearAnswerTextTest` (th
 
 ## Staying in sync with upstream
 
-This fork tracks `newo-ether/Agora` (`master`). `main` is currently **65 commits ahead of the fork
-point** (`914e7c8d`), and upstream is **4 commits ahead** of that same point — those four are not in
+This fork tracks `newo-ether/Agora` (`master`). `main` is currently **83 commits ahead of the fork
+point** (`914e7c8d`), and upstream is **5 commits ahead** of that same point — those five are not in
 `main` yet. Upstream keeps moving, and the sync protocol is built so that a merge is a *reviewed*
 event, not a silent one:
 

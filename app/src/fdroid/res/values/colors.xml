@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- HERMES: fdroid-flavor icon background (forest green). -->
+<!-- HERMES: fdroid-flavor icon background. -->
 <resources>
     <color name="ic_launcher_background">#123E25</color>
 </resources>

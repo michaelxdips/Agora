@@ -78,10 +78,23 @@ fi
 
 # ── regression gate: the persona tests must pass BEFORE any write ────────────
 echo "persona_update: running the persona regression tests"
-export JAVA_HOME="${JAVA_HOME:-C:/Users/Michael/Documents/Chatapp/_tools/jdk21/jdk-21.0.12.1+1}"
-export ANDROID_HOME="${ANDROID_HOME:-C:/Users/Michael/Documents/Chatapp/_tools/sdk}"
-export ANDROID_SDK_ROOT="$ANDROID_HOME"
-export PATH="$JAVA_HOME/bin:$PATH"
+# HERMES INTEGRATION POINT: these two lines used to point at a machine that no longer exists
+# (`Documents/Chatapp/_tools/...`), so the regression gate below ran with a JAVA_HOME that has no
+# `java` in it and an ANDROID_HOME with no SDK — the gate could only fail for the wrong reason.
+# Resolved the same way `audit_gate0.sh` does it: env var first, then the toolchain this checkout
+# actually has (`java` on PATH, and `sdk.dir` in the machine-local local.properties).
+if [ -z "${JAVA_HOME:-}" ]; then
+    java_bin="$(command -v java 2>/dev/null)"
+    [ -n "$java_bin" ] && export JAVA_HOME="$(cd "$(dirname "$java_bin")/.." && pwd)"
+fi
+if [ -z "${ANDROID_HOME:-}" ] && [ -f local.properties ]; then
+    sdk_raw="$(sed -n 's/^sdk\.dir=//p' local.properties | head -1)"
+    sdk_raw="${sdk_raw//\\\\/\\}"
+    sdk_raw="${sdk_raw//\\:/:}"
+    export ANDROID_HOME="${sdk_raw//\\//}"
+fi
+export ANDROID_SDK_ROOT="${ANDROID_HOME:-}"
+export PATH="${JAVA_HOME:-}/bin:$PATH"
 if ! ./gradlew :app:testFdroidDebugUnitTest \
     --tests "com.newoether.agora.autopilot.PersonaStoreTest" \
     --tests "com.newoether.agora.autopilot.PersonaApplierTest" \

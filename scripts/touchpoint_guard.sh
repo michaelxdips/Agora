@@ -2,7 +2,7 @@
 # touchpoint_guard.sh — fail if the fork edits upstream files outside the registry,
 # or if any registered touchpoint exceeds its declared line budget.
 #
-# Usage: bash scripts/touchpoint_guard.sh [upstream-ref]      (default: origin/master)
+# Usage: bash scripts/touchpoint_guard.sh [upstream-ref]      (default: upstream/master)
 # Exit 0 = clean. Exit 1 = violation (details on stdout).
 set -uo pipefail
 
@@ -10,7 +10,21 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT" || exit 1
 
 REGISTRY="UPSTREAM_TOUCHPOINTS.md"
-UPSTREAM_REF="${1:-origin/master}"
+# HERMES INTEGRATION POINT: the default used to be `origin/master`, which in this fork is the *fork
+# point* (proved: `git rev-parse origin/master` → 914e7c8d, the merge base), not current upstream. A
+# real upstream edit therefore never reached the comparison unless the caller passed a ref. The
+# default is now the real upstream ref, resolved with a fallback chain so a clone that has not added
+# the remote yet still gets a sensible answer instead of a silently weaker check.
+UPSTREAM_REF="${1:-}"
+if [ -z "$UPSTREAM_REF" ]; then
+    for candidate in upstream/master upstream/main origin/upstream origin/master; do
+        if git rev-parse --verify --quiet "$candidate" >/dev/null; then
+            UPSTREAM_REF="$candidate"
+            break
+        fi
+    done
+fi
+UPSTREAM_REF="${UPSTREAM_REF:-upstream/master}"
 
 # Hermes-only paths: additions here are always allowed.
 # Root-level Markdown is allowed as a CLASS, not one name at a time: the guard lists each doc by name
@@ -23,9 +37,19 @@ fail=0
 note() { printf '%s\n' "$*"; }
 
 if ! git rev-parse --verify --quiet "$UPSTREAM_REF" >/dev/null; then
-    note "touchpoint_guard: WARN upstream ref '$UPSTREAM_REF' not present; run 'git fetch upstream'."
-    note "touchpoint_guard: falling back to comparing working tree against HEAD."
-    DIFF_ARGS="HEAD"
+    # HERMES INTEGRATION POINT: this used to fall back to `git diff HEAD`, i.e. the working tree
+    # against HEAD — which cannot see a violation that was already *committed*, so a missing upstream
+    # ref turned the guard into a false PASS. A guard that cannot run is a FAIL, not a warning.
+    # GUARD_ALLOW_MISSING_REF=1 is the documented escape for a clone that has not added the remote.
+    if [ "${GUARD_ALLOW_MISSING_REF:-0}" = "1" ]; then
+        note "touchpoint_guard: WARN upstream ref '$UPSTREAM_REF' not present; GUARD_ALLOW_MISSING_REF=1 so the working tree is compared against HEAD (weaker check)."
+        DIFF_ARGS="HEAD"
+    else
+        note "touchpoint_guard: FAIL upstream ref '$UPSTREAM_REF' not present — cannot verify upstream hygiene."
+        note "touchpoint_guard: run 'git fetch upstream' (or pass a ref: bash scripts/touchpoint_guard.sh <ref>)."
+        note "touchpoint_guard: GUARD_ALLOW_MISSING_REF=1 downgrades this to a working-tree check."
+        exit 1
+    fi
 else
     MERGE_BASE="$(git merge-base "$UPSTREAM_REF" HEAD 2>/dev/null)"
     DIFF_ARGS="${MERGE_BASE:-$UPSTREAM_REF}"

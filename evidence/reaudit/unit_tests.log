@@ -1,0 +1,117 @@
+Starting a Gradle Daemon (subsequent builds will be faster)
+> Task :build-logic:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :build-logic:compileKotlin UP-TO-DATE
+> Task :build-logic:compileJava NO-SOURCE
+> Task :build-logic:pluginDescriptors UP-TO-DATE
+> Task :build-logic:processResources UP-TO-DATE
+> Task :build-logic:classes UP-TO-DATE
+> Task :build-logic:jar UP-TO-DATE
+
+> Task :verifyKotlinFileSize
+Kotlin source size verified: 1020 files, maximum 800 lines at app/src/test/java/com/newoether/agora/viewmodel/ConversationSelectionControllerTest.kt, 0 temporary baseline entries
+
+> Task :app:preBuild
+> Task :app:preFdroidDebugBuild
+> Task :app:generateFdroidDebugResources UP-TO-DATE
+> Task :app:packageFdroidDebugResources UP-TO-DATE
+> Task :app:processFdroidDebugNavigationResources UP-TO-DATE
+> Task :app:parseFdroidDebugLocalResources UP-TO-DATE
+> Task :app:generateFdroidDebugRFile UP-TO-DATE
+> Task :app:kspFdroidDebugKotlin UP-TO-DATE
+> Task :app:compileFdroidDebugKotlin UP-TO-DATE
+> Task :app:javaPreCompileFdroidDebug UP-TO-DATE
+> Task :app:compileFdroidDebugJavaWithJavac NO-SOURCE
+> Task :app:checkFdroidDebugAarMetadata UP-TO-DATE
+> Task :app:mapFdroidDebugSourceSetPaths UP-TO-DATE
+> Task :app:compileFdroidDebugNavigationResources UP-TO-DATE
+> Task :app:mergeFdroidDebugResources UP-TO-DATE
+> Task :app:createFdroidDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksFdroidDebug UP-TO-DATE
+> Task :app:processFdroidDebugMainManifest UP-TO-DATE
+> Task :app:processFdroidDebugManifest UP-TO-DATE
+> Task :app:processFdroidDebugManifestForPackage UP-TO-DATE
+> Task :app:processFdroidDebugResources UP-TO-DATE
+> Task :app:transformFdroidDebugClassesWithAsm UP-TO-DATE
+> Task :app:bundleFdroidDebugClassesToRuntimeJar
+> Task :app:bundleFdroidDebugClassesToCompileJar
+> Task :app:kspFdroidDebugUnitTestKotlin
+> Task :app:preFdroidDebugUnitTestBuild
+> Task :app:compileFdroidDebugUnitTestKotlin
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/test/java/com/newoether/agora/automation/ConversationExecutionCoordinatorTest.kt:33:9 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/test/java/com/newoether/agora/automation/ConversationExecutionCoordinatorTest.kt:87:9 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/test/java/com/newoether/agora/automation/ConversationExecutionCoordinatorTest.kt:113:9 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/test/java/com/newoether/agora/automation/ConversationExecutionCoordinatorTest.kt:124:9 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/test/java/com/newoether/agora/autopilot/AutopilotTriggerObserverTest.kt:37:36 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/test/java/com/newoether/agora/autopilot/AutopilotTriggerObserverTest.kt:62:36 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/test/java/com/newoether/agora/autopilot/AutopilotTriggerObserverTest.kt:86:36 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/test/java/com/newoether/agora/autopilot/PersonaFidelityTest.kt:24:34 Java type mismatch: inferred type is 'String?', but 'String' was expected.
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/test/java/com/newoether/agora/autopilot/UpstreamContractSentinelTest.kt:31:24 Java type mismatch: inferred type is 'String?', but 'String' was expected.
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/test/java/com/newoether/agora/remote/FiloAttachmentUploadTest.kt:36:49 Unnecessary non-null assertion (!!) on a non-null receiver of type 'RemoteUpload'.
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/test/java/com/newoether/agora/ui/chat/MediaStateCrossfadeSourceContractTest.kt:1:36 Suppression of error 'INVISIBLE_REFERENCE' might compile and work, but the compiler behavior is UNSPECIFIED and WILL NOT BE PRESERVED. Please report your use case to the Kotlin issue tracker instead: https://kotl.in/issue
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/test/java/com/newoether/agora/ui/chat/RecentRegressionSourceContractTest.kt:156:42 Unnecessary non-null assertion (!!) on a non-null receiver of type 'PagerState'.
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/test/java/com/newoether/agora/ui/chat/RecentRegressionSourceContractTest.kt:163:42 Unnecessary non-null assertion (!!) on a non-null receiver of type 'PagerState'.
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/test/java/com/newoether/agora/ui/chat/RemoteSearchInteractionTest.kt:25:29 'fun createComposeRule(effectContext: CoroutineContext = ...): ComposeContentTestRule' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/test/java/com/newoether/agora/ui/chat/RemoteSearchViewportTest.kt:34:29 'fun createComposeRule(effectContext: CoroutineContext = ...): ComposeContentTestRule' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/test/java/com/newoether/agora/ui/chat/message/MarkdownImageLayoutTest.kt:47:29 'fun createComposeRule(effectContext: CoroutineContext = ...): ComposeContentTestRule' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/test/java/com/newoether/agora/ui/common/AgoraHapticsTest.kt:24:26 'fun vibrate(p0: LongArray!, p1: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/test/java/com/newoether/agora/ui/common/AgoraHapticsTest.kt:28:50 'static field VIBRATOR_SERVICE: String' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/test/java/com/newoether/agora/ui/settings/SettingsResourceContractTest.kt:409:34 Java type mismatch: inferred type is 'String?', but 'String' was expected.
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/test/java/com/newoether/agora/viewmodel/BranchReplacementTransitionCoordinatorTest.kt:24:9 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/test/java/com/newoether/agora/viewmodel/BranchReplacementTransitionCoordinatorTest.kt:80:9 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/test/java/com/newoether/agora/viewmodel/ConversationGenerationMirrorTest.kt:36:9 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/test/java/com/newoether/agora/viewmodel/ConversationGenerationMirrorTest.kt:49:9 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/test/java/com/newoether/agora/viewmodel/ConversationGenerationMirrorTest.kt:64:9 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+
+> Task :app:javaPreCompileFdroidDebugUnitTest
+> Task :app:compileFdroidDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:generateFdroidDebugAssets UP-TO-DATE
+> Task :app:mergeFdroidDebugAssets UP-TO-DATE
+> Task :app:packageFdroidDebugUnitTestForUnitTest
+
+> Task :app:processFdroidDebugUnitTestManifest
+C:\Users\Michael\Documents\Hermes X\Agora\app\build\intermediates\tmp\manifest\test\fdroid\debug\tempFile2ProcessTestManifest16509707989985708029.xml:15:5-18:49 Warning:
+	uses-permission#android.permission.WRITE_EXTERNAL_STORAGE@android:maxSdkVersion was tagged at tempFile2ProcessTestManifest16509707989985708029.xml:15 to replace other declarations but no other declaration present
+
+> Task :app:generateFdroidDebugUnitTestConfig
+> Task :app:processFdroidDebugJavaRes UP-TO-DATE
+> Task :app:processFdroidDebugUnitTestJavaRes
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+> Task :app:testFdroidDebugUnitTest
+> Task :wear:preBuild
+> Task :wear:preDebugBuild
+> Task :wear:generateDebugResources
+> Task :wear:packageDebugResources
+> Task :wear:processDebugNavigationResources
+> Task :wear:parseDebugLocalResources
+> Task :wear:generateDebugRFile
+> Task :wear:compileDebugKotlin
+> Task :wear:javaPreCompileDebug
+> Task :wear:compileDebugJavaWithJavac NO-SOURCE
+> Task :wear:checkDebugAarMetadata
+> Task :wear:mapDebugSourceSetPaths
+> Task :wear:compileDebugNavigationResources
+> Task :wear:mergeDebugResources
+> Task :wear:createDebugCompatibleScreenManifests
+> Task :wear:extractDeepLinksDebug
+> Task :wear:processDebugMainManifest
+> Task :wear:processDebugManifest
+> Task :wear:processDebugManifestForPackage
+> Task :wear:processDebugResources
+> Task :wear:bundleDebugClassesToRuntimeJar
+> Task :wear:bundleDebugClassesToCompileJar
+> Task :wear:preDebugUnitTestBuild
+
+> Task :wear:compileDebugUnitTestKotlin
+w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/wear/src/test/java/com/newoether/agora/wear/WearMainThreadSentinelTest.kt:31:24 Java type mismatch: inferred type is 'String?', but 'String' was expected.
+
+> Task :wear:javaPreCompileDebugUnitTest
+> Task :wear:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :wear:processDebugJavaRes
+> Task :wear:processDebugUnitTestJavaRes
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+> Task :wear:testDebugUnitTest
+
+BUILD SUCCESSFUL in 5m 13s
+60 actionable tasks: 35 executed, 25 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.5.1/userguide/configuration_cache_enabling.html
+EXIT=0

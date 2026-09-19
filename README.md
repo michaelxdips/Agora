@@ -29,7 +29,7 @@
 | | Hermes X (this fork) | Upstream Agora |
 |---|---|---|
 | `applicationId` | `com.hermes.app` | `com.newoether.agora` |
-| `versionName` | `3.0.3-hermesx` (`versionCode` 34) | `2.1.0` (`versionCode` 31) |
+| `versionName` | `3.0.4-hermesx` (`versionCode` 35) | `2.1.0` (`versionCode` 31) |
 | Release signing identity | `[certificate DN omitted]` | `CN=Newo Ether` |
 | Release certificate SHA-256 | `7188ce70…aa56d7` | `5de26f26…be1aa29` |
 | Distribution | [GitHub Releases](https://github.com/michaelxdips/Agora/releases/latest) — phone + watch APK | F-Droid, Google Play, GitHub Releases |

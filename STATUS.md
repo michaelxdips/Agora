@@ -14,12 +14,12 @@ the repo **as it was when that phase closed** and may legitimately contradict th
 
 | | Value | Command |
 |---|---|---|
-| `main` HEAD | `dab42ba1` + the MEGA_PLAN execution working tree | `git rev-parse --short main` |
-| Versions | `3.0.3-hermesx` / `versionCode` 34, both modules | `app/build.gradle.kts`, `wear/build.gradle.kts` |
+| `main` HEAD | `ffb14ebf` + the Session 3 working tree | `git rev-parse --short main` |
+| Versions | `3.0.4-hermesx` / `versionCode` 35, both modules | `app/build.gradle.kts`, `wear/build.gradle.kts` |
 | Releases | `v3.0.3` (latest), `v3.0.2`, `v3.0.1` (pre-release) | `gh release list -R michaelxdips/Agora` |
-| App unit tests | **2624 tests, 0 failures, 0 errors, 3 skipped** (403 XML files) | `./gradlew :app:testFdroidDebugUnitTest` |
+| App unit tests | **2634 tests, 0 failures, 0 errors, 3 skipped** (404 XML files) | `./gradlew :app:testFdroidDebugUnitTest` |
 | Wear unit tests | **141 tests, 0 failures, 0 errors** (13 XML files) | `./gradlew :wear:testDebugUnitTest` |
-| Play flavor tests | 2607 tests, 0 failures, 0 errors, 3 skipped | `:app:testPlayDebugUnitTest` |
+| Play flavor tests | 2617 tests, 0 failures, 0 errors, 3 skipped | `:app:testPlayDebugUnitTest` |
 | Kotlin size gate | 1044 files, maximum 800 lines, 0 baseline entries | `verifyKotlinFileSize` |
 | Upstream position | `main` is **89 ahead** of the fork point `914e7c8d`; upstream is **0 ahead** | `git rev-list --left-right --count upstream/master...main` |
 | Release certificate | `7188ce70…aa56d7` on **both** published APKs | `bash scripts/verify_release_provenance.sh v3.0.3` → **PASS, all four claims** |
@@ -1035,3 +1035,116 @@ debug-signed — the failure that made `v3.0.1` unusable for pairing.
 
 Both signed `CN=Hermes Local, …`, SHA-256 `7188ce70…aa56d7` — the identity the Data Layer requires to
 match on both APKs.
+
+---
+
+## Session 3 — 2026-09-19 (A6 the fabricated fact, one measured optimisation, release 3.0.4)
+
+Handoff: `../HANDOFF-2026-09-19.md`. Opened against `main` @ `ffb14ebf`, `upstream/master` @
+`360ae4f8`, `git status --porcelain` empty, `git rev-list --left-right --count upstream/master...main`
+→ `0	103`. Every claim below is a command that ran.
+
+### A6 — `ReflectionProtocol` accepted a fabricated fact (FIXED, mutation-proved)
+
+**The defect, as it was in the tree.** `ReflectionProtocol.kt:32` read
+`confidence >= MIN_CONFIDENCE && sourceQuote.isNotBlank()`. The quote was never checked against the
+transcript, so a model that invented a fact invented its evidence in the same breath and every gate
+passed: the schema was strict about *shape* and silent about *truth*. `ReflectionProtocol.kt:77-78`
+appended the raw transcript straight after the rules with no delimiter, so text inside it sat in the
+same block as the instructions.
+
+**The fix.** `ReflectionOp.isValid(transcript)` requires the quote to **occur** in the transcript
+(whitespace runs collapsed on both sides, so an honest re-wrapped quote still grounds and a
+paraphrase does not). `ReflectionProtocol.transcriptForPrompt()` is the single preparation used for
+both the prompt and the grounding check, so "the string an op is verified against" is by
+construction "the string the model was shown" — the two cannot drift. `TRANSCRIPT_BEGIN`/`_END`
+delimit the data and rule 7 tells the model that text inside it is data, never instructions;
+occurrences of the markers are stripped from the transcript so a message cannot close its own block.
+`ReflectionEngine` prepares once per pass and passes it to both the caller and the parser.
+
+**Mutation proof** — the pre-fix behaviour restored in `groundedIn` (with the fix's own tests left
+untouched), then:
+
+```
+$ ./gradlew :app:testFdroidDebugUnitTest --tests "…ReflectionProtocolTest" --tests "…PersonaIsolationTest"
+ReflectionProtocolTest > aQuoteThatOnlyApproximatesTheTranscriptIsRefused FAILED
+ReflectionProtocolTest > anInventedFactIsRefusedBecauseItsQuoteIsNotInTheTranscript FAILED
+ReflectionProtocolTest > engineDropsAnUngroundedOpAndWritesOnlyTheGroundedOne FAILED
+24 tests completed, 3 failed
+BUILD FAILED in 8s
+```
+
+Restored, same command → `BUILD SUCCESSFUL`. So the tests are red without the fix and green with it;
+they assert the behaviour rather than printing a verdict.
+
+**Not claimed:** no provider was called and no model was asked to hallucinate. What is proved is that
+an op whose quote is absent from the transcript cannot reach `MemoryApplier` — the check is on the
+path, not on a model's willingness to lie.
+
+### Optimisation — the circuit breaker's per-row query (MEASURED, not asserted)
+
+`CircuitBreaker.recordCorrection` called `log.injectionsFor(entry.id)` **inside** a filter over
+`log.all()`, so one correction pass cost one DAO query per row of the entire adaptation history.
+Reflection runs it on every session that reaches 20 messages.
+
+**Before, measured** — the counting harness with a 50-row journal (the retention cap per file):
+
+```
+CircuitBreakerQueryCountTest > one correction pass does not query once per journal row FAILED
+java.lang.AssertionError: injectionsFor was called 50 times for 50 journal rows — the per-row query is back
+```
+
+**After** — `injectionsForAll()` reads the injection table once and the pass groups it by
+`adaptationId`:
+
+```
+$ ./gradlew :app:testFdroidDebugUnitTest --tests "com.newoether.agora.autopilot.*"
+BUILD SUCCESSFUL in 14s
+```
+
+`CircuitBreakerQueryCountTest` pins both numbers: the single `injectionsForAll` per pass and the one
+constant-cost `injectionsFor` (the ledger sentinel). The journal scan stays per correction key, and
+that is deliberate: a key's rollback mutates rows, so caching the list would re-flag an entry the
+previous key already rolled back — which `CircuitBreakerTest.anAlreadyRolledBackEntryIsNeverFlaggedAgain`
+pins.
+
+The counter is a **query count, not a wall-clock time**: a millisecond figure would depend on the
+machine and on Room's cache, while the number of queries is what the code controls.
+
+### Release metadata (F)
+
+* `fastlane/.../changelogs/32.txt`, `33.txt`, `34.txt` did not exist while `versionCode 34` shipped.
+  Added, each written from the matching GitHub release body rather than invented.
+* `NOTICE.md` claimed three submodules; `.gitmodules` has two (`thirdparty/talloc` is tracked
+  directly — `git ls-files thirdparty/` → `talloc/config.h`, `talloc/replace.h`, `talloc/talloc.c`,
+  `talloc/talloc.h`). Corrected.
+* `mkdocs.yml` `site_url`/`repo_url`/`repo_name` pointed at `newo-ether/Agora` while the fork runs
+  its own Deploy MkDocs workflow. Repointed at the fork after confirming the real Pages URL
+  (`gh api repos/michaelxdips/Agora/pages` → `https://michaelxdips.github.io/Agora/`; `curl` → `200`).
+  New touchpoint entry #24, budget 16.
+
+### Version bump
+
+`versionCode 34 → 35`, `versionName 3.0.3-hermesx → 3.0.4-hermesx`, both modules.
+`ReleaseVersionOrderingTest` gains the same two-direction case the earlier releases carry, so a bump
+that forgets the suffix rule fails here instead of on a device.
+
+### Gates, all run after the work
+
+| Gate | Result |
+|---|---|
+| `./gradlew :app:testFdroidDebugUnitTest :app:testPlayDebugUnitTest :wear:testDebugUnitTest verifyKotlinFileSize --rerun-tasks` | **BUILD SUCCESSFUL in 5m 37s**, 91 tasks executed |
+| `python scripts/audit_test_counts.py` | fdroid **2634** / play **2617** / wear **141**, 0 failures, 0 errors → exit 0 |
+| `bash scripts/touchpoint_guard.sh` | **PASS** (360ae4f8fe73ed035cbbfa838d9fc265ef68779a) |
+| `bash scripts/gen_code_map.sh --check` | `CODE_MAP.md is up to date` → exit 0 |
+
+Counts read from the XML (`404` fdroid / `400` play / `13` wear report files), not from the console.
+
+### Still open, unchanged, and why
+
+A1–A5 (credential fan-out, the watch send race, queue idempotency, the global work name, the breaker's
+missing open state), B1–B4 (sandbox trust, shared-storage bind, TOCTOU, the exported listener), C1–C3
+(migrations, blocked-DB delete), D1–D4 (plaintext secrets), E1–E3 (R8 without a device, the WSL-only
+PRoot path, the font table whose named generator `_workbench/gen_coverage.py` is not in the repo).
+Each is a design decision or needs hardware/a migration, exactly as the handoff says; none was
+drive-by patched. `adb devices` is still empty, so E1's device smoke pass cannot run here.

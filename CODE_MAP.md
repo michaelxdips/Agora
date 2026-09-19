@@ -71,12 +71,12 @@ Upstream ref used for the classification: `upstream/master`
 | File | Lines | Status |
 |---|---|---|
 | `app/src/main/java/com/newoether/agora/autopilot/AdaptationHistoryPresenter.kt` | 40 | fork-only |
-| `app/src/main/java/com/newoether/agora/autopilot/AdaptationLog.kt` | 179 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/AdaptationLog.kt` | 190 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/AutopilotControlsSection.kt` | 98 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/AutopilotNotifier.kt` | 88 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/AutopilotSettings.kt` | 73 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/AutopilotTriggerObserver.kt` | 88 | fork-only |
-| `app/src/main/java/com/newoether/agora/autopilot/CircuitBreaker.kt` | 124 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/CircuitBreaker.kt` | 141 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/HermesBuildInfo.kt` | 33 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/MemoryApplier.kt` | 183 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/PersonaApplier.kt` | 140 | fork-only |
@@ -86,9 +86,9 @@ Upstream ref used for the classification: `upstream/master`
 | `app/src/main/java/com/newoether/agora/autopilot/PersonaStartup.kt` | 23 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/PersonaStore.kt` | 165 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/PersonaUpdater.kt` | 115 | fork-only |
-| `app/src/main/java/com/newoether/agora/autopilot/ReflectionCaller.kt` | 105 | fork-only |
-| `app/src/main/java/com/newoether/agora/autopilot/ReflectionEngine.kt` | 87 | fork-only |
-| `app/src/main/java/com/newoether/agora/autopilot/ReflectionProtocol.kt` | 121 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/ReflectionCaller.kt` | 108 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/ReflectionEngine.kt` | 93 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/ReflectionProtocol.kt` | 183 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/ReflectionWorker.kt` | 231 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/SettingsAdaptationHistoryPage.kt` | 261 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/SettingsPersonasPage.kt` | 231 | fork-only |
@@ -111,21 +111,22 @@ Upstream ref used for the classification: `upstream/master`
 | File | Lines | Status |
 |---|---|---|
 | `app/src/test/java/com/newoether/agora/autopilot/AdaptationHistoryPresenterTest.kt` | 93 | fork-only |
-| `app/src/test/java/com/newoether/agora/autopilot/AutopilotDailyCapTest.kt` | 118 | fork-only |
+| `app/src/test/java/com/newoether/agora/autopilot/AutopilotDailyCapTest.kt` | 119 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/AutopilotTriggerObserverTest.kt` | 102 | fork-only |
+| `app/src/test/java/com/newoether/agora/autopilot/CircuitBreakerQueryCountTest.kt` | 130 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/CircuitBreakerTest.kt` | 236 | fork-only |
-| `app/src/test/java/com/newoether/agora/autopilot/FakeAdaptationLogDao.kt` | 77 | fork-only |
+| `app/src/test/java/com/newoether/agora/autopilot/FakeAdaptationLogDao.kt` | 79 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/HttpClientCleartextGuardTest.kt` | 122 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/MemoryApplierTest.kt` | 332 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/PersonaApplierTest.kt` | 222 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/PersonaFidelityTest.kt` | 100 | fork-only |
-| `app/src/test/java/com/newoether/agora/autopilot/PersonaIsolationTest.kt` | 94 | fork-only |
+| `app/src/test/java/com/newoether/agora/autopilot/PersonaIsolationTest.kt` | 95 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/PersonaStoreTest.kt` | 183 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/PersonaUpdaterTest.kt` | 117 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/ProviderBaseUrlResolutionTest.kt` | 131 | fork-only |
-| `app/src/test/java/com/newoether/agora/autopilot/ReflectionProtocolTest.kt` | 244 | fork-only |
+| `app/src/test/java/com/newoether/agora/autopilot/ReflectionProtocolTest.kt` | 369 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/ReflectionWorkerSignalTest.kt` | 145 | fork-only |
-| `app/src/test/java/com/newoether/agora/autopilot/ReleaseVersionOrderingTest.kt` | 68 | fork-only |
+| `app/src/test/java/com/newoether/agora/autopilot/ReleaseVersionOrderingTest.kt` | 81 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/SkillSynthesizerTest.kt` | 196 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/UpstreamContractSentinelTest.kt` | 158 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/wearsync/CoreContextDerivationTest.kt` | 133 | fork-only |
@@ -162,11 +163,12 @@ so this table cannot disagree with what the guard enforces.
 
 | Path | Budget (changed lines) | Current |
 |---|---|---|
-| `app/build.gradle.kts` | 60 | 54 |
+| `app/build.gradle.kts` | 64 | 54 |
 | `settings.gradle.kts` | 4 | 3 |
 | `gradle/libs.versions.toml` | 10 | 6 |
 | `.github/workflows/build.yml` | 100 | 85 |
 | `.github/workflows/mkdocs.yml` | 4 | 4 |
+| `mkdocs.yml` | 16 | 12 |
 | `.gitignore` | 12 | 11 |
 | `app/src/main/AndroidManifest.xml` | 6 | 5 |
 | `app/src/main/res/values/strings.xml` | 4 | 0 |

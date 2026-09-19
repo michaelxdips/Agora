@@ -33,8 +33,17 @@ data class ReflectionOp(
      * The quote is not decoration: it is the only evidence a fact has. The first version accepted
      * `sourceQuote.isNotBlank()`, so a model that invented a fact could invent its evidence too and
      * the op passed every gate — the schema was strict about *shape* and silent about *truth*. The
-     * quote must now actually occur in the transcript the model was given, which turns "the model
-     * says so" into "the conversation says so".
+     * quote must now actually occur in the transcript the model was given.
+     *
+     * **What this does and does not prove.** It proves the quote is real text from the conversation
+     * rather than a fabrication: an invented sentence, or a paraphrase in the model's own words, is
+     * refused. It does **not** prove the quote *supports* the fact — a model can cite a genuine but
+     * irrelevant line, and a very short quote (one character) occurs in almost any transcript. There
+     * is no length floor, because honest extraction legitimately quotes short spans ("Budi", "42")
+     * and any threshold would reject some of them. So this is a check on the evidence's *existence*,
+     * not on its *relevance*; the confidence floor and the human undo in Adaptation History remain
+     * the controls for the latter. `ReflectionProtocolTest.aSingleCharacterQuoteStillGrounds` pins
+     * that boundary so it stays a known limit rather than a hidden one.
      */
     fun isValid(transcript: String): Boolean =
         op in OPS && targetFile.isNotBlank() && content.isNotBlank() &&

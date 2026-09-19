@@ -107,6 +107,21 @@ class ReflectionProtocolTest {
     }
 
     @Test
+    fun aSingleCharacterQuoteStillGrounds() {
+        // A known limit, pinned rather than hidden: grounding is an occurrence check, so a one-
+        // character quote occurs in almost any transcript and passes. There is deliberately no length
+        // floor — honest extraction quotes short spans ("Budi", "42"), and any threshold rejects some
+        // of them. What this test buys is that the boundary is written down: if someone later adds a
+        // minimum length, this fails and they have to decide consciously which short quotes to lose.
+        val transcript = "USER: nama saya Budi"
+        val reply = """{"ops":[{"op":"add","target_file":"f","content":"- x","confidence":0.9,"source_quote":"a"}]}"""
+
+        val plan = requireNotNull(ReflectionProtocol.parse(reply, transcript))
+
+        assertEquals("a short quote is not rejected by a length rule", 1, plan.ops.size)
+    }
+
+    @Test
     fun theTranscriptIsDelimitedSoItsTextCannotReadAsInstructions() {
         // The transcript used to be appended straight after the rules with no delimiter, so a
         // message inside it sat in the same block as the instructions.

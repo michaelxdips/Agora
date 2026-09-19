@@ -28,17 +28,35 @@ log "fetching $UPSTREAM_REMOTE/$UPSTREAM_BRANCH"
 git fetch --tags "$UPSTREAM_REMOTE" || { log "FETCH FAILED"; exit 1; }
 
 TARGET="$UPSTREAM_REMOTE/$UPSTREAM_BRANCH"
+# HERMES INTEGRATION POINT (Session 5, F10): the absorbed-tip record. The merge path below writes it;
+# the already-merged path reads it. It is the only durable sync state this script keeps.
+SYNC_STATE="evidence/upstream-sync-state"
 if git merge-base --is-ancestor "$TARGET" HEAD; then
     log "already up to date with $TARGET — nothing to merge."
     bash scripts/touchpoint_guard.sh "$TARGET" || exit 1
     # Gate 4 still runs: an already-merged upstream can have moved the contracts in an earlier sync.
-    # HERMES INTEGRATION POINT: this compared the *HEAD* side, so an upstream edit to a contract file
-    # was invisible (HEAD is our own branch — it never contains the upstream change until after the
-    # merge, and by then this check has already run). AGENTS.md rule 8 (N10) asks whether *upstream*
-    # moved a contract we build on, so the comparison is against $TARGET.
-    CONTRACT_FILES="$(git diff --name-only "$(git merge-base "$TARGET" HEAD)" "$TARGET" -- development ARCHITECTURE.md 2>/dev/null)"
+    # HERMES INTEGRATION POINT (Session 5, F10): the check here compared `git merge-base "$TARGET"
+    # HEAD` against $TARGET — but in this branch $TARGET *is* an ancestor of HEAD, so the merge base
+    # IS $TARGET and the diff was diff($TARGET,$TARGET): empty forever. Proved on the last real sync
+    # merge (9dab99d5): `git merge-base upstream/master HEAD` → 360ae4f8, which is that merge's own
+    # second parent; the detector's diff was 0 lines and `gh issue list --label contract-change`
+    # returned 0 issues ever opened. The diff now runs from the *last recorded sync* to $TARGET, so
+    # an earlier sync's contract change stays visible until a later sync records it. No state file
+    # is reported as such instead of passing silently.
+    CONTRACT_FILES=""
+    if [ -f "$SYNC_STATE" ]; then
+        LAST_SYNCED="$(tr -d '[:space:]' < "$SYNC_STATE")"
+        if git cat-file -e "${LAST_SYNCED}^{commit}" 2>/dev/null; then
+            CONTRACT_FILES="$(git diff --name-only "$LAST_SYNCED" "$TARGET" -- development ARCHITECTURE.md 2>/dev/null)"
+        else
+            log "N10: recorded sync state '$LAST_SYNCED' is not a commit in this clone — contract check skipped."
+        fi
+    else
+        log "N10: no $SYNC_STATE yet — the already-merged path cannot tell whether an earlier sync"
+        log "N10: surfaced an upstream contract change. The next real merge records the tip."
+    fi
     if [ -n "$CONTRACT_FILES" ]; then
-        log "CONTRACT CHANGE since the merge base: $CONTRACT_FILES"
+        log "CONTRACT CHANGE since the last recorded sync: $CONTRACT_FILES"
         log "N10 requires re-reading these before further feature work; record it in STATUS.md."
     fi
     exit 0
@@ -47,6 +65,17 @@ fi
 # registered touchpoints keep ours on conflict; everything else aborts
 TOUCHPOINTS="$(awk '/GUARD:DATA:START/{f=1;next} /GUARD:DATA:END/{f=0} f' UPSTREAM_TOUCHPOINTS.md \
     | sed -n 's/^\([^#][^:]*\) *:: *max=.*/\1/p' | tr -d ' 	')"
+
+# HERMES INTEGRATION POINT (Session 5, F10): gate 4 used `git merge-base "$TARGET" HEAD` *after* the
+# merge — and a merge makes $TARGET an ancestor of HEAD, so the base was $TARGET itself and the
+# contract diff was diff($TARGET,$TARGET) = empty on every real sync. Proved on the last sync merge
+# (9dab99d5): `merge-base(upstream/master, 9dab99d5)` = 360ae4f8 = its own second parent, the
+# detector's diff = 0 lines, and `gh issue list --label contract-change` = 0 issues ever opened.
+# The pre-merge base is captured here, before run_merge, and gate 4 diffs *that* against $TARGET.
+PRE_MERGE_BASE="$(git merge-base "$TARGET" HEAD 2>/dev/null || true)"
+if [ -z "$PRE_MERGE_BASE" ]; then
+    log "WARN cannot compute the pre-merge base of $TARGET and HEAD — gate 4 will report the contract check as unchecked."
+fi
 
 run_merge() {
     git merge --no-ff --no-edit "$TARGET"
@@ -168,9 +197,16 @@ fi
 # ── gate 4: contract-change detector ────────────────────────────────────────
 # N10: an upstream change to the contracts Hermes builds on must be re-read before further feature
 # work. Detected, not silently absorbed.
-# HERMES INTEGRATION POINT: same fix as the early-exit check above — compare the *upstream* side
-# ($TARGET), not HEAD, or an upstream contract change never trips N10.
-CONTRACT_FILES="$(git diff --name-only "$(git merge-base "$TARGET" HEAD)" "$TARGET" -- development ARCHITECTURE.md 2>/dev/null)"
+# HERMES INTEGRATION POINT (Session 5, F10): the diff base is the pre-merge fork point captured
+# before run_merge. Computing it here (as `git merge-base "$TARGET" HEAD`) was the bug: after the
+# merge, $TARGET is an ancestor of HEAD, so the base was $TARGET itself and the diff was
+# diff($TARGET,$TARGET) = empty on every sync — the detector never fired once in the fork's history.
+if [ -n "$PRE_MERGE_BASE" ]; then
+    CONTRACT_FILES="$(git diff --name-only "$PRE_MERGE_BASE" "$TARGET" -- development ARCHITECTURE.md 2>/dev/null)"
+else
+    CONTRACT_FILES=""
+    log "N10 UNCHECKED: the pre-merge base could not be computed — re-read development/ and ARCHITECTURE.md manually."
+fi
 if [ -n "$CONTRACT_FILES" ]; then
     log "CONTRACT CHANGE: $CONTRACT_FILES"
     log "N10 requires re-reading these before further feature work; record it in STATUS.md."
@@ -181,6 +217,22 @@ if [ -n "$CONTRACT_FILES" ]; then
             && log "contract-change issue opened" \
             || log "contract-change issue could not be opened — recorded here instead"
     fi
+fi
+
+# HERMES INTEGRATION POINT (Session 5, F10): record the absorbed upstream tip — the state the
+# already-merged path above reads. Only a fully gated sync (guard + tests + this gate) reaches here.
+# The file is written and committed with an explicit path (never `git add -A`, which would sweep
+# unrelated changes into the sync commit — the AGENTS.md rule-4 failure this repo has hit).
+printf '%s\n' "$(git rev-parse "$TARGET")" > "$SYNC_STATE"
+if git status --porcelain -- "$SYNC_STATE" | grep -q .; then
+    if git add -- "$SYNC_STATE" \
+        && git commit -q -m "hermes: record the absorbed upstream tip ($(git rev-parse --short "$TARGET"))" -- "$SYNC_STATE"; then
+        log "recorded the absorbed upstream tip in $SYNC_STATE"
+    else
+        log "could not commit $SYNC_STATE — the next already-merged run will report the check as state-less"
+    fi
+else
+    log "sync state already current in $SYNC_STATE"
 fi
 
 log "OK: $BRANCH now contains $TARGET."

@@ -57,3 +57,7 @@ build/
 _*.log
 # Gate output directory written by scripts/audit_gate0.sh on every run.
 audit-evidence/
+
+# Agent scratch: decompiled framework sources kept out of the repo (Session 5)
+audit_tmp/
+audit_tmp2/

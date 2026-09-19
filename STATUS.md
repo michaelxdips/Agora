@@ -14,7 +14,7 @@ the repo **as it was when that phase closed** and may legitimately contradict th
 
 | | Value | Command |
 |---|---|---|
-| `main` HEAD | `4f816a56` + the Session 4 working tree | `git rev-parse --short main` |
+| `main` HEAD | `63bfcfef` | `git rev-parse --short main` |
 | Versions | `3.0.4-hermesx` / `versionCode` 35, both modules | `app/build.gradle.kts`, `wear/build.gradle.kts` |
 | Releases | `v3.0.4` (latest), `v3.0.3`, `v3.0.2`, `v3.0.1` (pre-release) | `gh release list -R michaelxdips/Agora` |
 | App unit tests | **2658 tests, 0 failures, 0 errors, 3 skipped** (406 XML files) | `./gradlew :app:testFdroidDebugUnitTest` |
@@ -73,7 +73,9 @@ against the mutated (unlocked) code and passes 5 of 5 against the fixed code.
 
 ### Session 4 — 2026-09-19 (R8 gate, instrumented suites executed, self-update channel, audit sweep)
 
-Opened against `main` @ `4f816a56`, `upstream/master` @ `360ae4f8`. Two emulator AVDs were created
+Opened against `main` @ `4f816a56`, `upstream/master` @ `360ae4f8`. (Session 5 rewrote history to
+purge the certificate's locality field; that commit is `cf45a410` today — the v3.0.4 tag target.)
+Two emulator AVDs were created
 (`hermes_phone` API 36 x86_64, `hermes_wear` API 34 wear x86_64) and both stayed attached for the
 whole session — `adb devices` → `emulator-5554 device`, `emulator-5556 device`.
 
@@ -454,7 +456,7 @@ ref `upstream/sim` built in a temp worktree; it is not part of `main` or of any 
 | Secrets in git history | **none** | guard §3 passes; `git log --all --diff-filter=A --name-only` has no `local.properties` / `*.jks` / `*.keystore` |
 | N10 contract re-read trigger | n/a | the stress merge changed no `development/*.md` or `ARCHITECTURE.md` |
 
-Stress merge tagged `sync-2026-09-14-stress` → `e360491c`. `HANDOVER.md` written, since moved out of the repository (Wear OS
+Stress merge tagged `sync-2026-09-14-stress` → `2b736213` (pre-rewrite `e360491c`). `HANDOVER.md` written, since moved out of the repository (Wear OS
 prerequisites, HS registry, from-scratch verification recipe, deliberate limitations).
 
 ---

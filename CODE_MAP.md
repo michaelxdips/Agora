@@ -165,7 +165,7 @@ Upstream ref used for the classification: `upstream/master`
 | `scripts/persona_update.sh` | 141 | fork-only |
 | `scripts/round_icon.py` | 39 | upstream (budgeted) |
 | `scripts/test-native-utf8.py` | 76 | upstream (budgeted) |
-| `scripts/touchpoint_guard.sh` | 158 | fork-only |
+| `scripts/touchpoint_guard.sh` | 173 | fork-only |
 | `scripts/upstream_sync.sh` | 180 | fork-only |
 | `scripts/verify_release_provenance.sh` | 145 | fork-only |
 
@@ -179,7 +179,7 @@ so this table cannot disagree with what the guard enforces.
 | `app/build.gradle.kts` | 68 | 65 |
 | `settings.gradle.kts` | 4 | 3 |
 | `gradle/libs.versions.toml` | 10 | 6 |
-| `.github/workflows/build.yml` | 140 | 126 |
+| `.github/workflows/build.yml` | 140 | 139 |
 | `.github/workflows/mkdocs.yml` | 4 | 4 |
 | `mkdocs.yml` | 16 | 12 |
 | `fastlane/metadata/android/en-US/changelogs/32.txt` | 8 | 4 |

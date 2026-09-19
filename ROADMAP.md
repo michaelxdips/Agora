@@ -56,7 +56,8 @@ evidence table for each phase.
 
 ## Phase 6 — Sync Stress-Test + Handover
 - [x] One real upstream merge completed per protocol (stress merge tagged
-      `sync-2026-09-14-stress` → `e360491c`; `upstream/master` itself was already an ancestor of `main`)
+      `sync-2026-09-14-stress` → `2b736213` (Session 5 rewrote history; the pre-rewrite hash was
+      `e360491c`); `upstream/master` itself was already an ancestor of `main`)
 - [x] `main` fully green: unit tests + both flavor debug builds + touchpoint guard + contract check
 - [x] `ROADMAP.md` / `STATUS.md` finalised; handover section written for the future Wear OS phase
       (the separate `HANDOVER.md` was later moved out of the repository)

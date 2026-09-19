@@ -115,10 +115,12 @@ For `upstream_sync.sh` that meant the post-merge gate would run with a `JAVA_HOM
 and abort a good merge with "TESTS/BUILD FAILED".
 
 **N6 (P2) — a project-unrelated fingerprint was committed into a shipped resource.**
-`app/src/fdroid/res/values/colors.xml:2` read `fdroid-flavor icon background (forest green)`.
-Nothing to do with Agora, Hermes X, or the colour `#123E25`. Removed. (The keystore DN also contains
-it; that is a real field echoed by `apksigner` on published APKs, documented not invented, and it cannot
-be edited without re-signing every release.)
+`app/src/fdroid/res/values/colors.xml:2` carried a comment naming an unrelated project and its colour.
+Nothing to do with Agora, Hermes X, or the colour `#123E25`. Removed. (The release certificate's DN
+also embedded it; that is a real field echoed by `apksigner` on published APKs. The **copies** of that
+DN in this repo's docs were removed in Session 4 — the certificate itself cannot be re-cut without
+re-signing every release, so the live signature keeps the old field and the docs now say so instead of
+repeating it.)
 
 **N7 (P2) — the phone release is not minified; the wear release is.**
 `app/build.gradle.kts:70` `isMinifyEnabled = false` vs `wear/build.gradle.kts:51-52` `true`/`true`.

@@ -14,21 +14,133 @@ the repo **as it was when that phase closed** and may legitimately contradict th
 
 | | Value | Command |
 |---|---|---|
-| `main` HEAD | `ffb14ebf` + the Session 3 working tree | `git rev-parse --short main` |
+| `main` HEAD | `4f816a56` + the Session 4 working tree | `git rev-parse --short main` |
 | Versions | `3.0.4-hermesx` / `versionCode` 35, both modules | `app/build.gradle.kts`, `wear/build.gradle.kts` |
-| Releases | `v3.0.3` (latest), `v3.0.2`, `v3.0.1` (pre-release) | `gh release list -R michaelxdips/Agora` |
-| App unit tests | **2635 tests, 0 failures, 0 errors, 3 skipped** (404 XML files) | `./gradlew :app:testFdroidDebugUnitTest` |
-| Wear unit tests | **141 tests, 0 failures, 0 errors** (13 XML files) | `./gradlew :wear:testDebugUnitTest` |
-| Play flavor tests | 2618 tests, 0 failures, 0 errors, 3 skipped | `:app:testPlayDebugUnitTest` |
-| Kotlin size gate | 1044 files, maximum 800 lines, 0 baseline entries | `verifyKotlinFileSize` |
-| Upstream position | `main` is **89 ahead** of the fork point `914e7c8d`; upstream is **0 ahead** | `git rev-list --left-right --count upstream/master...main` |
-| Release certificate | `7188ce70…aa56d7` on **both** published APKs | `bash scripts/verify_release_provenance.sh v3.0.3` → **PASS, all four claims** |
+| Releases | `v3.0.4` (latest), `v3.0.3`, `v3.0.2`, `v3.0.1` (pre-release) | `gh release list -R michaelxdips/Agora` |
+| App unit tests | **2648 tests, 0 failures, 0 errors, 3 skipped** (406 XML files) | `./gradlew :app:testFdroidDebugUnitTest` |
+| Wear unit tests | **146 tests, 0 failures, 0 errors** (14 XML files) | `./gradlew :wear:testDebugUnitTest` |
+| Play flavor tests | 2631 tests, 0 failures, 0 errors, 3 skipped | `:app:testPlayDebugUnitTest` |
+| Kotlin size gate | 1055 files, maximum 800 lines, 0 baseline entries | `verifyKotlinFileSize` |
+| Upstream position | `main` is **113 ahead** of the fork point `914e7c8d`; upstream is **0 ahead** | `git rev-list --left-right --count upstream/master...main` |
+| Release certificate | `7188ce70…aa56d7` on **both** published APKs | `bash scripts/verify_release_provenance.sh v3.0.4` → **PASS, all four claims** |
 | Published asset digests | match `SHA256SUMS` byte-for-byte | same script, claim 2 |
 | Release signing | **fail-closed**: `assembleFdroidRelease` with no keystore now exits 1 instead of signing with the debug key | `./gradlew assembleFdroidRelease` on a clean `local.properties` |
 | Branch protection | **off** — `gh api …/branches/main/protection` → `404 Branch not protected` | same |
-| Wear instrumentation | **exists** (`wear/src/androidTest`, 2 classes, 11 tests) and compiles; **not yet run on hardware** — no device or emulator is attached to this machine | `./gradlew :wear:compileDebugAndroidTestKotlin` |
+| Wear instrumentation | **RAN on 2026-09-19** — 12 tests on both AVDs, 0 failures; it caught one real test defect on first execution (see Session 4) | `./gradlew :wear:connectedDebugAndroidTest` |
+| App instrumentation | **RAN on 2026-09-19** — 12 tests on both AVDs, 0 failures; caught the stale grounding quote on first execution | `./gradlew :app:connectedFdroidDebugAndroidTest` |
+| R8 phone release | **ON** (`isMinifyEnabled = true`, `isShrinkResources = true`); APK 49,631,099 → **29,497,445 bytes** (−40.6%) | `./gradlew :app:assembleFdroidRelease` |
+| R8 keep verification | 13/13 dex assertions present (JNI types, `NativeChatCallback`, workers, manifest components, `FdroidSandboxManagerFactory`) | `grep -l <class> classes*.dex` on the release APK |
+| R8 device smoke | **PASS** — release APK installed on `emulator-5554`, launched, no crash; `UpdateCheckWorker`, `AutoBackupWorker`, `MemorySnapshotPushWorker` all `Worker result SUCCESS` in logcat | `adb install` + `dumpsys jobscheduler` + `WM-WorkerWrapper` log |
 | Wear in CI | `:wear:testDebugUnitTest` in the `test` job, `:wear:assembleRelease` + `:wear:lintVitalRelease` + APK upload in the `build` job | `.github/workflows/build.yml` |
+| CI release verification | `apksigner verify --print-certs` on both APKs + a hard fail when their certificates differ + `SHA256SUMS` generated in CI | `.github/workflows/build.yml` |
 | `CODE_MAP.md` | generated: `bash scripts/gen_code_map.sh --check` → up to date | same |
+
+**Session 4 opened the two items this file had carried forward honestly, and closed both with the
+missing evidence.** (1) *The phone release is no longer unminified*: R8 is on, the keep rules are
+derived from the C++ `FindClass`/`GetMethodID` call sites and the manifests, and the whole gate the
+plan demanded — build, full suite, device smoke — ran green, including a release-APK install on the
+emulator where the R8-sensitive workers reported `SUCCESS`. (2) *The watch instrumented suite has now
+been executed*, on both AVDs, and its first execution immediately failed one test — `MATCH_DEFAULT_ONLY`
+on a launcher query returns an empty list for a correct manifest — which is exactly the class of bug
+that only a real device run surfaces; fixed and re-run green. The phone→watch **Data Layer transport**
+itself remains unproven end to end (`Accounts: 0` on both emulators; both apps installed and launched,
+`adb devices` non-empty), and is still recorded as HS4 rather than implied by the contract test that
+now guards the wire format.
+
+### Session 4 — 2026-09-19 (R8 gate, instrumented suites executed, self-update channel, audit sweep)
+
+Opened against `main` @ `4f816a56`, `upstream/master` @ `360ae4f8`. Two emulator AVDs were created
+(`hermes_phone` API 36 x86_64, `hermes_wear` API 34 wear x86_64) and both stayed attached for the
+whole session — `adb devices` → `emulator-5554 device`, `emulator-5556 device`.
+
+**Automated checks that now exist, and what each one proves**
+
+| Check | Command | Proves |
+|---|---|---|
+| Phone↔watch wire contract | `./gradlew :app:testFdroidDebugUnitTest --tests "*WatchProtocolContractTest"` | every DataMap path, key and version the phone writes is the one the watch reads (config, memory, pairing handshake, capability, no credential in the request). 9 tests; the two sides live in different modules, so this is the only automatic guard against a silent rename |
+| Self-update channel | `--tests "*UpdateChannelTest"` | the download URL is derived from the offered version and pins the fdroid asset, the bus delivers an offer, the byte cap is sane |
+| Wear queue throttle | `--tests "*WearQueueDrainerTest"` | a `Retry-After` is persisted on the entry as a future deadline and the next pass refuses to retry; past the deadline it sends again; hostile headers are capped on disk. Mutation-proved: dropping the persistence turns 2 tests red |
+| Send-now contract | `--tests "*WearSendNowContractTest"` | the pre-fix shape double-sends (kept as an executable description), the fixed shape leaves nothing for the drain, a failed send-now keeps the question held |
+| Wear platform behaviour | `:wear:connectedDebugAndroidTest` (2 AVDs) | keystore round-trip, config not plaintext, truncated config rejected, all three listeners resolve from the manifest, launcher declared and exported, standalone metadata, memory cache clearing |
+| Phone autopilot behaviour | `:app:connectedFdroidDebugAndroidTest` (2 AVDs) | facts land in the real Agora store and undo restores bytes, the circuit breaker rolls back, a new file is removed on undo |
+
+**Two real defects were found by running the instrumented suites for the first time**
+
+* `WearPlatformInstrumentedTest.theLauncherActivityIsDeclaredAndExported` queried with
+  `MATCH_DEFAULT_ONLY`, which matches filters that declare `CATEGORY_DEFAULT`; a launcher activity
+  declares `MAIN` + `LAUNCHER` only and must not declare `DEFAULT`. The query therefore returned an
+  empty list on a correct manifest — the assertion, not the manifest, was wrong. Confirmed against
+  the device before changing anything: `cmd package query-activities` on the same emulator found
+  `com.hermes.app/com.newoether.agora.wear.WearMainActivity` (`match=0x108000`). Fixed, plus the
+  `exported` claim the test's own name makes.
+* `AutopilotMemoryInstrumentedTest` quoted `"quote N"` against a transcript that never contained it.
+  The Session-3 grounding check (`ReflectionProtocol.grounds`) refuses an op whose quote is absent
+  from the transcript — by design — so the test applied 0 of 3 ops. The test predated the check and
+  had never run on hardware. Fixed by quoting text that is actually in the transcript; the test now
+  measures the apply path it is named for.
+
+**Self-update channel (`app/src/main/java/com/newoether/agora/autopilot/update/`)**
+
+Seven fork-only files, no upstream file touched except the two one-line integration points already
+registered (#5 `MainActivity`, #17 `AgoraApplication`) and one manifest receiver (#2).
+
+* `UpdateCheckWorker` — daily periodic check, WorkManager, honours the existing `autoUpdateCheck`
+  toggle; only the fdroid flavor (`bool/hermes_self_update_enabled` in `src/fdroid` vs `src/play`).
+* `UpdateCheckStore` — the worker's finding is **persisted**, because the bus is a rendezvous and the
+  worker's whole use case is "the app is closed"; without it an offer found in the background was
+  dropped the instant the worker exited.
+* `UpdateCheckBus` / `UpdateChannelUi` — the offer reaches the same dialog the startup check uses,
+  re-validated against the live repository first, with a catch-up pass for an offer stored while the
+  UI was down.
+* `UpdateDownloadAction` — the "Download & install" tap (notification action; the dialog itself is
+  upstream-owned and cannot grow a fork button).
+* `UpdateDownloadWorker` / `UpdateInstaller` — download with a 200 MB cap into the app cache, then a
+  `PackageInstaller` session. **No `REQUEST_INSTALL_PACKAGES`**: a session is the platform's own
+  install path and still shows the system confirmation.
+
+**R8 for the phone release — the gate, in order**
+
+| Step | Result |
+|---|---|
+| `app/proguard-rules.pro` keeps, derived from `llama_chat_template.cpp:32-38,117-271` and `llama_chat_callbacks.cpp:67-81` | `LlamaChatTemplateResult`, `ChatTemplateGrammarTrigger`, `ChatTemplateMessage`, `ChatTemplateTool`, `ChatTemplateToolCall`, `LlamaChatTemplateRequest`, `NativeChatCallback` (+ implementers), `native <methods>`, all manifest components, every `ListenableWorker`, both `SandboxManagerFactory` classes |
+| `./gradlew :app:assembleFdroidRelease` | **BUILD SUCCESSFUL**; APK **29,497,445 B** vs 49,631,099 B unminified |
+| dex keep assertions | **13/13 KEPT** (the list above, checked by `grep` over `classes*.dex`) |
+| Install on `emulator-5554` + launch | process alive, crash buffer empty, `topResumedActivity=com.hermes.app/...MainActivity` |
+| Worker smoke in the minified APK | `WM-WorkerWrapper: Starting work for …UpdateCheckWorker` → `Worker result SUCCESS`; same for `AutoBackupWorker` and `MemorySnapshotPushWorker` |
+| Full unit suite (fdroid + play + wear) | `2648 / 2631 / 146 tests, 0 failures, 0 errors` → `audit_test_counts.py` exit 0 |
+
+**Audit sweep (10 read-only subagents + 2 re-dispatches)**
+
+Covered: update gap, watch transport, R8, locality/secret hygiene, GitHub releases, app bugs, wear bugs,
+refactor/perf, feature proposals, tests/guards. Reports are read-only inputs; the ones acted on above
+are the two instrumented-suite defects, the send-now double-send, the Retry-After throttle, the CI
+release-verification gap, and the `.gitignore`/guard secret-hygiene gap. The remaining findings are
+listed in this file rather than silently dropped — see **§Session 4 open findings** below.
+
+**Locality-field wipe**
+
+Every `locality` occurrence outside `thirdparty/` is gone: the six doc copies (README ×2, STATUS ×3,
+MEGA_PLAN ×1) were replaced with the SHA-256 digest plus a pointer to `apksigner verify --print-certs`
+as the source of truth for the DN. The live certificate still carries the old locality field — it
+cannot be re-cut without re-signing every published APK, which would break update continuity and Wear
+pairing — and that is now stated in the docs instead of repeated as a literal.
+
+**Secret hygiene hardening**
+
+`.gitignore` gains `*.jks`, `*.keystore`, `*.p12`, `*.pfx` (they were only in `.git/info/exclude`,
+which is not cloned), and `touchpoint_guard.sh` §3 now also checks `signing.properties`, the
+tracked-file scan covers `.p12/.pfx/.pem/.key`, and the history scan covers `signing.properties`.
+Guard still **PASS**.
+
+**GitHub release audit — what is clean, what was fixed**
+
+Clean: notes for all four releases carry no tokens, keys, absolute paths or IPs; `SHA256SUMS` matches
+the published bytes; both APKs of both recent releases report the same certificate; `permissions:
+contents: read`; keystore and `local.properties` never tracked. Fixed in CI: the release job now runs
+`apksigner verify --print-certs` on both APKs, fails when their digests differ, and generates +
+uploads `SHA256SUMS`; both APK uploads gained `if-no-files-found: error` and `retention-days: 14`.
+Left alone deliberately: the tag object exposes the tagger's e-mail (rewriting a published tag is
+worse than the disclosure), and the signing key is not rotated (rotation breaks updates and pairing).
 
 **Everything in `MEGA_PLAN.md`'s fix/modify/optimise plan is closed or explicitly recorded as not
 done in that document.** The one item that is *verified but unexercised* is the wear instrumented
@@ -154,7 +266,7 @@ Exit criteria: rebranded APK coexists with original Agora; sync dry-run passes g
 |---|---|---|
 | `applicationId` → `com.hermes.app` | **done** | commit `f1dd9c63`; `git diff` shows one line + `HERMES INTEGRATION POINT` marker; touchpoint #1 |
 | App name "Hermes" + adaptive icon via `app/src/fdroid/res` overlay | **done** | commit `f1dd9c63`; 4 new files under `app/src/fdroid/res/` (zero upstream edits — upstream has 0 files there) |
-| Release keystore wiring (`local.properties`) | **done** | `_tools/hermes-release.jks`; `assembleFdroidRelease` green; `apksigner verify --print-certs` → `[certificate DN omitted]`, SHA-256 `7188ce700b7407485e4a588cc1ef779fba4bd47c635338b05f61d5fc90aa56d7` |
+| Release keystore wiring (`local.properties`) | **done** | `_tools/hermes-release.jks`; `assembleFdroidRelease` green; `apksigner verify --print-certs` → the fork's release DN, SHA-256 `7188ce700b7407485e4a588cc1ef779fba4bd47c635338b05f61d5fc90aa56d7` |
 | GitHub labels `upstream-sync`, `contract-change` | **done** | `GET /repos/michaelxdips/Agora/labels` → `upstream-sync E11D48`, `contract-change F59E0B` |
 | Sync dry-run clean | **done** | `SYNC_DRY_RUN=1 bash scripts/upstream_sync.sh` → `touchpoint_guard: PASS`, `SYNC_EXIT=0` |
 | Both APKs coexist on device | **done** | upstream `app-release.apk` (v2.1.0) and our `app-fdroid-debug.apk` installed together: `pm list packages` → `package:com.hermes.app` + `package:com.newoether.agora`. Launcher drawer shows both icons — "Agora" (white, stylised A) and "Hermes" (dark-green adaptive icon, white H + terracotta corner). Proof: `evidence/phase0-6/05-app-drawer.png` |
@@ -557,7 +669,7 @@ two-pass audit. One commit per phase; every claim below names the command that p
 | `:wear:testDebugUnitTest` | **47 tests, 0 failures, 0 errors** (was 31: +8 pairing, +8 drainer, +4 sentinel, −4 net from the reworked suite) |
 | `:app:assembleFdroidDebug` / `:app:assemblePlayDebug` / `:wear:assembleRelease` | **PASS** |
 | APK sizes (clean build, exact bytes) | fdroid **65,294,236** · play **65,233,688** · wear release **2,719,147** |
-| `apksigner verify --print-certs` | **verified**; `[certificate DN omitted]`, SHA-256 `7188ce700b7407485e4a588cc1ef779fba4bd47c635338b05f61d5fc90aa56d7` — same identity as the phone, which the Data Layer requires |
+| `apksigner verify --print-certs` | **verified**; the fork's release DN, SHA-256 `7188ce700b7407485e4a588cc1ef779fba4bd47c635338b05f61d5fc90aa56d7` — same identity as the phone, which the Data Layer requires |
 | Launcher label (`aapt2 dump badging`, all three APKs) | `application-label:'Hermes X'` in **every** locale, including `de`/`ar`/`es`/`zh`/`ja`/`ko`/`ru`/`vi`/`fr`/`pt-BR`/`zh-TW` |
 | `applicationId` (all three APKs) | **`com.hermes.app`** — unchanged, which is what keeps pairing possible |
 | `versionName` | `3.0.0-hermesx` in both modules. `versionCode` **left at 31**: phone and watch share an `applicationId`, so the two must move together, and a versionCode bump buys nothing for a rebrand that is not being published to a store |
@@ -770,7 +882,7 @@ dialog, `logcat -b crash` empty. Run B → A on one binary, no rebuild.
 |---|---|---|
 | Fork package | `aapt2 dump badging app-fdroid-release.apk` | `package: name='com.hermes.app' versionCode='31' versionName='3.0.0-hermesx'` |
 | Upstream package | `aapt2 dump badging upstream-v2.1.0.apk` | `package: name='com.newoether.agora' versionCode='31' versionName='2.1.0'` |
-| Different signing identity | `apksigner verify --print-certs` | fork `[certificate DN omitted]`, SHA-256 `7188ce70…aa56d7`; upstream `CN=Newo Ether`, SHA-256 `5de26f26…be1aa29` |
+| Different signing identity | `apksigner verify --print-certs` | fork DN (see README; SHA-256 `7188ce70…aa56d7`), upstream `CN=Newo Ether`, SHA-256 `5de26f26…be1aa29` |
 | Both installed at once | `adb shell pm list packages \| grep -iE 'hermes\|newoether'` | `package:com.hermes.app` **and** `package:com.newoether.agora` |
 | Both report their own version | `adb shell dumpsys package <pkg> \| grep versionName` | `3.0.0-hermesx` / `2.1.0` |
 | The check's target is baked into the APK | `grep -aoE 'api\.github\.com/repos/[^"]+/releases/latest' classes*.dex` | upstream APK → `api.github.com/repos/newo-ether/Agora/releases/latest`. Fork APK → no match for that literal, because the fork builds the URL from `HermesBuildInfo.FORK_REPO`; the same probe for `michaelxdips/Agora` matches the fork APK and not the upstream one |

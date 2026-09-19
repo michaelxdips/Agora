@@ -30,7 +30,7 @@
 |---|---|---|
 | `applicationId` | `com.hermes.app` | `com.newoether.agora` |
 | `versionName` | `3.0.4-hermesx` (`versionCode` 35) | `2.1.0` (`versionCode` 31) |
-| Release signing identity | `[certificate DN omitted]` | `CN=Newo Ether` |
+| Release signing identity | the fork's release certificate — `apksigner verify --print-certs` prints its DN | `CN=Newo Ether` |
 | Release certificate SHA-256 | `7188ce70…aa56d7` | `5de26f26…be1aa29` |
 | Distribution | [GitHub Releases](https://github.com/michaelxdips/Agora/releases/latest) — phone + watch APK | F-Droid, Google Play, GitHub Releases |
 | Update channel | **this fork's own GitHub Releases** | upstream's releases |
@@ -106,7 +106,7 @@ installing:
 ```bash
 sha256sum -c SHA256SUMS
 apksigner verify --print-certs app-fdroid-release.apk
-# [certificate DN omitted]
+# prints the fork's certificate DN; compare its SHA-256 with the digest below
 # SHA-256 7188ce700b7407485e4a588cc1ef779fba4bd47c635338b05f61d5fc90aa56d7
 ```
 

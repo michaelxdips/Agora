@@ -99,7 +99,16 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // HERMES INTEGRATION POINT (touchpoint #1, Session 4): R8 was OFF for the phone
+            // release while the watch shipped minified. The gate the fork set for itself was
+            // "R8 build + full suite + device smoke, keep only if all green"; the device half
+            // could not run without an emulator, so the item stayed open rather than shipping
+            // an unexercised shrinker. The emulator pair now exists and the whole gate ran
+            // green (Session 4 evidence in STATUS.md), and `proguard-rules.pro` carries the
+            // JNI/manifest/worker keeps the shrinker needs — derived from the C++ sources,
+            // not guessed.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

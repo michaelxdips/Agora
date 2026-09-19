@@ -17,8 +17,8 @@ the repo **as it was when that phase closed** and may legitimately contradict th
 | `main` HEAD | `4f816a56` + the Session 4 working tree | `git rev-parse --short main` |
 | Versions | `3.0.4-hermesx` / `versionCode` 35, both modules | `app/build.gradle.kts`, `wear/build.gradle.kts` |
 | Releases | `v3.0.4` (latest), `v3.0.3`, `v3.0.2`, `v3.0.1` (pre-release) | `gh release list -R michaelxdips/Agora` |
-| App unit tests | **2648 tests, 0 failures, 0 errors, 3 skipped** (406 XML files) | `./gradlew :app:testFdroidDebugUnitTest` |
-| Wear unit tests | **146 tests, 0 failures, 0 errors** (14 XML files) | `./gradlew :wear:testDebugUnitTest` |
+| App unit tests | **2658 tests, 0 failures, 0 errors, 3 skipped** (406 XML files) | `./gradlew :app:testFdroidDebugUnitTest` |
+| Wear unit tests | **149 tests, 0 failures, 0 errors** (14 XML files) | `./gradlew :wear:testDebugUnitTest` |
 | Play flavor tests | 2631 tests, 0 failures, 0 errors, 3 skipped | `:app:testPlayDebugUnitTest` |
 | Kotlin size gate | 1055 files, maximum 800 lines, 0 baseline entries | `verifyKotlinFileSize` |
 | Upstream position | `main` is **113 ahead** of the fork point `914e7c8d`; upstream is **0 ahead** | `git rev-list --left-right --count upstream/master...main` |
@@ -107,7 +107,7 @@ registered (#5 `MainActivity`, #17 `AgoraApplication`) and one manifest receiver
 | dex keep assertions | **13/13 KEPT** (the list above, checked by `grep` over `classes*.dex`) |
 | Install on `emulator-5554` + launch | process alive, crash buffer empty, `topResumedActivity=com.hermes.app/...MainActivity` |
 | Worker smoke in the minified APK | `WM-WorkerWrapper: Starting work for …UpdateCheckWorker` → `Worker result SUCCESS`; same for `AutoBackupWorker` and `MemorySnapshotPushWorker` |
-| Full unit suite (fdroid + play + wear) | `2648 / 2631 / 146 tests, 0 failures, 0 errors` → `audit_test_counts.py` exit 0 |
+| Full unit suite (fdroid + play + wear) | `2658 / 2631 / 149 tests, 0 failures, 0 errors` → `audit_test_counts.py` exit 0 |
 
 **Audit sweep (10 read-only subagents + 2 re-dispatches)**
 

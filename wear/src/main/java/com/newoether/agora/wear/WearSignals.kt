@@ -23,8 +23,15 @@ object WearSignals {
     /** Live pairing status, so the setup screen shows what is actually happening. */
     val pairing = MutableStateFlow(PairingStatus.Idle)
 
-    /** Phone's answer to a pairing request, or null when none has arrived this process. */
-    val pairingAck = MutableStateFlow<String?>(null)
+    /**
+     * The phone's answer to a pairing request, or null when none has arrived this process.
+     *
+     * Typed since the request-id change: the answer names the request it belongs to, which is what
+     * lets [WearPairing] refuse a *stale* answer. As a bare `String?` the flow could only ever say
+     * "something arrived", and `filterNotNull().first()` therefore satisfied a brand-new request with
+     * the previous request's answer.
+     */
+    val pairingAck = MutableStateFlow<PairingAck?>(null)
 
     /** Timestamp of the last memory snapshot the phone pushed (0 = never). */
     val memoryUpdatedAt = MutableStateFlow(0L)

@@ -116,6 +116,44 @@ class WearChatClientTest {
         assertEquals("POST /v1/chat/completions HTTP/1.1", requests.first().trim())
     }
 
+    @Test
+    fun aBaseUrlWithAQueryStringKeepsItAndStillGetsThePath() {
+        // String concatenation produced `…/v1?api-version=2024/chat/completions`, which is not a URL
+        // any provider recognises — the user saw a 404 for a base URL copied from the provider's own
+        // documentation. The path is appended to the *path*; the query survives.
+        serve(200, """{"choices":[{"message":{"content":"hi"}}]}""")
+        WearChatClient(config("http://127.0.0.1:$port/v1?api-version=2024")).ask("q", "")
+        assertEquals(
+            "POST /v1/chat/completions?api-version=2024 HTTP/1.1",
+            requests.first().trim(),
+        )
+    }
+
+    @Test
+    fun aMalformedBaseUrlIsAFailureRatherThanAnException() {
+        // `Request.Builder.url` throws on a URL it cannot parse. `ask`'s contract is "never throws", so
+        // the parse has to happen before the builder is handed the string. `https://…` passes
+        // `WearConfig.isValid()` (which only checks the scheme), so this reaches the URL builder.
+        val result = WearChatClient(config("https://not a host/v1")).ask("q", "")
+
+        assertTrue(result.isFailure)
+        assertEquals("bad base URL", result.exceptionOrNull()?.message)
+        assertEquals(
+            WearChatException.Kind.NOT_CONFIGURED,
+            (result.exceptionOrNull() as WearChatException).kind,
+        )
+    }
+
+    @Test
+    fun aBaseUrlThatFailsConfigValidationIsReportedAsNotConfigured() {
+        // The other half of the same rule: a base URL the *config* rejects never reaches the builder,
+        // and the message says which check refused it.
+        val result = WearChatClient(config("http://[not a host/v1")).ask("q", "")
+
+        assertTrue(result.isFailure)
+        assertEquals("not configured", result.exceptionOrNull()?.message)
+    }
+
     // ---------- request shape ----------
 
     @Test
@@ -173,6 +211,43 @@ class WearChatClientTest {
     }
 
     @Test
+    fun parsesTheContentPartArrayShape() {
+        // What an OpenAI-compatible gateway returns when the answer is wrapped in parts. The previous
+        // version read `content` as a primitive only, so a correct answer arrived and was reported as
+        // "unreadable response" — the user saw a failure for a response that was fine.
+        serve(
+            200,
+            """{"choices":[{"message":{"content":[{"type":"text","text":"Jawabannya 14."}]}}]}""",
+        )
+        assertEquals("Jawabannya 14.", clientForCurrentPort().ask("q", "").getOrNull())
+    }
+
+    @Test
+    fun aContentPartArrayWithSeveralTextPartsIsJoined() {
+        serve(
+            200,
+            """{"choices":[{"message":{"content":[
+                {"type":"text","text":"baris satu"},
+                {"type":"text","text":"baris dua"}
+            ]}}]}""",
+        )
+        assertEquals("baris satu\nbaris dua", clientForCurrentPort().ask("q", "").getOrNull())
+    }
+
+    @Test
+    fun aNonTextPartAloneIsUnreadableRatherThanStringified() {
+        // An image part has no text to show. Stringifying the JSON would put a blob of markup on a
+        // 384 px screen; the honest answer is "unreadable response".
+        serve(
+            200,
+            """{"choices":[{"message":{"content":[{"type":"image_url","image_url":{"url":"x"}}]}}]}""",
+        )
+        val result = clientForCurrentPort().ask("q", "")
+        assertTrue(result.isFailure)
+        assertEquals("unreadable response", result.exceptionOrNull()?.message)
+    }
+
+    @Test
     fun parsesTheLegacyTextShape() {
         serve(200, """{"choices":[{"text":"legacy answer"}]}""")
         assertEquals("legacy answer", clientForCurrentPort().ask("q", "").getOrNull())
@@ -198,6 +273,37 @@ class WearChatClientTest {
 
         assertTrue(result.isFailure)
         assertEquals("HTTP 401", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun a401IsNotRetryableAndA429Is() {
+        // The queue's whole give-up rule hangs off this distinction. Before it, every failure looked
+        // the same, so a revoked key spent three attempts (and three provider calls) and the question
+        // was then deleted as if the network had been down.
+        serve(401, """{"error":"bad key"}""")
+        val unauthorized = clientForCurrentPort().ask("q", "").exceptionOrNull() as WearChatException
+        assertEquals(WearChatException.Kind.HTTP_STATUS, unauthorized.kind)
+        assertEquals(401, unauthorized.httpStatus)
+        assertFalse("a 401 can never succeed on retry", unauthorized.retryable)
+
+        val missing = WearChatException("HTTP 404", WearChatException.Kind.HTTP_STATUS, 404)
+        assertFalse("a 404 endpoint will not appear on retry", missing.retryable)
+
+        val throttled = WearChatException("HTTP 429", WearChatException.Kind.HTTP_STATUS, 429)
+        assertTrue(throttled.retryable)
+        val serverError = WearChatException("HTTP 503", WearChatException.Kind.HTTP_STATUS, 503)
+        assertTrue(serverError.retryable)
+    }
+
+    @Test
+    fun aRetryAfterHeaderIsCarriedOnTheFailureInMilliseconds() {
+        // A 429 without the server's own back-off is a 429 the watch will hit again immediately.
+        serve(429, """{"error":"slow down"}""", headers = mapOf("Retry-After" to "7"))
+        val error = clientForCurrentPort().ask("q", "").exceptionOrNull() as WearChatException
+
+        assertEquals(429, error.httpStatus)
+        assertEquals(7_000L, error.retryAfterMs)
+        assertTrue(error.retryable)
     }
 
     @Test

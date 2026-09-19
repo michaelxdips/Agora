@@ -6,4 +6,46 @@
          sentences the user actually sees; a silent no-op was the previous behaviour. -->
     <string name="wear_voice_unavailable">Voice input is not available on this watch. Type instead.</string>
     <string name="wear_mic_denied">Microphone permission denied. Voice input is off until it is granted.</string>
+
+    <!-- O5: the action labels and status sentences. These were string literals inside the composables,
+         so the module could not be translated at all while every other surface of this fork is
+         resource-based. The debug panel keeps its literals on purpose: its text is diagnostic output,
+         not product copy. -->
+    <string name="wear_action_send">Send</string>
+    <string name="wear_action_sending">Sending…</string>
+    <string name="wear_action_speak">Speak</string>
+    <string name="wear_action_send_now">Send now</string>
+    <string name="wear_action_discard">Discard</string>
+    <string name="wear_action_change_key">Change key</string>
+    <string name="wear_action_save_key">Save key</string>
+    <string name="wear_action_pair_with_phone">Pair with phone</string>
+    <string name="wear_action_cancel">Cancel</string>
+    <string name="wear_action_debug">Debug</string>
+    <string name="wear_action_hide_debug">Hide debug</string>
+
+    <string name="wear_setup_title">%1$s setup</string>
+    <string name="wear_setup_editing">Editing your saved key. Back cancels and keeps the old one.</string>
+    <string name="wear_setup_first_run">Pair with the phone app, or enter your own key.</string>
+    <string name="wear_setup_waiting">Asking the phone…\nKeep the phone app on Watch setup.</string>
+    <string name="wear_setup_field_base_url">Base URL</string>
+    <string name="wear_setup_field_api_key">API key</string>
+    <string name="wear_setup_field_model">Model</string>
+    <string name="wear_setup_field_empty">Tap to type</string>
+    <string name="wear_setup_field_locked">…</string>
+    <string name="wear_setup_invalid">Need an https base URL, key and model</string>
+
+    <string name="wear_chat_placeholder">Type a question</string>
+    <string name="wear_chat_thinking">Thinking…</string>
+    <string name="wear_chat_no_setup">No setup yet</string>
+    <string name="wear_chat_offline_held">Offline — held</string>
+    <string name="wear_chat_duplicate">Already sending that question</string>
+    <string name="wear_chat_voice_unavailable">Voice unavailable on this watch</string>
+    <string name="wear_chat_rate_limited">Rate limited — waiting %1$ds</string>
+    <string name="wear_chat_not_sent">Not sent: %1$s</string>
+    <string name="wear_chat_rejected">Request rejected: %1$s</string>
+    <string name="wear_chat_rejected_fallback">request rejected</string>
+    <string name="wear_chat_held_offline">%1$d held offline</string>
+    <string name="wear_chat_earlier_one">%1$d earlier held question was answered</string>
+    <string name="wear_chat_earlier_many">%1$d earlier held questions were answered</string>
+    <string name="wear_chat_dropped">Dropped after %1$d attempts: %2$s</string>
 </resources>

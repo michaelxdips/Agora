@@ -1,8 +1,11 @@
 package com.newoether.agora.wear
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.io.File
 
 /**
  * Sends one question. The drainer does not know how — that is what makes it testable.
@@ -11,9 +14,51 @@ import kotlinx.coroutines.withContext
  * send next, when to give up, and whether an answer may take over the screen does not. Before this
  * seam existed that decision lived inside a composable local function, so no unit test could reach it
  * and the launch-drain bug (a held question that was never delivered) shipped.
+ *
+ * A sender reports **why** it failed, not only that it did: [AskOutcome] carries the retry verdict and
+ * the server's own back-off, which is what lets the drainer stop retrying a revoked key and honour a
+ * `Retry-After` instead of hammering a rate-limited endpoint.
  */
 fun interface QuestionSender {
-    suspend fun ask(question: String, coreContext: String): Result<String>
+    suspend fun ask(question: String, coreContext: String): AskOutcome
+}
+
+/**
+ * One send attempt's result.
+ *
+ * `Result<String>` could not express the two things the queue needs — whether retrying can help, and
+ * how long to wait — so a `Result.failure(WearChatException)` was translated back into those answers
+ * at every call site. Carrying them here means the translation happens once, next to the HTTP call
+ * that knows.
+ */
+sealed interface AskOutcome {
+    data class Answer(val text: String) : AskOutcome
+
+    /**
+     * @param retryable false for a permanent failure (401/404/parse/too-large): the queue drops the
+     *   entry to the dead letter immediately instead of spending its attempts.
+     * @param retryAfterMs server-provided back-off, when there was one.
+     */
+    data class Failed(
+        val message: String,
+        val retryable: Boolean = true,
+        val retryAfterMs: Long? = null,
+    ) : AskOutcome
+
+    companion object {
+        /** Bridges the client's own result shape into this one, without losing the verdict. */
+        fun from(result: Result<String>): AskOutcome = result.fold(
+            onSuccess = { Answer(it) },
+            onFailure = { error ->
+                val typed = error as? WearChatException
+                Failed(
+                    message = error.message.orEmpty(),
+                    retryable = typed?.retryable ?: true,
+                    retryAfterMs = typed?.retryAfterMs,
+                )
+            },
+        )
+    }
 }
 
 /** What one drain pass did, so the caller can render it without re-deriving anything. */
@@ -46,8 +91,9 @@ data class DrainReport(
  *    never lost;
  *  * **stop at the first failure** — if the network is down, sending the rest would burn their attempt
  *    budget for nothing;
- *  * **give up only at [WearOfflineQueue.MAX_ATTEMPTS]** — a permanently failing question must not
- *    block the ones behind it forever;
+ *  * **give up on a permanent failure at once, and on a transient one only at
+ *    [WearOfflineQueue.MAX_ATTEMPTS]** — a permanently failing question must not block the ones behind
+ *    it forever, and a 401 must not be retried three times to prove it is a 401;
  *  * **a dropped question is reported, not logged** — a question that disappears with only a log line
  *    is the worst failure mode this queue exists to prevent;
  *  * **[DrainReport.lastAnswer] is only set when `showResult`** — the queue holds the *oldest*
@@ -73,6 +119,8 @@ object WearQueueDrainer {
      * @param sender how to send one question.
      * @param coreContext the derived core context for this pass.
      * @param showResult whether a drained answer may take over the visible answer slot.
+     * @param onWait called with the server-requested back-off before the pass gives up, so the UI can
+     *   say "the provider asked us to wait" instead of the generic offline line.
      */
     suspend fun drain(
         queue: WearOfflineQueue,
@@ -80,36 +128,55 @@ object WearQueueDrainer {
         coreContext: String,
         showResult: Boolean,
         onFailure: (String) -> Unit = {},
+        onWait: (Long) -> Unit = {},
+        sleep: suspend (Long) -> Unit = { delay(it) },
     ): DrainReport = drainMutex.withLock {
         withContext(Dispatchers.IO) {
-            val pending = queue.all()
-            if (pending.isEmpty()) return@withContext DrainReport(0, emptyList(), null, null)
-            var delivered = 0
-            val answers = mutableListOf<String>()
-            var lastAnswer: String? = null
-            var droppedText: String? = null
-            for (entry in pending) {
-                val outcome = sender.ask(entry.text, coreContext)
-                if (outcome.isSuccess) {
+        val pending = queue.all()
+        if (pending.isEmpty()) return@withContext DrainReport(0, emptyList(), null, null)
+        var delivered = 0
+        val answers = mutableListOf<String>()
+        var lastAnswer: String? = null
+        var droppedText: String? = null
+        for (entry in pending) {
+            val outcome = sender.ask(entry.text, coreContext)
+            when (outcome) {
+                is AskOutcome.Answer -> {
                     queue.complete(entry.id)
                     delivered += 1
-                    val answer = outcome.getOrNull().orEmpty()
-                    answers += answer
+                    answers += outcome.text
                     if (showResult) {
-                        lastAnswer = answer
+                        lastAnswer = outcome.text
                     }
-                } else {
-                    onFailure(outcome.exceptionOrNull()?.message.orEmpty())
-                    if (queue.recordFailure(entry.id)) droppedText = entry.text
+                }
+                is AskOutcome.Failed -> {
+                    onFailure(outcome.message)
+                    // A 429/503 with `Retry-After` is the server telling us when it will listen
+                    // again. Ignoring it and retrying immediately is how a rate-limited watch turns
+                    // one throttled question into a longer throttle — and the wait is bounded by the
+                    // same ceiling the HTTP call uses, so a hostile `Retry-After: 86400` cannot park
+                    // the pass (and the user's queue) for a day.
+                    val wait = outcome.retryAfterMs?.takeIf { it > 0L }?.coerceAtMost(MAX_RETRY_AFTER_MS)
+                    if (wait != null && outcome.retryable) {
+                        onWait(wait)
+                        sleep(wait)
+                    }
+                    if (queue.recordFailure(entry.id, permanent = !outcome.retryable)) {
+                        droppedText = entry.text
+                    }
                     break
                 }
             }
-            DrainReport(
-                delivered = delivered,
-                answers = answers,
-                droppedText = droppedText,
-                lastAnswer = lastAnswer,
-            )
+        }
+        DrainReport(
+            delivered = delivered,
+            answers = answers,
+            droppedText = droppedText,
+            lastAnswer = lastAnswer,
+        )
         }
     }
+
+    /** Ceiling on an honoured `Retry-After`: the pass may not be parked longer than this. */
+    const val MAX_RETRY_AFTER_MS = 30_000L
 }

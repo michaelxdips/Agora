@@ -66,13 +66,27 @@ class ConfigListenerService : WearableListenerService() {
     /**
      * Deletes the credential item after it has been stored locally.
      *
-     * A failure here is logged, never fatal: the config is already installed, and the worst case is
-     * that the item stays until the phone pushes again.
+     * `await()`ed, not fired and forgotten. `deleteDataItems` returns a `Task`; the previous version
+     * dropped it, so the caller had no way to know whether the item was actually gone — and the
+     * failure mode this method exists to prevent is precisely "the key is still in the replicated
+     * store". The task runs on a background executor inside Play Services, so awaiting it here (the
+     * listener is already off the main thread) is what makes the deletion ordered before the ack the
+     * phone is waiting for.
+     *
+     * A failure is logged, never fatal: the config is already installed, and the worst case is that
+     * the item stays until the phone pushes again.
      */
     private fun deleteConsumed(uri: android.net.Uri) {
         runCatching {
-            com.google.android.gms.wearable.Wearable.getDataClient(applicationContext)
-                .deleteDataItems(uri)
+            // `Tasks.await` (blocking), not the coroutine `await()`: `onDataChanged` is not a
+            // coroutine, and the whole point of awaiting here is that the deletion is ordered before
+            // the listener returns. The Data Layer callback already runs off the main thread, so a
+            // blocking wait on it is the correct tool — the coroutine extension would need a scope
+            // this service does not have.
+            com.google.android.gms.tasks.Tasks.await(
+                com.google.android.gms.wearable.Wearable.getDataClient(applicationContext)
+                    .deleteDataItems(uri)
+            )
         }.onFailure { WearLog.w("config item not deleted: ${it.javaClass.simpleName}") }
     }
 
@@ -88,10 +102,17 @@ class ConfigListenerService : WearableListenerService() {
 /**
  * Receives the **read-only** active-memory snapshot.
  *
- * The phone is the only writer of memory (v1), so the watch only ever caches what it is handed. A
- * snapshot that fails to decrypt or arrives empty is ignored: keeping the last good snapshot is
- * better than replacing it with nothing, because the derived core context is what makes the watch's
- * answers about *this* user.
+ * The phone is the only writer of memory (v1), so the watch only ever caches what it is handed.
+ *
+ * An **empty** snapshot is applied, not ignored. The previous rule ("a snapshot that arrives empty is
+ * ignored; keeping the last good snapshot is better than replacing it with nothing") is right about a
+ * *failed* delivery and wrong about a *successful* one: when the user deletes everything from the
+ * phone's active memory, the phone pushes an empty snapshot, and a watch that ignores it keeps
+ * answering with facts the user has just erased — memory the user can no longer see, in a place they
+ * cannot edit. Undecodable payloads are still ignored (that is a transport failure, not an empty
+ * memory), and the difference is exactly the `WearCrypto.decode` result.
+ *
+ * Maintainer: Michael — this file belongs to the Hermes fork of Agora (see NOTICE.md).
  */
 class MemoryListenerService : WearableListenerService() {
 
@@ -101,16 +122,29 @@ class MemoryListenerService : WearableListenerService() {
             if (event.type != DataEvent.TYPE_CHANGED) return@forEach
             if (event.dataItem.uri.path != PATH) return@forEach
             val map = DataMapItem.fromDataItem(event.dataItem).dataMap
+            // Presence, not blankness: the phone sends an empty payload when the user's active memory
+            // is empty, and that is a delivered fact rather than a missing one. See WearMemoryRules.
+            val present = map.containsKey(KEY_PAYLOAD)
             val payload = map.getString(KEY_PAYLOAD).orEmpty()
-            if (payload.isBlank()) return@forEach
-            val snapshot = WearCrypto.decode(payload)?.let { String(it, Charsets.UTF_8) }
-            if (snapshot.isNullOrBlank()) {
-                WearLog.w("memory snapshot rejected (undecodable or empty); keeping the previous one")
+            val update = WearMemoryRules.decide(present, WearCrypto.decode(payload))
+            if (update !is MemoryUpdate.Apply) {
+                // Missing key or undecodable bytes: a transport failure, not an empty memory.
+                WearLog.w("memory snapshot rejected (missing or undecodable); keeping the previous one")
                 return@forEach
             }
-            store.write(snapshot, map.getLong(KEY_UPDATED_AT, System.currentTimeMillis()))
-            WearSignals.memoryUpdatedAt.value = map.getLong(KEY_UPDATED_AT, System.currentTimeMillis())
-            WearLog.w("memory snapshot updated (${snapshot.length} chars)")
+            val snapshot = update.snapshot
+            // O3: the phone may already have sent a derived core context. `cacheValue` is idempotent,
+            // so both the derived and the raw form end up as the same cacheable text.
+            val cached = WearMemoryRules.cacheValue(snapshot.toByteArray())
+            val updatedAt = map.getLong(KEY_UPDATED_AT, System.currentTimeMillis())
+            store.write(cached, updatedAt)
+            WearSignals.memoryUpdatedAt.value = updatedAt
+            if (cached.isBlank()) {
+                // An empty snapshot is a *delivered* fact: the user's active memory is empty now.
+                WearLog.w("memory snapshot cleared by the phone")
+            } else {
+                WearLog.w("memory snapshot updated (${cached.length} chars)")
+            }
         }
     }
 
@@ -126,17 +160,24 @@ class MemoryListenerService : WearableListenerService() {
  * for. The phone sends it on [WearPairing.ACK_PATH]; the watch turns it into UI state and nothing
  * else — an ack is a status string, never a credential.
  *
+ * The payload is parsed into a [PairingAck] rather than kept as text: the request id inside it is what
+ * tells the waiting request whether this answer is even its own. A payload that does not parse at all
+ * is dropped with a log line, because an unreadable answer is not an answer.
+ *
  * Maintainer: Michael — this file belongs to the Hermes fork of Agora (see NOTICE.md).
  */
 class PairingAckListenerService : WearableListenerService() {
 
     override fun onMessageReceived(event: com.google.android.gms.wearable.MessageEvent) {
         if (event.path != WearPairing.ACK_PATH) return
-        val ack = runCatching { String(event.data, Charsets.UTF_8) }.getOrDefault("")
-        if (ack.isBlank()) return
-        val shown = WearPairing.displayableAck(ack)
-        WearSignals.pairingAck.value = shown
-        WearLog.w("pairing ack from phone: $shown")
+        val raw = runCatching { String(event.data, Charsets.UTF_8) }.getOrDefault("")
+        val ack = PairingRequestSchema.decodeAck(raw)
+        if (ack == null) {
+            WearLog.w("pairing ack unreadable; ignored")
+            return
+        }
+        WearSignals.pairingAck.value = ack
+        WearLog.w("pairing ack from phone (request ${ack.requestId.ifBlank { "unversioned" }})")
     }
 }
 
@@ -145,6 +186,9 @@ class PairingAckListenerService : WearableListenerService() {
  *
  * Read-only by design: the watch never writes memory back, so there is no merge conflict to resolve
  * and no way for a watch to corrupt the phone's store.
+ *
+ * Written through [WearAtomicFile]: a truncated snapshot file is a core context built from half the
+ * user's memory, and the watch would answer confidently from it.
  *
  * Maintainer: Michael — this file belongs to the Hermes fork of Agora (see NOTICE.md).
  */
@@ -155,8 +199,7 @@ class WearMemoryCache(private val context: android.content.Context) {
     fun read(): String = runCatching { file.takeIf { it.isFile }?.readText().orEmpty() }.getOrDefault("")
 
     fun write(snapshot: String, updatedAt: Long) {
-        file.parentFile?.mkdirs()
-        file.writeText(snapshot)
+        WearAtomicFile.write(file, snapshot)
         runCatching { file.setLastModified(updatedAt) }
     }
 

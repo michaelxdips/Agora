@@ -68,4 +68,10 @@ internal object WearFontCoverage {
     fun hasGlyph(cp: Int): Boolean = ranges.any { cp in it }
 
     val size: Int get() = ranges.sumOf { it.last - it.first + 1 }
+
+    /**
+     * The ranges themselves, for `WearFontCoverageTest`'s structural invariants (sorted, disjoint,
+     * inside Unicode). Not for consumers: `hasGlyph` is the API.
+     */
+    internal fun rangesForTest(): List<IntRange> = ranges
 }

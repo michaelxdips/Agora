@@ -7,12 +7,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
@@ -75,13 +78,27 @@ fun WearSetupScreen(
     // Pre-filled when editing, so "change my base URL" does not mean retyping three fields on a
     // watch keyboard. Empty on first run, which is the same code path.
     //
-    // Keyed on [existing] because the caller loads it asynchronously: on the first composition it is
-    // null (the keystore read has not finished), so an unkeyed `remember` would capture that null and
-    // the fields would stay empty forever — which is exactly what the first version did.
-    var baseUrl by remember(existing) { mutableStateOf(existing?.baseUrl.orEmpty()) }
-    var apiKey by remember(existing) { mutableStateOf(existing?.apiKey.orEmpty()) }
-    var model by remember(existing) { mutableStateOf(existing?.model.orEmpty()) }
+    // `rememberSaveable`, not `remember`: these three fields did not survive a wrist-down before, so
+    // the user typed a base URL on a 384 px keyboard, looked at their wrist, and came back to an empty
+    // form — with the masked API key, the one value nobody can retype from memory, gone first.
+    //
+    // Seeded from [existing] exactly once, by the effect below. The caller loads it asynchronously
+    // (the keystore read has not finished on the first composition), so an unkeyed `remember` used to
+    // capture that null and leave the fields empty forever; a `remember(existing)` would instead wipe
+    // anything the user had already typed each time the load completes.
+    var baseUrl by rememberSaveable { mutableStateOf("") }
+    var apiKey by rememberSaveable { mutableStateOf("") }
+    var model by rememberSaveable { mutableStateOf("") }
+    var seeded by rememberSaveable { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
+    LaunchedEffect(existing) {
+        val loaded = existing ?: return@LaunchedEffect
+        if (seeded) return@LaunchedEffect
+        baseUrl = loaded.baseUrl
+        apiKey = loaded.apiKey
+        model = loaded.model
+        seeded = true
+    }
     // Pairing is no longer a local boolean that disables the form: it is the real status of a real
     // request, so the screen can say "no phone found" instead of pretending to wait forever.
     val pairing by WearSignals.pairing.collectAsState()
@@ -126,13 +143,13 @@ fun WearSetupScreen(
             // ScreenScaffold already draws the system TimeText at the top inset itself, so a
             // `item { TimeText() }` is a second copy; it was also item 0, which is what autoCentering
             // was centring.
-            item { ListHeader { Text("${WearBuildInfo.PRODUCT_NAME} setup") } }
+            item { ListHeader { Text(stringResource(R.string.wear_setup_title, WearBuildInfo.PRODUCT_NAME)) } }
             item {
                 Text(
                     text = if (onCancel != null) {
-                        "Editing your saved key. Back cancels and keeps the old one."
+                        stringResource(R.string.wear_setup_editing)
                     } else {
-                        "Pair with the phone app, or enter your own key."
+                        stringResource(R.string.wear_setup_first_run)
                     },
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodySmall,
@@ -149,7 +166,7 @@ fun WearSetupScreen(
                         ),
                     ) {
                         Text(
-                            text = "Asking the phone…\nKeep the phone app on Watch setup.",
+                            text = stringResource(R.string.wear_setup_waiting),
                             textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.bodySmall,
                         )
@@ -157,9 +174,13 @@ fun WearSetupScreen(
                 }
             }
 
-            item { SetupField("Base URL", baseUrl, waitingForPhone) { baseUrl = it } }
-            item { SetupField("API key", apiKey, waitingForPhone, secret = true) { apiKey = it } }
-            item { SetupField("Model", model, waitingForPhone) { model = it } }
+            item { SetupField(stringResource(R.string.wear_setup_field_base_url), baseUrl, waitingForPhone) { baseUrl = it } }
+            item {
+
+            SetupField(stringResource(R.string.wear_setup_field_api_key), apiKey, waitingForPhone, secret = true) { apiKey = it }
+
+        }
+            item { SetupField(stringResource(R.string.wear_setup_field_model), model, waitingForPhone) { model = it } }
 
             item {
                 Button(
@@ -171,7 +192,7 @@ fun WearSetupScreen(
                             updatedAt = System.currentTimeMillis(),
                         )
                         if (!config.isValid()) {
-                            status = "Need an https base URL, key and model"
+                            status = context.getString(R.string.wear_setup_invalid)
                             return@Button
                         }
                         scope.launch {
@@ -185,7 +206,7 @@ fun WearSetupScreen(
                         }
                     },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                ) { Text("Save key") }
+                ) { Text(stringResource(R.string.wear_action_save_key)) }
             }
 
             item {
@@ -201,7 +222,7 @@ fun WearSetupScreen(
                     enabled = !waitingForPhone,
                     colors = ButtonDefaults.filledTonalButtonColors(),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                ) { Text("Pair with phone") }
+                ) { Text(stringResource(R.string.wear_action_pair_with_phone)) }
             }
 
             if (status.isNotBlank()) {
@@ -223,7 +244,7 @@ fun WearSetupScreen(
                         onClick = onCancel,
                         colors = ButtonDefaults.filledTonalButtonColors(),
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                    ) { Text("Cancel") }
+                    ) { Text(stringResource(R.string.wear_action_cancel)) }
                 }
             }
 
@@ -234,7 +255,10 @@ fun WearSetupScreen(
                     Text(
                         text = buildString {
                             append(pairing.message)
-                            pairingAck?.let { append("\n").append(it) }
+                            // The ack's own sentence, which now travels with the request id it
+                            // belongs to (see PairingAck) — an answer for an earlier request is
+                            // refused by WearPairing rather than shown as this one's result.
+                            pairingAck?.message?.let { append("\n").append(it) }
                         },
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.bodySmall,
@@ -299,7 +323,7 @@ private fun SetupField(
             ) {
                 if (value.isEmpty()) {
                     Text(
-                        text = if (readOnly) "…" else "Tap to type",
+                        text = if (readOnly) stringResource(R.string.wear_setup_field_locked) else stringResource(R.string.wear_setup_field_empty),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 15.sp,
                     )

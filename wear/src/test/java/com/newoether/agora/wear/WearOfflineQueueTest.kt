@@ -114,4 +114,68 @@ class WearOfflineQueueTest {
         assertEquals(1, broken.size())
     }
 
+    @Test
+    fun `a dropped question is kept in the dead letter rather than deleted`() = runTest {
+        // Before this, `recordFailure` at the ceiling removed the entry and the text went with it: a
+        // user whose key expired lost every question they had asked offline, with one error line as
+        // the only trace.
+        val entry = queue.enqueue("please do not lose me")
+        repeat(WearOfflineQueue.MAX_ATTEMPTS - 1) { queue.recordFailure(entry.id) }
+
+        assertTrue(queue.recordFailure(entry.id))
+        assertEquals(0, queue.size())
+        assertEquals(listOf("please do not lose me"), queue.deadLetters().map { it.text })
+        assertEquals(entry.id, queue.deadLetters().single().id)
+    }
+
+    @Test
+    fun `a permanent failure dead-letters immediately instead of spending attempts`() = runTest {
+        val entry = queue.enqueue("revoked key")
+
+        assertTrue("a permanent failure leaves at once", queue.recordFailure(entry.id, permanent = true))
+        assertEquals(0, queue.size())
+        assertEquals(1, queue.deadLetters().single().attempts)
+    }
+
+    @Test
+    fun `the dead letter is bounded so it cannot fill the watch`() = runTest {
+        repeat(WearOfflineQueue.MAX_DEAD_LETTER + 5) { index ->
+            val entry = queue.enqueue("question $index")
+            queue.recordFailure(entry.id, permanent = true)
+        }
+
+        assertEquals(WearOfflineQueue.MAX_DEAD_LETTER, queue.deadLetters().size)
+        // The newest is kept, the oldest is evicted.
+        assertEquals(
+            "question ${WearOfflineQueue.MAX_DEAD_LETTER + 4}",
+            queue.deadLetters().last().text,
+        )
+    }
+
+    @Test
+    fun `the queue itself is bounded and keeps the newest questions`() = runTest {
+        // A queue that grows without a ceiling is a queue that eventually fails to write — and then
+        // loses everything. The user is waiting on the newest question, so the oldest is evicted.
+        repeat(WearOfflineQueue.MAX_ENTRIES + 3) { index -> queue.enqueue("q$index") }
+
+        assertEquals(WearOfflineQueue.MAX_ENTRIES, queue.size())
+        assertEquals("q${WearOfflineQueue.MAX_ENTRIES + 2}", queue.all().last().text)
+        assertTrue(queue.all().none { it.text == "q0" })
+    }
+
+    @Test
+    fun `a write leaves no temp file behind`() = runTest {
+        // The atomic write is temp-then-rename; a leftover temp file would be re-read on the next
+        // launch by anything that globs the directory.
+        queue.enqueue("one")
+        queue.complete(queue.all().single().id)
+
+        val leftovers = queueDir.listFiles().orEmpty().map { it.name }
+        assertTrue("temp file left behind: $leftovers", leftovers.none { it.endsWith(".tmp") })
+        assertTrue(
+            "the queue file itself must still exist: $leftovers",
+            leftovers.contains(WearOfflineQueue.FILE_NAME),
+        )
+    }
+
 }

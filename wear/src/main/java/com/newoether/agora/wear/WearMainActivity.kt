@@ -200,6 +200,7 @@ private fun WearChatScreen(
     var queued by remember { mutableStateOf(0) }
     var held by remember { mutableStateOf<List<WearOfflineQueue.Entry>>(emptyList()) }
     var notice by rememberSaveable { mutableStateOf("") }
+    var sending by remember { mutableStateOf(false) }
 
     /** A question that was dropped for good. Error-coloured, and never a status line. */
     var dropNotice by rememberSaveable { mutableStateOf("") }
@@ -235,7 +236,7 @@ private fun WearChatScreen(
      */
     fun speakOrNotice(text: String) {
         if (!onSpeak(text)) {
-            notice = "Voice unavailable on this watch"
+            notice = context.getString(R.string.wear_chat_voice_unavailable)
         }
     }
 
@@ -270,10 +271,19 @@ private fun WearChatScreen(
     suspend fun drainQueue(client: WearChatClient, core: String, showResult: Boolean): Int {
         val report = WearQueueDrainer.drain(
             queue = queue,
-            sender = { question, coreContext -> client.ask(question, coreContext) },
+            sender = { question, coreContext ->
+                AskOutcome.from(
+                    withContext(Dispatchers.IO) { client.ask(question, coreContext) }
+                )
+            },
             coreContext = core,
             showResult = showResult,
             onFailure = { message -> WearLog.w("drain: send failed: $message") },
+            onWait = { waitMs ->
+                // The provider told us when it will listen again. Say so rather than showing the
+                // generic offline line: "Offline" for a 429 is a lie the user acts on by retrying.
+                notice = context.getString(R.string.wear_chat_rate_limited, (waitMs / 1000).toInt())
+            },
         )
         if (report.lastAnswer != null) {
             answer = report.lastAnswer
@@ -282,38 +292,35 @@ private fun WearChatScreen(
         // Held questions whose answers were produced but could not all be shown: say how many, so
         // "answered" and "silently dropped" cannot look the same from the watch.
         if (report.answersNotShown > 0) {
-            notice = "${report.answersNotShown} earlier held " +
-                if (report.answersNotShown == 1) "question was answered" else "questions were answered"
+            notice = if (report.answersNotShown == 1) {
+                context.getString(R.string.wear_chat_earlier_one, report.answersNotShown)
+            } else {
+                context.getString(R.string.wear_chat_earlier_many, report.answersNotShown)
+            }
         }
         report.droppedText?.let { text ->
             // P0: an automatic drop was only a log line before, so a question could disappear with
             // nothing on screen. Say it out loud, with the text, while it is still true.
-            dropNotice = "Dropped after ${WearOfflineQueue.MAX_ATTEMPTS} attempts: " +
-                text.take(DROPPED_TEXT_CHARS)
+            dropNotice = context.getString(
+                R.string.wear_chat_dropped, WearOfflineQueue.MAX_ATTEMPTS, text.take(DROPPED_TEXT_CHARS),
+            )
         }
         refreshQueued()
         return report.delivered
     }
 
     /**
-     * Sends one question and, on success, drains anything the queue was holding.
+     * One send, with no duplicate guard of its own — [send] owns that.
      *
-     * Draining here rather than on a connectivity callback is deliberate: this app has no background
-     * service, so "the network came back" is only observable when the user asks something — and that
-     * is exactly the moment the queued questions are worth sending.
-     *
-     * The drain passes `showResult = false`: this call has a fresh question on screen, and the queue
-     * holds older ones, so a drained answer must not overwrite the answer the user just asked for.
+     * Declared before [send] because Kotlin local functions are not forward-referenceable.
      */
-    suspend fun send(question: String) {
-        val trimmed = question.trim()
-        if (trimmed.isEmpty()) return
-        status = "Thinking…"
+    suspend fun sendOnce(trimmed: String) {
+        status = context.getString(R.string.wear_chat_thinking)
         answer = ""
 
         val config = withContext(Dispatchers.IO) { configStore.read() }
         if (config == null) {
-            status = "No setup yet"
+            status = context.getString(R.string.wear_chat_no_setup)
             ready = false
             return
         }
@@ -341,12 +348,66 @@ private fun WearChatScreen(
                 drainQueue(client, core, showResult = false)
             },
             onFailure = { error ->
-                // Offline is a normal watch state, not an error: the question is already held.
-                refreshQueued()
-                status = "Offline — held"
-                WearLog.w("ask failed: ${error.message}")
+                val typed = error as? WearChatException
+                // A permanent failure is not "offline", and calling it that is what made a revoked
+                // key look like a network problem: the user retried forever and the queue spent its
+                // attempts on an answer that could never change. It leaves the queue at once and is
+                // named on screen.
+                if (typed?.retryable == false) {
+                    val dropped = withContext(Dispatchers.IO) {
+                        queue.recordFailure(entry.id, permanent = true)
+                    }
+                    refreshQueued()
+                    status = ""
+                    val reason = error.message.orEmpty()
+                        .ifBlank { context.getString(R.string.wear_chat_rejected_fallback) }
+                    dropNotice = if (dropped) {
+                        context.getString(R.string.wear_chat_not_sent, reason)
+                    } else {
+                        context.getString(R.string.wear_chat_rejected, reason)
+                    }
+                    WearLog.w("ask failed permanently: ${error.message}")
+                } else {
+                    // Offline is a normal watch state, not an error: the question is already held.
+                    refreshQueued()
+                    status = context.getString(R.string.wear_chat_offline_held)
+                    WearLog.w("ask failed: ${error.message}")
+                }
             },
         )
+    }
+
+    /**
+     * Sends one question and, on success, drains anything the queue was holding.
+     *
+     * Draining here rather than on a connectivity callback is deliberate: this app has no background
+     * service, so "the network came back" is only observable when the user asks something — and that
+     * is exactly the moment the queued questions are worth sending.
+     *
+     * The drain passes `showResult = false`: this call has a fresh question on screen, and the queue
+     * holds older ones, so a drained answer must not overwrite the answer the user just asked for.
+     *
+     * Wrapped in [WearSendCoordinator] so the *same* question cannot be sent twice at once. A double
+     * tap on a 40 px button used to run two full send paths — two queue entries, two provider calls,
+     * two charges — and the second answer overwrote the first on screen.
+     */
+    suspend fun send(question: String) {
+        val trimmed = question.trim()
+        if (trimmed.isEmpty()) return
+        val outcome: WearSendCoordinator.Outcome<Unit> = WearSendCoordinator.send(trimmed) {
+            sending = true
+            try {
+                sendOnce(trimmed)
+            } finally {
+                sending = false
+            }
+        }
+        if (outcome is WearSendCoordinator.Outcome.Duplicate) {
+            // Said out loud: a tap that does nothing is indistinguishable from a broken button, and
+            // the whole reason this path exists is that the user tapped twice on purpose.
+            notice = context.getString(R.string.wear_chat_duplicate)
+            WearLog.w("send: duplicate suppressed for the in-flight question")
+        }
     }
 
     /**
@@ -515,7 +576,7 @@ private fun WearChatScreen(
                         ) {
                             if (draft.isEmpty()) {
                                 Text(
-                                    text = "Type a question",
+                                    text = context.getString(R.string.wear_chat_placeholder),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontSize = 15.sp,
                                 )
@@ -527,22 +588,26 @@ private fun WearChatScreen(
 
             item {
                 Button(
+                    // Disabled while a send is in flight, with the label saying which: the guard in
+                    // WearSendCoordinator already refuses the duplicate, and a button that looks
+                    // live but does nothing is the failure mode this pair exists to avoid.
                     onClick = { sendDraft() },
+                    enabled = !sending,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                ) { Text("Send") }
+                ) { Text(if (sending) context.getString(R.string.wear_action_sending) else context.getString(R.string.wear_action_send)) }
             }
             item {
                 Button(
                     onClick = onStartListening,
                     colors = ButtonDefaults.filledTonalButtonColors(),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                ) { Text("Speak") }
+                ) { Text(context.getString(R.string.wear_action_speak)) }
             }
 
             if (queued > 0) {
                 item {
                     Text(
-                        text = "$queued held offline",
+                        text = context.getString(R.string.wear_chat_held_offline, queued),
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
@@ -571,40 +636,15 @@ private fun WearChatScreen(
                                 Button(
                                     onClick = {
                                         scope.launch {
-                                            val config = withContext(Dispatchers.IO) { configStore.read() }
-                                            if (config == null) {
-                                                status = "No setup yet"
-                                                return@launch
-                                            }
-                                            val core = withContext(Dispatchers.IO) {
-                                                WearCoreContext.build(memoryCache.read())
-                                            }
-                                            val client = WearChatClient(config)
-                                            val outcome = withContext(Dispatchers.IO) {
-                                                client.ask(entry.text, core)
-                                            }
-                                            if (outcome.isSuccess) {
-                                                withContext(Dispatchers.IO) { queue.complete(entry.id) }
-                                                answer = outcome.getOrNull().orEmpty()
-                                                status = ""
-                                                notice = ""
-                                                dropNotice = ""
-                                                speakOrNotice(answer)
-                                            } else {
-                                                val dropped = withContext(Dispatchers.IO) {
-                                                    queue.recordFailure(entry.id)
-                                                }
-                                                status = if (dropped) {
-                                                    "Dropped after ${WearOfflineQueue.MAX_ATTEMPTS} attempts"
-                                                } else {
-                                                    "Still offline — held"
-                                                }
-                                            }
+                                            // "Send now" is the same send as any other: it goes
+                                            // through the coordinator, so a tap here while the same
+                                            // question is already in flight cannot double-charge.
+                                            send(entry.text)
                                             refreshQueued()
                                         }
                                     },
                                     modifier = Modifier.weight(1f),
-                                ) { Text("Send now") }
+                                ) { Text(context.getString(R.string.wear_action_send_now)) }
                                 Button(
                                     onClick = {
                                         scope.launch {
@@ -614,7 +654,7 @@ private fun WearChatScreen(
                                     },
                                     colors = ButtonDefaults.filledTonalButtonColors(),
                                     modifier = Modifier.weight(1f),
-                                ) { Text("Discard") }
+                                ) { Text(context.getString(R.string.wear_action_discard)) }
                             }
                         }
                     }
@@ -660,7 +700,7 @@ private fun WearChatScreen(
                     onClick = { editingConfig = true },
                     colors = ButtonDefaults.filledTonalButtonColors(),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                ) { Text("Change key") }
+                ) { Text(context.getString(R.string.wear_action_change_key)) }
             }
 
             // Debug surface: what the watch actually holds (mandated: memory snapshot visible on the
@@ -675,11 +715,13 @@ private fun WearChatScreen(
                                 val core = withContext(Dispatchers.IO) { WearCoreContext.build(snapshot) }
                                 val stored = withContext(Dispatchers.IO) { configStore.read() }
                                 val lastMemory = WearSignals.memoryUpdatedAt.value
+                                val dead = withContext(Dispatchers.IO) { queue.deadLetters().size }
                                 debug = "${WearBuildInfo.PRODUCT_NAME}\n" +
                                     WearBuildInfo.identityLines() + "\n\n" +
                                     "snapshot ${snapshot.length} chars\n" +
                                     "core ${WearCoreContext.estimateTokens(core)} tokens\n" +
                                     "queued ${withContext(Dispatchers.IO) { queue.size() }}\n" +
+                                    "dead-lettered $dead\n" +
                                     "config ${if (stored == null) "none" else stored.baseUrl}\n" +
                                     "model ${stored?.model.orEmpty().ifBlank { "none" }}\n" +
                                     "pairing ${WearSignals.pairing.value.message}\n" +
@@ -689,7 +731,7 @@ private fun WearChatScreen(
                     },
                     colors = ButtonDefaults.filledTonalButtonColors(),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                ) { Text(if (showDebug) "Hide debug" else "Debug") }
+                ) { Text(if (showDebug) context.getString(R.string.wear_action_hide_debug) else context.getString(R.string.wear_action_debug)) }
             }
             if (showDebug) {
                 item {

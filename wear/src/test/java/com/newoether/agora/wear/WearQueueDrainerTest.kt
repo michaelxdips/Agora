@@ -1,5 +1,6 @@
 package com.newoether.agora.wear
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -38,11 +39,11 @@ class WearQueueDrainerTest {
     }
 
     /** Records every question it is asked and answers from a script. */
-    private class ScriptedSender(private val answers: List<Result<String>>) : QuestionSender {
+    private class ScriptedSender(private val answers: List<AskOutcome>) : QuestionSender {
         val asked = mutableListOf<String>()
         private var index = 0
 
-        override suspend fun ask(question: String, coreContext: String): Result<String> {
+        override suspend fun ask(question: String, coreContext: String): AskOutcome {
             asked += question
             val answer = answers.getOrElse(index) { answers.last() }
             index += 1
@@ -50,9 +51,13 @@ class WearQueueDrainerTest {
         }
     }
 
+    private fun answer(text: String): AskOutcome = AskOutcome.Answer(text)
+    private fun failure(message: String = "offline", retryable: Boolean = true) =
+        AskOutcome.Failed(message, retryable = retryable)
+
     @Test
     fun `an empty queue is not a send`() = runTest {
-        val sender = ScriptedSender(listOf(Result.success("x")))
+        val sender = ScriptedSender(listOf(answer("x")))
 
         val report = WearQueueDrainer.drain(queue, sender, "", showResult = true)
 
@@ -65,7 +70,7 @@ class WearQueueDrainerTest {
         queue.enqueue("first")
         queue.enqueue("second")
         queue.enqueue("third")
-        val sender = ScriptedSender(listOf(Result.success("a"), Result.success("b"), Result.success("c")))
+        val sender = ScriptedSender(listOf(answer("a"), answer("b"), answer("c")))
 
         val report = WearQueueDrainer.drain(queue, sender, "", showResult = false)
 
@@ -79,7 +84,7 @@ class WearQueueDrainerTest {
         // The exact regression: one held question, app opened, nothing else happens. Before the fix
         // this was 0 delivered and the question stayed on disk forever.
         queue.enqueue("held while offline")
-        val sender = ScriptedSender(listOf(Result.success("the answer")))
+        val sender = ScriptedSender(listOf(answer("the answer")))
 
         val report = WearQueueDrainer.drain(queue, sender, "", showResult = true)
 
@@ -91,7 +96,7 @@ class WearQueueDrainerTest {
     @Test
     fun `showResult false never lets an old answer win`() = runTest {
         queue.enqueue("old question")
-        val sender = ScriptedSender(listOf(Result.success("old answer")))
+        val sender = ScriptedSender(listOf(answer("old answer")))
 
         val report = WearQueueDrainer.drain(queue, sender, "", showResult = false)
 
@@ -103,9 +108,7 @@ class WearQueueDrainerTest {
     fun `the first failure stops the pass so the rest keep their attempts`() = runTest {
         queue.enqueue("one")
         queue.enqueue("two")
-        val sender = ScriptedSender(
-            listOf(Result.success("ok"), Result.failure(java.io.IOException("offline"))),
-        )
+        val sender = ScriptedSender(listOf(answer("ok"), failure("offline")))
 
         val report = WearQueueDrainer.drain(queue, sender, "", showResult = false)
 
@@ -121,8 +124,7 @@ class WearQueueDrainerTest {
     @Test
     fun `a question is dropped only at the attempt ceiling, and the drop is reported`() = runTest {
         queue.enqueue("doomed")
-        val failure = Result.failure<String>(java.io.IOException("offline"))
-        val sender = ScriptedSender(List(WearOfflineQueue.MAX_ATTEMPTS) { failure })
+        val sender = ScriptedSender(List(WearOfflineQueue.MAX_ATTEMPTS) { failure() })
 
         // MAX_ATTEMPTS - 1 failures: still held, nothing reported as dropped.
         repeat(WearOfflineQueue.MAX_ATTEMPTS - 1) {
@@ -138,12 +140,106 @@ class WearQueueDrainerTest {
     }
 
     @Test
+    fun `a permanent failure leaves the queue at once and is not retried`() = runTest {
+        // The revoked-key case: three attempts and three provider calls on a 401 that can never
+        // succeed, and then the question was deleted as if the network had been down.
+        queue.enqueue("will never work")
+        val sender = ScriptedSender(List(3) { failure("HTTP 401", retryable = false) })
+
+        val report = WearQueueDrainer.drain(queue, sender, "", showResult = false)
+
+        assertEquals("a permanent failure must be reported as dropped", "will never work", report.droppedText)
+        assertEquals(0, queue.size())
+        assertEquals("exactly one provider call, not three", 1, sender.asked.size)
+        // …and the text is kept, so an expired key does not silently destroy the question.
+        assertEquals(listOf("will never work"), queue.deadLetters().map { it.text })
+    }
+
+    @Test
+    fun `a transient failure is still retried up to the ceiling`() = runTest {
+        queue.enqueue("flaky")
+        val sender = ScriptedSender(List(3) { failure("HTTP 503", retryable = true) })
+
+        val first = WearQueueDrainer.drain(queue, sender, "", showResult = false)
+        assertNull("a retryable failure must not be dropped on the first pass", first.droppedText)
+        assertEquals(1, queue.size())
+
+        val second = WearQueueDrainer.drain(queue, sender, "", showResult = false)
+        assertNull(second.droppedText)
+
+        val third = WearQueueDrainer.drain(queue, sender, "", showResult = false)
+        assertEquals("flaky", third.droppedText)
+        assertEquals(0, queue.size())
+    }
+
+    @Test
+    fun `a Retry-After is honoured before the pass gives up, and reported`() = runTest {
+        // A 429 without the server's back-off is a 429 the watch hits again immediately.
+        queue.enqueue("throttled")
+        val sender = ScriptedSender(
+            listOf(AskOutcome.Failed("HTTP 429", retryable = true, retryAfterMs = 5_000L))
+        )
+        val waited = mutableListOf<Long>()
+
+        val report = WearQueueDrainer.drain(
+            queue = queue,
+            sender = sender,
+            coreContext = "",
+            showResult = false,
+            onWait = { waited += it },
+            sleep = { /* the test does not actually sleep */ },
+        )
+
+        assertEquals(listOf(5_000L), waited)
+        assertEquals(0, report.delivered)
+        assertEquals("the question stays held for the retry", 1, queue.size())
+    }
+
+    @Test
+    fun `a hostile Retry-After cannot park the pass for a day`() = runTest {
+        queue.enqueue("throttled")
+        val sender = ScriptedSender(
+            listOf(AskOutcome.Failed("HTTP 429", retryable = true, retryAfterMs = 86_400_000L))
+        )
+        val waited = mutableListOf<Long>()
+
+        WearQueueDrainer.drain(
+            queue = queue,
+            sender = sender,
+            coreContext = "",
+            showResult = false,
+            onWait = { waited += it },
+            sleep = {},
+        )
+
+        assertEquals(listOf(WearQueueDrainer.MAX_RETRY_AFTER_MS), waited)
+    }
+
+    @Test
+    fun `a non-retryable failure is not waited on`() = runTest {
+        queue.enqueue("unauthorized")
+        val sender = ScriptedSender(
+            listOf(AskOutcome.Failed("HTTP 401", retryable = false, retryAfterMs = 5_000L))
+        )
+        val waited = mutableListOf<Long>()
+
+        WearQueueDrainer.drain(
+            queue = queue,
+            sender = sender,
+            coreContext = "",
+            showResult = false,
+            onWait = { waited += it },
+            sleep = {},
+        )
+
+        assertTrue("a permanent failure must not be waited on", waited.isEmpty())
+    }
+
+    @Test
     fun `an answer that arrived is removed from the queue even if the next one fails`() = runTest {
         queue.enqueue("answered")
         queue.enqueue("unanswered")
-        val sender = ScriptedSender(
-            listOf(Result.success("yes"), Result.failure(java.io.IOException("offline"))),
-        )
+        val sender = ScriptedSender(listOf(answer("yes"), failure("offline")))
 
         WearQueueDrainer.drain(queue, sender, "", showResult = false)
 
@@ -159,7 +255,7 @@ class WearQueueDrainerTest {
         val seen = mutableListOf<String>()
         val sender = QuestionSender { _, core ->
             seen += core
-            Result.success("ok")
+            answer("ok")
         }
 
         WearQueueDrainer.drain(queue, sender, "core-context", showResult = false)
@@ -174,9 +270,7 @@ class WearQueueDrainerTest {
         queue.enqueue("one")
         queue.enqueue("two")
         queue.enqueue("three")
-        val sender = ScriptedSender(
-            listOf(Result.success("a1"), Result.success("a2"), Result.success("a3")),
-        )
+        val sender = ScriptedSender(listOf(answer("a1"), answer("a2"), answer("a3")))
 
         val report = WearQueueDrainer.drain(queue, sender, "", showResult = true)
 
@@ -194,18 +288,39 @@ class WearQueueDrainerTest {
         val sender = QuestionSender { question, _ ->
             asked += question
             kotlinx.coroutines.delay(50)
-            Result.success("answer")
+            answer("answer")
         }
 
-        val passes = kotlinx.coroutines.coroutineScope {
-            List(4) {
-                async { WearQueueDrainer.drain(queue, sender, "", showResult = false) }
-            }
+        val scope: kotlinx.coroutines.CoroutineScope = this
+        val passes = List(4) {
+            scope.async { WearQueueDrainer.drain(queue, sender, "", showResult = false) }
         }
         val total = passes.sumOf { it.await().delivered }
 
         assertEquals(listOf("only once"), asked.toList())
         assertEquals(1, total)
         assertEquals(0, queue.size())
+    }
+
+    @Test
+    fun `the outcome bridge keeps the retry verdict from the client`() {
+        // `WearChatClient` answers with a Result; the drainer needs the verdict and the back-off. The
+        // translation lives in `AskOutcome.from`, so a change to either shape fails a test rather than
+        // silently downgrading a permanent failure into a retryable one.
+        val permanent = AskOutcome.from(
+            Result.failure(WearChatException("HTTP 401", WearChatException.Kind.HTTP_STATUS, 401))
+        ) as AskOutcome.Failed
+        assertTrue(!permanent.retryable)
+
+        val throttled = AskOutcome.from(
+            Result.failure(
+                WearChatException("HTTP 429", WearChatException.Kind.HTTP_STATUS, 429, 3_000L)
+            )
+        ) as AskOutcome.Failed
+        assertTrue(throttled.retryable)
+        assertEquals(3_000L, throttled.retryAfterMs)
+
+        val success = AskOutcome.from(Result.success("hello")) as AskOutcome.Answer
+        assertEquals("hello", success.text)
     }
 }

@@ -1,5 +1,6 @@
 package com.newoether.agora.wear
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -80,7 +81,12 @@ class WearAnswerTextCoverageTest {
     fun theFontCoverageTableIsNotEmptyAndContainsWhatItMust() {
         // Guards the generated file against a bad regeneration: if these stop being covered, the
         // generator read the wrong fonts.
-        assertTrue("coverage table looks empty", WearFontCoverage.size > 8000)
+        //
+        // The old form of this assertion was `WearFontCoverage.size > 8000`, where `size` is computed
+        // from the very range list under test — a tautology that a half-generated table would still
+        // pass. The size is now pinned to the union the file's own header documents (8755, read from
+        // the fonts' cmaps), and `WearFontCoverageTest` additionally checks the table's structure.
+        assertEquals("the coverage table no longer matches the fonts it documents", 8755, WearFontCoverage.size)
         for (ch in "0123456789abcXYZ ×÷√π°±≈≤≥∞∑∫→²³₀₁•—…") {
             assertTrue("U+%04X missing from the coverage table".format(ch.code), WearFontCoverage.hasGlyph(ch.code))
         }

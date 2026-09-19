@@ -80,8 +80,9 @@ class WearConfigStore(private val context: Context) {
 
     fun write(config: WearConfig) {
         val plain = WearCrypto.json.encodeToString(WearConfig.serializer(), config)
-        file.parentFile?.mkdirs()
-        file.writeBytes(WearCrypto.encrypt(context, plain))
+        // Atomic: a config file that is half-written fails to decrypt, and the user is dropped back
+        // on the setup screen with their key apparently gone. See WearAtomicFile.
+        WearAtomicFile.write(file, WearCrypto.encrypt(context, plain))
     }
 
     companion object {

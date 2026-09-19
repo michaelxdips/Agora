@@ -65,6 +65,8 @@ class FakeAdaptationLogDao : AdaptationLogDao {
     override suspend fun injectionsFor(adaptationId: Long): List<AdaptationInjection> =
         injections.filter { it.adaptationId == adaptationId }
 
+    override suspend fun injectionsForAll(): List<AdaptationInjection> = injections.toList()
+
     override suspend fun deleteInjections(ids: List<Long>): Int {
         val before = injections.size
         injections.removeAll { it.adaptationId in ids }

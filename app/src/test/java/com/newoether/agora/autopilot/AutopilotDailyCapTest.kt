@@ -44,6 +44,7 @@ class AutopilotDailyCapTest {
         override suspend fun idsOlderThan(cutoff: Long): List<Long> = emptyList()
         override suspend fun insertInjection(injection: AdaptationInjection): Long = 0L
         override suspend fun injectionsFor(adaptationId: Long): List<AdaptationInjection> = emptyList()
+        override suspend fun injectionsForAll(): List<AdaptationInjection> = emptyList()
         override suspend fun deleteInjections(ids: List<Long>): Int = 0
     }
 

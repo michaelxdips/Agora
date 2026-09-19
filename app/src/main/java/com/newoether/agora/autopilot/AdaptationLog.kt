@@ -139,6 +139,17 @@ interface AdaptationLogDao {
     @Query("SELECT * FROM adaptation_injection WHERE adaptationId = :adaptationId")
     suspend fun injectionsFor(adaptationId: Long): List<AdaptationInjection>
 
+    /**
+     * Every injection row, so a caller that needs many of them reads the table once.
+     *
+     * HERMES INTEGRATION POINT: the circuit breaker asked `injectionsFor(id)` once per journal row,
+     * which made one correction pass cost a query per row of the entire adaptation history. It now
+     * groups this result by `adaptationId` and reads the map. The table is small by construction —
+     * one row per (adaptation, session) pair, and the journal itself is capped by retention.
+     */
+    @Query("SELECT * FROM adaptation_injection")
+    suspend fun injectionsForAll(): List<AdaptationInjection>
+
     @Query("DELETE FROM adaptation_injection WHERE adaptationId IN (:ids)")
     suspend fun deleteInjections(ids: List<Long>): Int
 }

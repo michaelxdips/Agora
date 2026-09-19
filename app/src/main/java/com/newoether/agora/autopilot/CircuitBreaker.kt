@@ -18,10 +18,23 @@ class CircuitBreaker(
      *
      * @return the entries that were auto-rolled back by this call.
      */
-    suspend fun recordCorrection(sessionId: String): List<AdaptationEntry> {
+    suspend fun recordCorrection(sessionId: String): List<AdaptationEntry> =
+        rollBackCandidates(sessionId, sessionsByAdaptation = log.injectionsForAll().groupBy { it.adaptationId })
+
+    /**
+     * The shared body of [recordCorrection] and [recordCorrections].
+     *
+     * [sessionsByAdaptation] is passed in so a caller processing several correction keys reads the
+     * injection table **once for the whole pass** instead of once per key. The lookup itself is a map
+     * read; the DAO is not touched again.
+     */
+    private suspend fun rollBackCandidates(
+        sessionId: String,
+        sessionsByAdaptation: Map<Long, List<AdaptationInjection>>,
+    ): List<AdaptationEntry> {
         val candidates = log.all().filter { entry ->
             entry.status == AdaptationEntry.STATUS_APPLIED &&
-                log.injectionsFor(entry.id).any { it.sessionId == sessionId }
+                sessionsByAdaptation[entry.id].orEmpty().any { it.sessionId == sessionId }
         }
         val rolledBack = mutableListOf<AdaptationEntry>()
         for (entry in candidates) {
@@ -61,6 +74,10 @@ class CircuitBreaker(
     ): List<AdaptationEntry> {
         val alreadyCounted = log.injectionsFor(LEDGER_ADAPTATION_ID).map { it.sessionId }.toSet()
         val fresh = correctionKeys.filterNot { it in alreadyCounted }
+        if (fresh.isEmpty()) return emptyList()
+        // Read the injection table once for the whole pass: every fresh key is answered from this map,
+        // so five rejections in one session cost one query, not five journal scans.
+        val sessionsByAdaptation = log.injectionsForAll().groupBy { it.adaptationId }
         var rolledBack = emptyList<AdaptationEntry>()
         for (key in fresh) {
             log.insertInjection(
@@ -70,7 +87,7 @@ class CircuitBreaker(
                     injectedAt = System.currentTimeMillis(),
                 )
             )
-            rolledBack = rolledBack + recordCorrection(sessionId)
+            rolledBack = rolledBack + rollBackCandidates(sessionId, sessionsByAdaptation)
         }
         return rolledBack
     }

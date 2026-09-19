@@ -176,14 +176,6 @@ jobs:
         run: |
           ./gradlew :wear:assembleRelease :wear:lintVitalRelease
 
-      - name: Upload Wear APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: hermes-wear-release
-          path: wear/build/outputs/apk/release/*.apk
-          if-no-files-found: error
-          retention-days: 14
-
       - name: Verify PRoot runtime packaging
         run: |
           apk_path=$(find app/build/outputs/apk/fdroid/release -name '*.apk' -print -quit)
@@ -231,6 +223,27 @@ jobs:
           ( cd "$(dirname "$phone")" && sha256sum "$(basename "$phone")" ) > SHA256SUMS
           ( cd "$(dirname "$watch")" && sha256sum "$(basename "$watch")" ) >> SHA256SUMS
           cat SHA256SUMS
+
+      # HERMES INTEGRATION POINT (Session 5 audit): this upload used to run BEFORE the signature
+      # verification above, so a run whose verification failed had already published the watch APK
+      # as a downloadable artifact. The phone APK's upload already sits after the check; this makes
+      # the two agree — an artifact exists only once the identity it carries was verified.
+      - name: Upload Wear APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: hermes-wear-release
+          path: wear/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      # HERMES INTEGRATION POINT (Session 5 audit): `audit_gate0.sh` was the only place these ran —
+      # the pinned release identity for the *fork* (not just "both APKs match each other"), the
+      # phone's `lintVitalFdroidRelease`, and the launcher-label/applicationId checks — and no
+      # workflow invoked it, so a release could ship mislabelled or with a different signing
+      # identity and CI stayed green. `--ci` runs the artifact sections only (the tests and builds
+      # above are this workflow's own), on the APKs already produced.
+      - name: Gate 0 artifact checks
+        run: bash scripts/audit_gate0.sh --ci
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

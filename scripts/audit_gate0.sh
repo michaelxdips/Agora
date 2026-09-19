@@ -54,6 +54,19 @@ echo "JAVA_HOME=${JAVA_HOME:-<unset>}"
 echo "ANDROID_HOME=${ANDROID_HOME:-<unset>}"
 echo
 
+# HERMES INTEGRATION POINT (Session 5 audit): `--ci` runs only the artifact checks, on APKs the CI
+# build job has already produced. The test and build sections below are what the `test` and `build`
+# jobs already do; rerunning them inside the build job would double the wall clock for no new
+# evidence. What CI *lacks* without this mode is everything in sections [5]-[7]: the pinned release
+# identity, `lintVitalRelease` for the phone, and the launcher-label/applicationId checks. Wired
+# into `.github/workflows/build.yml` after the APK verification step.
+CI_MODE=0
+[ "${1:-}" = "--ci" ] && CI_MODE=1
+if [ "$CI_MODE" = "1" ]; then
+    echo "mode: --ci (artifact checks only; tests and builds are the CI jobs' own)"
+    echo
+fi
+
 fail=0
 
 verdict() {  # verdict <name> <exit-code> <log>
@@ -64,6 +77,27 @@ verdict() {  # verdict <name> <exit-code> <log>
         fail=1
     fi
 }
+
+# ── build-tools discovery ──────────────────────────────────────────────────────────────────
+# HERMES INTEGRATION POINT (Session 5 audit): these two paths were hardcoded to `36.0.0`, so the
+# signature and label sections silently found no tool on any machine (or CI runner) with a
+# different build-tools version — and a section that cannot run must never be a PASS. Discovered
+# the same way `build.yml` does it: newest build-tools directory wins, Windows `.bat` accepted.
+find_tool() {  # find_tool <name>
+    local name="$1" found=""
+    for candidate in \
+        "${ANDROID_HOME:-}"/build-tools/*/"$name" \
+        "${ANDROID_HOME:-}"/build-tools/*/"$name".bat \
+        "${ANDROID_SDK_ROOT:-}"/build-tools/*/"$name" \
+        "${ANDROID_SDK_ROOT:-}"/build-tools/*/"$name".bat; do
+        [ -f "$candidate" ] && found="$candidate"
+    done
+    printf '%s' "$found"
+}
+SIGNER="$(find_tool apksigner)"
+AAPT2="$(find_tool aapt2)"
+
+if [ "$CI_MODE" = "0" ]; then
 
 echo "===== [1] touchpoint guard ====="
 bash scripts/touchpoint_guard.sh >"$OUT/guard.log" 2>&1
@@ -129,15 +163,20 @@ for apk in app/build/outputs/apk/fdroid/debug/app-fdroid-debug.apk \
     fi
 done
 
+fi  # end non-CI sections
+
 echo
 echo "===== [5] signature check (both release APKs) ====="
-SIGNER="$ANDROID_HOME/build-tools/36.0.0/apksigner.bat"
-[ -x "$SIGNER" ] || SIGNER="$ANDROID_HOME/build-tools/36.0.0/apksigner"
 EXPECTED="7188ce700b7407485e4a588cc1ef779fba4bd47c635338b05f61d5fc90aa56d7"
+if [ -z "$SIGNER" ]; then
+    echo "  signature: FAIL — apksigner not found under ANDROID_HOME=${ANDROID_HOME:-<unset>}"
+    fail=1
+fi
 phone_digest=""
 wear_digest=""
 for apk in app/build/outputs/apk/fdroid/release/app-fdroid-release.apk \
            wear/build/outputs/apk/release/wear-release.apk; do
+    [ -f "$apk" ] || continue
     printf '  %-46s ' "$(basename "$apk")"
     digest=$("$SIGNER" verify --print-certs "$apk" 2>/dev/null | grep 'SHA-256 digest' | head -1 | sed 's/.*digest: //')
     if [ -n "$digest" ]; then echo "$digest"; else echo "NO DIGEST — treat as UNVERIFIED"; fi
@@ -165,8 +204,10 @@ verdict "lintVital (fdroid release + wear release)" "$?" "$OUT/lint_vital.log"
 
 echo
 echo "===== [7] launcher label + applicationId, all APKs ====="
-AAPT2="$ANDROID_HOME/build-tools/36.0.0/aapt2.exe"
-[ -x "$AAPT2" ] || AAPT2="$ANDROID_HOME/build-tools/36.0.0/aapt2"
+if [ -z "$AAPT2" ]; then
+    echo "  labels: FAIL — aapt2 not found under ANDROID_HOME=${ANDROID_HOME:-<unset>}"
+    fail=1
+fi
 # HERMES INTEGRATION POINT: this section used to grep the labels and print the counts, then fall
 # through to the end of the script without touching `$fail`. `grep -c` exits 1 when it counts zero,
 # and that status was discarded — so an APK still labelled "Agora" (the wrong product identity for

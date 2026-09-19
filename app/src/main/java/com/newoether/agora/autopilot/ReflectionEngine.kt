@@ -44,9 +44,15 @@ class ReflectionEngine(
             return ReflectionOutcome(skippedReason = "daily cap reached")
         }
 
-        val reply = reflect(transcript, existingFiles)
+        // HERMES INTEGRATION POINT: prepared once, and used for both the prompt and the grounding
+        // check below. Persona blocks are stripped and the transcript delimiters are neutralised
+        // here, so "the string an op is verified against" is by construction "the string the model
+        // was shown" — the two cannot drift apart.
+        val promptTranscript = ReflectionProtocol.transcriptForPrompt(PersonaStore.stripAll(transcript))
+
+        val reply = reflect(promptTranscript, existingFiles)
             ?: return ReflectionOutcome(skippedReason = "no reflection reply")
-        val plan = ReflectionProtocol.parse(reply)
+        val plan = ReflectionProtocol.parse(reply, promptTranscript)
             ?: return ReflectionOutcome(skippedReason = "unparseable reply")
         if (plan.ops.isEmpty()) return ReflectionOutcome(skippedReason = "no durable facts")
 

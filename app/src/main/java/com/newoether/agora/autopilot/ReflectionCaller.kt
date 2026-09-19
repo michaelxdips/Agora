@@ -68,7 +68,10 @@ class ReflectionCaller(
                 // and any persona block that reached the text is stripped here as well. Personas
                 // shape the user's replies; they must never reach the extraction contract, or the
                 // JSON would come back compressed and unparseable.
-                text = ReflectionProtocol.extractionPrompt(PersonaStore.stripAll(transcript), existingFiles),
+                text = ReflectionProtocol.extractionPrompt(
+                    ReflectionProtocol.transcriptForPrompt(PersonaStore.stripAll(transcript)),
+                    existingFiles,
+                ),
                 participant = Participant.USER,
                 status = MessageStatus.SUCCESS,
             )

@@ -22,7 +22,7 @@ class PersonaIsolationTest {
     private val ponytailBody = "Stop at the first rung that holds. YAGNI first."
 
     private fun personaLoadedTranscript(): String {
-        val userMemory = "- User lives in Pemalang.\n- User ships Kotlin on Android."
+        val userMemory = "- User lives in Pemalang.\n- User ships Kotlin on Android.\n- USER: aku tinggal di Pemalang"
         var text = userMemory
         text = PersonaStore.upsertBlock(text, PersonaStore.ID_CAVEMAN, cavemanBody)
         text = PersonaStore.upsertBlock(text, PersonaStore.ID_PONYTAIL, ponytailBody)
@@ -56,13 +56,14 @@ class PersonaIsolationTest {
     @Test
     fun `an extraction reply stays parseable with personas on`() {
         // The contract is only at risk if the persona text could reach the model. It cannot, so a
-        // normal-shaped reply must parse exactly as it does with personas off.
+        // normal-shaped reply must parse exactly as it does with personas off. The quote is grounded
+        // in the user's own words — with personas stripped, that is all the model ever sees.
         val reply = """
             {"ops":[{"op":"add","target_file":"user-profile","content":"- User lives in Pemalang.",
             "category":"identity","confidence":0.9,"source_quote":"aku tinggal di Pemalang"}]}
         """.trimIndent()
 
-        val plan = ReflectionProtocol.parse(reply)
+        val plan = ReflectionProtocol.parse(reply, personaLoadedTranscript())
         assertEquals(1, plan?.ops?.size)
         assertEquals("user-profile", plan?.ops?.first()?.targetFile)
     }

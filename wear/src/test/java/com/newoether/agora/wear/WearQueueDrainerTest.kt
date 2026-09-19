@@ -187,12 +187,63 @@ class WearQueueDrainerTest {
             coreContext = "",
             showResult = false,
             onWait = { waited += it },
-            sleep = { /* the test does not actually sleep */ },
         )
 
         assertEquals(listOf(5_000L), waited)
         assertEquals(0, report.delivered)
         assertEquals("the question stays held for the retry", 1, queue.size())
+    }
+
+    @Test
+    fun `a Retry-After is persisted on the entry, so the next pass does not retry at once`() = runTest {
+        // HERMES INTEGRATION POINT (Session 4): the drain used to `sleep(wait)` inside its own lock.
+        // That throttled nothing — the sleep ended, the pass gave up, and the next drain retried the
+        // same entry immediately — while holding the send lock (and the UI's "Sending…" state) for
+        // the whole wait. The deadline is now written to the queue entry, so the *next* pass, with
+        // no memory of the first, still refuses to send it. Mutation that makes this red: drop the
+        // `notBefore` argument from `recordFailure`, or remove the `notBefore > now` skip in `drain`.
+        queue.enqueue("throttled")
+        val sender = ScriptedSender(
+            listOf(
+                AskOutcome.Failed("HTTP 429", retryable = true, retryAfterMs = 5_000L),
+                AskOutcome.Answer("should not be sent yet"),
+            )
+        )
+
+        WearQueueDrainer.drain(queue, sender, "", showResult = false)
+
+        // The stored deadline must be in the future, not merely present.
+        val held = queue.all().single()
+        assertTrue(
+            "the Retry-After must be persisted as a future deadline (was ${held.notBefore})",
+            held.notBefore != null && held.notBefore > System.currentTimeMillis(),
+        )
+
+        // A second pass — the state that used to retry immediately — must send nothing.
+        val second = WearQueueDrainer.drain(queue, sender, "", showResult = false)
+        assertEquals("a throttled entry must not be retried by the next pass", 0, second.delivered)
+        assertEquals("the sender must not have been called again", 1, sender.asked.size)
+    }
+
+    @Test
+    fun `an entry past its Retry-After deadline is sent again`() = runTest {
+        // The other half of the contract: the throttle is a deadline, not a tombstone. An entry
+        // whose wait has elapsed goes out on the next pass. Mutation: make the skip unconditional
+        // (`if (entry.notBefore != null) break`) and this goes red.
+        queue.enqueue("throttled")
+        val sender = ScriptedSender(
+            listOf(
+                AskOutcome.Failed("HTTP 429", retryable = true, retryAfterMs = 1L),
+                AskOutcome.Answer("delivered after the wait"),
+            )
+        )
+
+        WearQueueDrainer.drain(queue, sender, "", showResult = false)
+        Thread.sleep(20L)   // let the 1 ms deadline pass
+        val second = WearQueueDrainer.drain(queue, sender, "", showResult = false)
+
+        assertEquals(1, second.delivered)
+        assertEquals(0, queue.size())
     }
 
     @Test
@@ -209,10 +260,13 @@ class WearQueueDrainerTest {
             coreContext = "",
             showResult = false,
             onWait = { waited += it },
-            sleep = {},
         )
 
         assertEquals(listOf(WearQueueDrainer.MAX_RETRY_AFTER_MS), waited)
+        val held = queue.all().single()
+        // Bounded on disk too, not only in the callback: a hostile header cannot park the queue for
+        // a day. Ceiling + a generous slack for test execution time.
+        assertTrue(held.notBefore!! - System.currentTimeMillis() <= WearQueueDrainer.MAX_RETRY_AFTER_MS)
     }
 
     @Test
@@ -229,7 +283,6 @@ class WearQueueDrainerTest {
             coreContext = "",
             showResult = false,
             onWait = { waited += it },
-            sleep = {},
         )
 
         assertTrue("a permanent failure must not be waited on", waited.isEmpty())

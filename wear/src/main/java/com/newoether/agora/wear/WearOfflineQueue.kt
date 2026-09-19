@@ -39,6 +39,13 @@ class WearOfflineQueue(private val context: android.content.Context) {
         val createdAt: Long,
         /** Bounded retries: a permanently failing request must not block the queue forever. */
         val attempts: Int = 0,
+        /**
+         * Wall-clock deadline before which this entry must not be retried, set from the server's
+         * `Retry-After`. Null means "no server-imposed wait". Persisted, not held in memory: a
+         * drain pass ends, but the throttle has to outlive it (Session 4 — the pass used to sleep
+         * inside its own lock instead, which throttled nothing and froze the send button).
+         */
+        val notBefore: Long? = null,
     )
 
     fun all(): List<Entry> = readAll()
@@ -87,11 +94,18 @@ class WearOfflineQueue(private val context: android.content.Context) {
      * version removed the entry and the text was gone with it: a user whose key expired lost every
      * question they had asked while offline, with one error line as the only trace.
      */
-    suspend fun recordFailure(id: Long, permanent: Boolean = false): Boolean = mutex.withLock {
+    suspend fun recordFailure(id: Long, permanent: Boolean = false, notBefore: Long? = null): Boolean = mutex.withLock {
         val entries = readAll().toMutableList()
         val index = entries.indexOfFirst { it.id == id }
         if (index < 0) return@withLock false
-        val updated = entries[index].copy(attempts = entries[index].attempts + 1)
+        val updated = entries[index].copy(
+            attempts = entries[index].attempts + 1,
+            // Session 4: a server-requested back-off is persisted with the entry. The drainer used
+            // to `sleep(wait)` instead, which throttled nothing (the next pass retried at once) and
+            // held the send lock for the whole wait. The queue is the only place that survives the
+            // pass, so the deadline lives here.
+            notBefore = notBefore?.let { System.currentTimeMillis() + it } ?: entries[index].notBefore,
+        )
         if (permanent || updated.attempts >= MAX_ATTEMPTS) {
             entries.removeAt(index)
             writeAll(entries)

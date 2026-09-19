@@ -636,9 +636,17 @@ private fun WearChatScreen(
                                 Button(
                                     onClick = {
                                         scope.launch {
-                                            // "Send now" is the same send as any other: it goes
-                                            // through the coordinator, so a tap here while the same
-                                            // question is already in flight cannot double-charge.
+                                            // HERMES INTEGRATION POINT (Session 4): this used to be
+                                            // just `send(entry.text)`, and that ran TWO provider
+                                            // calls for one tap. `send` enqueues a *new* queue entry
+                                            // and its success branch drains the queue — which still
+                                            // held this card's original entry — so the original was
+                                            // sent again as well, billed twice. Completing the
+                                            // original first makes the tap mean what it says: send
+                                            // this question now, once. The new send re-enqueues it,
+                                            // so a failure still leaves it durably held.
+                                            withContext(Dispatchers.IO) { queue.complete(entry.id) }
+                                            refreshQueued()
                                             send(entry.text)
                                             refreshQueued()
                                         }

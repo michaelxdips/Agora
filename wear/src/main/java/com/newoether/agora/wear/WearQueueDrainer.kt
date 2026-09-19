@@ -2,7 +2,6 @@ package com.newoether.agora.wear
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -129,7 +128,6 @@ object WearQueueDrainer {
         showResult: Boolean,
         onFailure: (String) -> Unit = {},
         onWait: (Long) -> Unit = {},
-        sleep: suspend (Long) -> Unit = { delay(it) },
     ): DrainReport = drainMutex.withLock {
         withContext(Dispatchers.IO) {
         val pending = queue.all()
@@ -138,7 +136,15 @@ object WearQueueDrainer {
         val answers = mutableListOf<String>()
         var lastAnswer: String? = null
         var droppedText: String? = null
+        var retryAfterForEntry: Long? = null
+        // A server-requested wait is honoured by *skipping the entry*, not by sleeping the pass:
+        // the deadline was persisted on the entry by the previous failure, so the pass can end
+        // immediately and the next pass — minutes later, after a reboot even — still respects it.
+        // The scan stops (not `continue`) because a rate limit is per-account: sending the next
+        // question into a throttled endpoint would burn its attempt budget for the same 429.
+        val now = System.currentTimeMillis()
         for (entry in pending) {
+            if (entry.notBefore != null && entry.notBefore > now) break
             val outcome = sender.ask(entry.text, coreContext)
             when (outcome) {
                 is AskOutcome.Answer -> {
@@ -159,9 +165,18 @@ object WearQueueDrainer {
                     val wait = outcome.retryAfterMs?.takeIf { it > 0L }?.coerceAtMost(MAX_RETRY_AFTER_MS)
                     if (wait != null && outcome.retryable) {
                         onWait(wait)
-                        sleep(wait)
+                        // HERMES INTEGRATION POINT (Session 4): the wait used to be `sleep(wait)`
+                        // *inside* `drainMutex`, and it did not throttle anything: the sleep ended,
+                        // the pass gave up, the lock released, and the very next drain — a second
+                        // later, after any successful send — retried the same entry immediately.
+                        // What it did do was hold `sending = true` for the whole wait, so the
+                        // button read "Sending…" long after the answer was on screen. The throttle
+                        // is now *persisted with the entry* ([WearOfflineQueue.recordFailure]'s
+                        // `notBefore`), so the next pass skips it until the server is ready, and the
+                        // pass itself returns immediately.
+                        retryAfterForEntry = wait
                     }
-                    if (queue.recordFailure(entry.id, permanent = !outcome.retryable)) {
+                    if (queue.recordFailure(entry.id, permanent = !outcome.retryable, notBefore = retryAfterForEntry)) {
                         droppedText = entry.text
                     }
                     break

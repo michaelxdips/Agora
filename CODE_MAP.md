@@ -88,7 +88,7 @@ Upstream ref used for the classification: `upstream/master`
 | `app/src/main/java/com/newoether/agora/autopilot/PersonaUpdater.kt` | 115 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/ReflectionCaller.kt` | 108 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/ReflectionEngine.kt` | 93 | fork-only |
-| `app/src/main/java/com/newoether/agora/autopilot/ReflectionProtocol.kt` | 183 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/ReflectionProtocol.kt` | 192 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/ReflectionWorker.kt` | 231 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/SettingsAdaptationHistoryPage.kt` | 261 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/SettingsPersonasPage.kt` | 231 | fork-only |
@@ -124,7 +124,7 @@ Upstream ref used for the classification: `upstream/master`
 | `app/src/test/java/com/newoether/agora/autopilot/PersonaStoreTest.kt` | 183 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/PersonaUpdaterTest.kt` | 117 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/ProviderBaseUrlResolutionTest.kt` | 131 | fork-only |
-| `app/src/test/java/com/newoether/agora/autopilot/ReflectionProtocolTest.kt` | 369 | fork-only |
+| `app/src/test/java/com/newoether/agora/autopilot/ReflectionProtocolTest.kt` | 384 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/ReflectionWorkerSignalTest.kt` | 145 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/ReleaseVersionOrderingTest.kt` | 81 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/SkillSynthesizerTest.kt` | 196 | fork-only |

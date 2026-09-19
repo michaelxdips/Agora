@@ -40,7 +40,14 @@ object WatchSync {
     /** Capability the watch looks for when it wants to pair; advertised by PairingListenerService. */
     const val PHONE_CAPABILITY = "hermes_phone"
 
-    /** The last transfer result, for the setup screen. Null until the first attempt this process. */
+    /**
+     * The last transfer result, for the setup screen. Null until the first attempt this process.
+     *
+     * HERMES INTEGRATION POINT (Session 5 cleanup): the setup page consumes this with
+     * `getAndUpdate { null }` rather than reading `.value`, so a sentence is shown once. The comment
+     * on the field names that contract because a plain read would silently reintroduce the
+     * stale-status bug it fixes.
+     */
     val lastPushOutcome = MutableStateFlow<PushOutcome?>(null)
 
     /**
@@ -49,7 +56,16 @@ object WatchSync {
      * [reason] is an enum so the screen can resolve a translatable resource and the wire ack can carry
      * text — see [PushReason] for why those have to differ.
      */
-    data class PushOutcome(val ok: Boolean, val reason: PushReason) {
+    data class PushOutcome(val reason: PushReason) {
+        /**
+         * HERMES INTEGRATION POINT (Session 5 cleanup): derived from [PushReason.ok] instead of a
+         * second constructor parameter. The two could disagree — `PushOutcome(ok = true, reason =
+         * PushReason.NO_KEY)` compiled fine and would have acked a failure as a success — and the
+         * parameter was written at six call sites that all repeated what the enum already said.
+         * One source of truth.
+         */
+        val ok: Boolean get() = reason.ok
+
         /** The sentence for the watch: the phone's resources are not reachable from the watch. */
         val wireText: String get() = reason.wireText
     }
@@ -122,9 +138,11 @@ object WatchSync {
                     payload.toByteArray(), android.util.Base64.NO_WRAP,
                 ))
                 dataMap.putLong("updatedAt", System.currentTimeMillis())
-                // The raw length, so the watch's debug screen can say how much memory exists on the
-                // phone even though only the derived core context travels.
-                dataMap.putInt("sourceChars", snapshot.length)
+                // HERMES INTEGRATION POINT (Session 5 cleanup): `sourceChars` used to travel here
+                // (the raw snapshot length, for a watch debug line). The watch never read it —
+                // `grep -rn sourceChars wear/src` → 0 hits — so it was a Data Layer key whose only
+                // consumer was a unit test asserting it is *written*. It is no longer written; the
+                // watch's debug screen reports the cached snapshot's own length.
             }.asPutDataRequest().setUrgent()
             Wearable.getDataClient(context).putDataItem(request).await()
             DebugLog.d(TAG, "watch memory snapshot pushed (${payload.length} chars)")
@@ -175,17 +193,17 @@ object WatchSync {
         }
         val outcome = when {
             baseUrl.isBlank() || modelId.isBlank() ->
-                PushOutcome(false, PushReason.NO_ENDPOINT)
-            key.isBlank() -> PushOutcome(false, PushReason.NO_KEY)
+                PushOutcome(PushReason.NO_ENDPOINT)
+            key.isBlank() -> PushOutcome(PushReason.NO_KEY)
             else -> {
                 val pushed = withContext(Dispatchers.IO) {
                     pushConfig(context, baseUrl, key, modelId)
                 }
                 if (!pushed) {
-                    PushOutcome(false, PushReason.PUSH_FAILED)
+                    PushOutcome(PushReason.PUSH_FAILED)
                 } else {
                     val memory = withContext(Dispatchers.IO) { pushMemorySnapshot(context) }
-                    PushOutcome(true, if (memory) PushReason.PUSHED else PushReason.CONFIG_ONLY)
+                    PushOutcome(if (memory) PushReason.PUSHED else PushReason.CONFIG_ONLY)
                 }
             }
         }

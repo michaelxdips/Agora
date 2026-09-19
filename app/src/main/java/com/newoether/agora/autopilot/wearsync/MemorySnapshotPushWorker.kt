@@ -42,6 +42,10 @@ class MemorySnapshotPushWorker(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        // HERMES INTEGRATION POINT (Session 5 cleanup): `schedule` wrote `KEY_REASON` into the input
+        // data and nothing ever read it, so the scheduler's "why" was invisible in logcat. The log
+        // line below carries it now.
+        val reason = inputData.getString(KEY_REASON).orEmpty()
         try {
             // HERMES INTEGRATION POINT: no timeout here, and the chain below it (`WatchSync` →
             // `putDataItem().await()`) has none either, so a Data Layer call that never returns left
@@ -62,7 +66,7 @@ class MemorySnapshotPushWorker(
                 // and the next memory write schedules a fresh attempt anyway.
                 return@withContext if (runAttemptCount < MAX_ATTEMPTS) Result.retry() else Result.failure()
             }
-            DebugLog.d(TAG, "background memory snapshot push: $pushed")
+            DebugLog.d(TAG, "background memory snapshot push: $pushed (reason=${reason.ifBlank { "unspecified" }})")
             Result.success()
         } catch (cancelled: CancellationException) {
             throw cancelled   // a cancelled push is not a failed push; see WatchSync

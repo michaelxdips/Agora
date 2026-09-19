@@ -25,6 +25,7 @@ import com.newoether.agora.data.repository.SettingsRepository
 import com.newoether.agora.ui.settings.CollapsingSettingsLazyScaffold
 import com.newoether.agora.viewmodel.ProviderRegistry
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -80,7 +81,14 @@ fun SettingsWatchSetupPage(
         watchCount = withContext(Dispatchers.IO) { WatchSync.connectedWatchCount(context) }
         // A pairing request that arrived while this page was closed is reported here instead of
         // being lost — the phone is the one that knows whether the push actually worked.
-        WatchSync.lastPushOutcome.value?.let { status = context.getString(it.reason.stringRes) }
+        // HERMES INTEGRATION POINT (Session 5 cleanup): the outcome is *consumed*, not merely read.
+        // It used to be left in the process-wide slot, so every later visit to this page re-showed a
+        // stale sentence ("Sent. The watch is standalone now.") for a transfer that happened hours
+        // ago, and the button's own `status = null` did not clear it. Clearing here means the
+        // sentence is shown once, by the page that can act on it.
+        WatchSync.lastPushOutcome.getAndUpdate { null }?.let {
+            status = context.getString(it.reason.stringRes)
+        }
     }
 
     CollapsingSettingsLazyScaffold(

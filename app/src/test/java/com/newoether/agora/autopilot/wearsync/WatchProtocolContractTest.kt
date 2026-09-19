@@ -123,7 +123,10 @@ class WatchProtocolContractTest {
 
     @Test
     fun `every memory key the phone writes is a key the watch reads`() {
-        val written = setOf("payload", "updatedAt", "sourceChars")
+        // HERMES INTEGRATION POINT (Session 5 cleanup): `sourceChars` was in this set even though
+        // the watch never read it — the assertion proved the phone wrote a key with no consumer.
+        // The set is now exactly the keys both sides agree on.
+        val written = setOf("payload", "updatedAt")
         written.forEach { key ->
             assertTrue(
                 "phone never writes memory key '$key'",
@@ -132,11 +135,8 @@ class WatchProtocolContractTest {
                     phoneSource.contains("putInt(\"$key\""),
             )
         }
-        // The watch reads payload and updatedAt; sourceChars is debug-only on the watch side, so it
-        // is asserted as written by the phone but not required as a read.
         assertEquals("payload", constant(wearListeners, "KEY_PAYLOAD"))
         assertEquals("updatedAt", constant(wearListeners, "KEY_UPDATED_AT"))
-        assertTrue(phoneSource.contains("putInt(\"sourceChars\""))
     }
 
     // ── pairing handshake ────────────────────────────────────────────────────

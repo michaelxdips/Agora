@@ -13,7 +13,7 @@ import com.newoether.agora.util.DebugLog
  * at the last time the user happened to open the phone app, which is precisely the failure the
  * read-only snapshot design exists to prevent.
  *
- * `WearMemoryPushWorker` is scheduled on every write, so the push happens wherever the process is,
+ * `MemorySnapshotPushWorker` is scheduled on every write, so the push happens wherever the process is,
  * and the trigger is a **unique one-time work with a delay**: a burst of writes replaces the pending
  * work rather than queueing ten pushes.
  *

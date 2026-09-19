@@ -33,9 +33,6 @@ object MemorySnapshotPusher {
 
     private const val TAG = "AutopilotWearSync"
 
-    /** How long a burst of writes is allowed to settle before one push goes out. */
-    const val DEBOUNCE_MS = 2_000L
-
     /**
      * Starts observing active memory. Returns the job so the caller's scope owns its lifetime.
      *
@@ -45,6 +42,12 @@ object MemorySnapshotPusher {
      * bytes over Bluetooth twice, and two Data Layer items for one fact. It now only *requests* the push
      * through the one scheduler, which collapses the burst into a single worker run; the direct path is
      * gone, so there is exactly one owner of "a push happened".
+     *
+     * HERMES INTEGRATION POINT (Session 5 cleanup): this object's own `DEBOUNCE_MS` is gone. It was a
+     * second copy of the same window (`MemoryPushScheduler.DEBOUNCE_MS` is the owner), and the
+     * duplicate is exactly the defect the scheduler's KDoc says it closed. The debounce stays on the
+     * flow — it is what stops one reflection pass's burst of writes from scheduling N pushes — but it
+     * reads the one constant.
      *
      * @param scope the composition scope, which cancels the *observer* with the UI. The push itself is
      *   WorkManager's, so it survives that cancellation — see `MemoryPushStartup` for why that matters.
@@ -57,7 +60,7 @@ object MemorySnapshotPusher {
             .drop(1)                       // the value at subscribe time is not a change
             // No `distinctUntilChanged()`: the source is a `StateFlow`, which already conflates equal
             // values, so the operator was redundant here. Removed to match `MemoryPushStartup`.
-            .debounce(DEBOUNCE_MS)
+            .debounce(MemoryPushScheduler.DEBOUNCE_MS)
             .collect {
                 // Scheduling, not pushing: `MemoryPushScheduler` owns the debounce and the worker.
                 MemoryPushScheduler.schedule(context)

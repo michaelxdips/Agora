@@ -59,7 +59,11 @@ class PairingListenerService : WearableListenerService() {
             // Refuse before touching the credential. The payload used to be ignored entirely, so a
             // watch running a different build got a config it could not use while this side reported
             // success — a setup that looks finished and does not work.
-            DebugLog.w(TAG, "pairing refused: unsupported request (protocol=${request?.protocol})")
+            DebugLog.w(
+                TAG,
+                "pairing refused: unsupported request (protocol=${request?.protocol}, " +
+                    "schema=${request?.schemaVersion})",
+            )
             scope.launch {
                 reply(event.sourceNodeId, request?.requestId.orEmpty(), PROTOCOL_MISMATCH, ok = false)
             }
@@ -79,7 +83,7 @@ class PairingListenerService : WearableListenerService() {
                 throw cancelled
             } catch (error: Exception) {
                 DebugLog.w(TAG, "pairing failed: ${error.javaClass.simpleName}")
-                PushOutcome(false, PushReason.PUSH_FAILED)
+                PushOutcome(PushReason.PUSH_FAILED)
             }
             // HERMES INTEGRATION POINT: the outcome travels with the sentence. `reply` used to send
             // the text alone, so the watch could not tell "your key is missing" from "your key was
@@ -90,7 +94,7 @@ class PairingListenerService : WearableListenerService() {
 
     private suspend fun handle(application: AgoraApplication): PushOutcome {
         val container = application.awaitContainer()
-            ?: return PushOutcome(false, PushReason.STARTING_UP)
+            ?: return PushOutcome(PushReason.STARTING_UP)
         val settings = container.settingsRepository
         val registry = container.providerRegistry
         // HERMES INTEGRATION POINT (Session 5 audit): this service can be **cold-started by the
@@ -148,14 +152,12 @@ class PairingListenerService : WearableListenerService() {
         const val ACK_PATH = "/hermes/pair/ack"
 
         /**
-         * A Data Layer failure that is not one of [PushReason]'s outcomes: the push itself never got a
-         * chance to run. Kept as text because it is wire-only — the phone screen never shows it.
-         */
-        const val UNREACHABLE = "The phone could not reach the watch to send the config."
-
-        /**
-         * The watch asked with a request this build does not speak. Wire-only for the same reason as
-         * [UNREACHABLE]: the sentence has to travel as text, and the phone's own screen never shows it.
+         * The watch asked with a request this build does not speak. Wire-only: the sentence has to
+         * travel as text, and the phone's own screen never shows it.
+         *
+         * HERMES INTEGRATION POINT (Session 5 cleanup): this companion used to carry a second wire
+         * sentence, `UNREACHABLE`, that no code path could ever send — every real outcome already
+         * travels as a [PushReason]. A constant nothing can produce is dead weight, so it is gone.
          */
         const val PROTOCOL_MISMATCH =
             "This watch and phone app are different versions. Update both, then pair again."

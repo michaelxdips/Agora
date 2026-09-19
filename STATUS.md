@@ -14,15 +14,15 @@ the repo **as it was when that phase closed** and may legitimately contradict th
 
 | | Value | Command |
 |---|---|---|
-| `main` HEAD | `e46fb037` | `git rev-parse --short main` |
+| `main` HEAD | `b36678a8` | `git rev-parse --short main` |
 | Versions | `3.0.4-hermesx` / `versionCode` 35, both modules | `app/build.gradle.kts`, `wear/build.gradle.kts` |
 | Releases | `v3.0.4` (latest), `v3.0.3`, `v3.0.2`, `v3.0.1` (pre-release) | `gh release list -R michaelxdips/Agora` |
-| App unit tests | **2665 tests, 0 failures, 0 errors, 3 skipped** (407 XML files) | `./gradlew :app:testFdroidDebugUnitTest` |
-| Wear unit tests | **168 tests, 0 failures, 0 errors** (16 XML files) | `./gradlew :wear:testDebugUnitTest` |
-| Play flavor tests | 2648 tests, 0 failures, 0 errors, 3 skipped | `:app:testPlayDebugUnitTest` |
-| Kotlin size gate | 1055 files, maximum 800 lines, 0 baseline entries | `verifyKotlinFileSize` |
-| Upstream position | `main` is **113 ahead** of the fork point `914e7c8d`; upstream is **0 ahead** | `git rev-list --left-right --count upstream/master...main` |
-| Release certificate | `7188ce70…aa56d7` on **both** published APKs | `bash scripts/verify_release_provenance.sh v3.0.4` → **PASS, all four claims** |
+| App unit tests | **2665 tests, 0 failures, 0 errors, 3 skipped** (408 XML files) | `./gradlew :app:testFdroidDebugUnitTest` |
+| Wear unit tests | **168 tests, 0 failures, 0 errors** (17 XML files) | `./gradlew :wear:testDebugUnitTest` |
+| Play flavor tests | 2648 tests, 0 failures, 0 errors, 3 skipped (404 XML files) | `:app:testPlayDebugUnitTest` |
+| Kotlin size gate | 1063 files, maximum 800 lines, 0 baseline entries | `verifyKotlinFileSize` |
+| Upstream position | `main` is **154 ahead** of the fork point `914e7c8d`; upstream is **2 ahead** (`b168f266`, `e538ef21` not yet absorbed) | `git rev-list --count 914e7c8d..main`; `git rev-list --left-right --count upstream/master...main` |
+| Release certificate | `7188ce70…aa56d7` on **both** published APKs | `bash scripts/verify_release_provenance.sh v3.0.4` → claims 1, 2, 4 hold; **claim 3 fails honestly** (the tag's tree ≠ the tree CI built — the three redacted docs; explained in the v3.0.4 notes) |
 | Published asset digests | match `SHA256SUMS` byte-for-byte | same script, claim 2 |
 | Release signing | **fail-closed**: `assembleFdroidRelease` with no keystore now exits 1 instead of signing with the debug key | `./gradlew assembleFdroidRelease` on a clean `local.properties` |
 | Branch protection | **off** — `gh api …/branches/main/protection` → `404 Branch not protected` | same |

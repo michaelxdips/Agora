@@ -332,7 +332,17 @@ private fun WearChatScreen(
         // only in the failure branch of `result.fold`, which never runs when the coroutine is
         // cancelled: the question vanished with no queue entry, no notice and no log. Enqueueing
         // first makes the queue the record of the question, which is what it is for.
+        //
+        // HERMES INTEGRATION POINT (Session 5 audit): `enqueue` returns null when the queue could
+        // not be persisted (disk full). Sending anyway would spend a provider call on a question
+        // whose only record is this process's memory — lost on the next kill, with no queue entry
+        // to recover. The user is told instead of being quietly charged.
         val entry = withContext(Dispatchers.IO) { queue.enqueue(trimmed) }
+        if (entry == null) {
+            status = ""
+            notice = context.getString(R.string.wear_chat_queue_write_failed)
+            return
+        }
 
         val core = withContext(Dispatchers.IO) { WearCoreContext.build(memoryCache.read()) }
         val client = WearChatClient(config)
@@ -677,7 +687,15 @@ private fun WearChatScreen(
                         // fallback this screen's own KDoc promises ("the UI can say so instead of
                         // nothing") never reached a user: on an image with no recognizer, tapping
                         // Speak did nothing visible. Reading the flow here is the render site.
-                        text = voiceProblem?.takeIf { it.isNotBlank() } ?: notice,
+                        //
+                        // HERMES INTEGRATION POINT (Session 5 audit): the order used to be the
+                        // reverse — `voiceProblem` won unconditionally and was never cleared — so
+                        // one denied mic permanently shadowed every later notice for the rest of
+                        // the process ("Rate limited — waiting 5s", "Already sending that
+                        // question"): the user kept reading "Microphone permission denied" over a
+                        // successful send. A fresh notice now takes the line; the voice problem
+                        // remains the fallback when there is nothing newer to say.
+                        text = notice.ifBlank { voiceProblem?.takeIf { it.isNotBlank() } ?: "" },
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,

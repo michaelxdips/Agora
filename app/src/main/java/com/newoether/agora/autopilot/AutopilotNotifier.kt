@@ -84,5 +84,19 @@ object AutopilotNotifier {
         )
     }
 
+    /**
+     * Makes sure [CHANNEL_ID] exists before a notification is posted on it.
+     *
+     * HERMES INTEGRATION POINT (Session 5 audit): the update channel's notifications
+     * ([com.newoether.agora.autopilot.update.UpdateDownloadAction.notifyOffer],
+     * [com.newoether.agora.autopilot.update.UpdateInstaller.notifyProgress]) are posted on this
+     * channel but never created it — [ensureChannel] was private and called from exactly one
+     * place, the memory notification. On API 26+ a notification on an unregistered channel is
+     * dropped by the system, so on any install where the user had not yet received a memory
+     * notification, the "Download & install" notification never appeared — and since that
+     * notification is the only download trigger, the whole feature was silently dead there.
+     */
+    fun ensureChannelForUpdates(context: Context) = ensureChannel(context)
+
     private const val NOTIFICATION_ID = 4101
 }

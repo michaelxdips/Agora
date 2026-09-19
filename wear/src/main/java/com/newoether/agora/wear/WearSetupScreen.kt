@@ -211,8 +211,17 @@ fun WearSetupScreen(
                             return@Button
                         }
                         scope.launch {
-                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            // HERMES INTEGRATION POINT (Session 5 audit): the write's result used to
+                            // be discarded — the screen said "saved", set `ready = true` and called
+                            // `onConfigured` while nothing was on disk (disk full, fsync error). The
+                            // user then had a watch that looked configured and could not answer, with
+                            // no way to tell why. A failed save now says so and stays on this screen.
+                            val saved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                                 store.write(config)
+                            }
+                            if (!saved) {
+                                status = context.getString(R.string.wear_setup_save_failed)
+                                return@launch
                             }
                             // Publish so the chat screen's collector sees it too; the callback alone
                             // only covers the screen that is currently composed.

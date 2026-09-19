@@ -39,6 +39,10 @@ class WearSendNowContractTest {
         return context
     }
 
+    /** `enqueue` returns null only when the queue cannot be persisted; these tests write to a temp dir. */
+    private suspend fun WearOfflineQueue.enqueueOrFail(text: String): WearOfflineQueue.Entry =
+        enqueue(text) ?: error("enqueue failed to persist into a writable directory")
+
     @Before
     fun setUp() {
         queue = WearOfflineQueue(context(temporaryFolder.newFolder("files")))
@@ -57,11 +61,11 @@ class WearSendNowContractTest {
         // The regression itself, kept as a test so the failure mode is documented executably.
         // The pre-fix handler was: leave the entry, `send(text)` — which enqueues a copy, sends it
         // directly, completes it — and then the success branch's drain picks up the *original*.
-        val original = queue.enqueue("what is my project?")
+        val original = queue.enqueueOrFail("what is my project?")
         val sender = CountingSender("answer")
 
         // what `sendOnce` does: enqueue a copy, send it directly (the provider call), complete it
-        val copy = queue.enqueue("what is my project?")
+        val copy = queue.enqueueOrFail("what is my project?")
         queue.complete(copy.id)   // the direct send succeeded
 
         // ...and now the drain that `sendOnce` runs on success. This is the second provider call.
@@ -77,11 +81,11 @@ class WearSendNowContractTest {
         // What the handler does now, in the same order: complete the original first, then the new
         // send enqueues exactly one entry which is delivered by its own path. A later drain finds
         // nothing left to re-send.
-        val original = queue.enqueue("what is my project?")
+        val original = queue.enqueueOrFail("what is my project?")
         assertTrue(queue.complete(original.id))
 
         // `sendOnce`'s own send, modelled at the queue level: enqueue → deliver → complete.
-        val fresh = queue.enqueue("what is my project?")
+        val fresh = queue.enqueueOrFail("what is my project?")
         val sender = CountingSender("answer")
         queue.complete(fresh.id)
 
@@ -96,10 +100,10 @@ class WearSendNowContractTest {
     fun `a failed send-now still leaves the question durably held`() = runTest {
         // The fix must not trade a double-send for a lost question: if the new send fails, the
         // entry `sendOnce` enqueued is still in the queue.
-        val original = queue.enqueue("what is my project?")
+        val original = queue.enqueueOrFail("what is my project?")
         queue.complete(original.id)
 
-        val fresh = queue.enqueue("what is my project?")   // sendOnce's durable enqueue
+        val fresh = queue.enqueueOrFail("what is my project?")   // sendOnce's durable enqueue
         queue.recordFailure(fresh.id, permanent = false)   // the send failed (offline)
 
         val held = queue.all()

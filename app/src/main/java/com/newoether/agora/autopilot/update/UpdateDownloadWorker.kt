@@ -32,6 +32,16 @@ class UpdateDownloadWorker(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        // HERMES INTEGRATION POINT (Session 5 audit): the flavor gate used to cover only the
+        // *check* half (UpdateCheckWorker / UpdateChannelStartup). The download half had none, and
+        // because both flavors share `applicationId` and the signing config, a play build carrying
+        // a stored offer from a prior fdroid install could download and install the fdroid APK —
+        // exactly what UpdateChannel's own docs say must not happen. The gate is enforced here,
+        // where the bytes would otherwise be fetched, not just where the offer is made.
+        if (!UpdateChannel.isForkReleaseChannel(applicationContext)) {
+            DebugLog.w(TAG, "not a fork release build; refusing the update download")
+            return@withContext Result.failure()
+        }
         val version = inputData.getString(KEY_VERSION)
         if (version.isNullOrBlank()) return@withContext Result.failure()
         // Re-resolve instead of trusting a caller-supplied URL: the only input is the version

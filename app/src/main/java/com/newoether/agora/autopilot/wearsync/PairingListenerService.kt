@@ -67,11 +67,20 @@ class PairingListenerService : WearableListenerService() {
         }
         val application = application as? AgoraApplication ?: return
         scope.launch {
-            val ack = runCatching { handle(application) }
-                .getOrElse { error ->
-                    DebugLog.w(TAG, "pairing failed: ${error.javaClass.simpleName}")
-                    PushOutcome(false, PushReason.PUSH_FAILED)
-                }
+            // HERMES INTEGRATION POINT (Session 5 audit): `runCatching` swallows
+            // `CancellationException` too, and this scope is cancelled in `onDestroy` — so a
+            // teardown mid-pairing used to surface as a *false* refusal ("no watch reachable" /
+            // "no key configured") for work that was simply abandoned, contradicting this module's
+            // own documented rule that a cancelled push is not a failed push. Cancellation is
+            // rethrown; only real errors become a refusal.
+            val ack = try {
+                handle(application)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                DebugLog.w(TAG, "pairing failed: ${error.javaClass.simpleName}")
+                PushOutcome(false, PushReason.PUSH_FAILED)
+            }
             // HERMES INTEGRATION POINT: the outcome travels with the sentence. `reply` used to send
             // the text alone, so the watch could not tell "your key is missing" from "your key was
             // installed" — both named the request, both rendered as a successful pairing.
@@ -84,6 +93,14 @@ class PairingListenerService : WearableListenerService() {
             ?: return PushOutcome(false, PushReason.STARTING_UP)
         val settings = container.settingsRepository
         val registry = container.providerRegistry
+        // HERMES INTEGRATION POINT (Session 5 audit): this service can be **cold-started by the
+        // watch's own request** — that is its whole point. `selectedModel` starts at the repository
+        // default (`gemini-1.5-flash`) and only receives the real DataStore value asynchronously,
+        // so reading `.value` in the same slice as construction reads the default: the phone then
+        // resolves a Google key and pushes a complete, valid, *wrong* config that the watch installs
+        // and acks as success. `awaitInitialLoad` is the repository's own barrier for exactly this
+        // (its KDoc names the cold-start case); the key half already awaited via `awaitActiveKey`.
+        runCatching { settings.awaitInitialLoad() }
         val modelId = settings.selectedModel.value.orEmpty()
         val providerName = if (modelId.isBlank()) "" else registry.providerForModel(modelId)
         val baseUrl = if (providerName.isBlank()) {

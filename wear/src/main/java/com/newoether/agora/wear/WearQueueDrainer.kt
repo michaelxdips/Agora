@@ -148,7 +148,15 @@ object WearQueueDrainer {
             val outcome = sender.ask(entry.text, coreContext)
             when (outcome) {
                 is AskOutcome.Answer -> {
-                    queue.complete(entry.id)
+                    // HERMES INTEGRATION POINT (Session 5 audit): the removal is the commit point,
+                    // and it can fail (disk full). Sending more entries on a filesystem that cannot
+                    // record their removal would charge the user again on the next pass for every
+                    // question the queue still holds, so the pass stops at the first failed commit
+                    // instead of spending more provider calls.
+                    if (!queue.complete(entry.id)) {
+                        WearLog.w("could not persist the queue; stopping this drain pass")
+                        break
+                    }
                     delivered += 1
                     answers += outcome.text
                     if (showResult) {

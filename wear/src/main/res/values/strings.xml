@@ -33,6 +33,7 @@
     <string name="wear_setup_field_empty">Tap to type</string>
     <string name="wear_setup_field_locked">…</string>
     <string name="wear_setup_invalid">Need an https base URL, key and model</string>
+    <string name="wear_setup_save_failed">Could not save on this watch — free up space and try again</string>
 
     <string name="wear_chat_placeholder">Type a question</string>
     <string name="wear_chat_thinking">Thinking…</string>
@@ -48,4 +49,5 @@
     <string name="wear_chat_earlier_one">%1$d earlier held question was answered</string>
     <string name="wear_chat_earlier_many">%1$d earlier held questions were answered</string>
     <string name="wear_chat_dropped">Dropped after %1$d attempts: %2$s</string>
+    <string name="wear_chat_queue_write_failed">Could not save the question on this watch — free up space and try again</string>
 </resources>

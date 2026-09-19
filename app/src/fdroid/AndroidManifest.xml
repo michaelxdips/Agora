@@ -3,6 +3,13 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- HERMES INTEGRATION POINT (Session 5 audit): the fdroid flavor is the only one that
+         self-updates from the fork's GitHub Releases, and Google's documented requirement for
+         `PackageInstaller` on API 26+ is that the app holds this permission — without it the
+         platform never treats this app as a trusted installer, so the install-confirmation
+         intent is never offered. Declared in the flavor overlay, not in `main`: the play flavor
+         must never carry it (Play forbids self-update outside Play). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="29" />

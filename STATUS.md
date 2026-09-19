@@ -17,9 +17,9 @@ the repo **as it was when that phase closed** and may legitimately contradict th
 | `main` HEAD | `e46fb037` | `git rev-parse --short main` |
 | Versions | `3.0.4-hermesx` / `versionCode` 35, both modules | `app/build.gradle.kts`, `wear/build.gradle.kts` |
 | Releases | `v3.0.4` (latest), `v3.0.3`, `v3.0.2`, `v3.0.1` (pre-release) | `gh release list -R michaelxdips/Agora` |
-| App unit tests | **2658 tests, 0 failures, 0 errors, 3 skipped** (406 XML files) | `./gradlew :app:testFdroidDebugUnitTest` |
-| Wear unit tests | **159 tests, 0 failures, 0 errors** (15 XML files) | `./gradlew :wear:testDebugUnitTest` |
-| Play flavor tests | 2641 tests, 0 failures, 0 errors, 3 skipped | `:app:testPlayDebugUnitTest` |
+| App unit tests | **2665 tests, 0 failures, 0 errors, 3 skipped** (407 XML files) | `./gradlew :app:testFdroidDebugUnitTest` |
+| Wear unit tests | **168 tests, 0 failures, 0 errors** (16 XML files) | `./gradlew :wear:testDebugUnitTest` |
+| Play flavor tests | 2648 tests, 0 failures, 0 errors, 3 skipped | `:app:testPlayDebugUnitTest` |
 | Kotlin size gate | 1055 files, maximum 800 lines, 0 baseline entries | `verifyKotlinFileSize` |
 | Upstream position | `main` is **113 ahead** of the fork point `914e7c8d`; upstream is **0 ahead** | `git rev-list --left-right --count upstream/master...main` |
 | Release certificate | `7188ce70…aa56d7` on **both** published APKs | `bash scripts/verify_release_provenance.sh v3.0.4` → **PASS, all four claims** |
@@ -102,6 +102,48 @@ Tests: `WearSession5FixTest` (9 tests, new) plus updates to `WearChatClientTest`
 `2658 / 2641 / 159`. The `#3` race test is honest about being probabilistic: it fails 2 of 3 runs
 against the mutated (unlocked) code and passes 5 of 5 against the fixed code.
 
+**Session 5, second pass — the self-update module audit (the feature request), plus four more wear
+findings.** A second read-only audit covered `autopilot/update/` (the self-update feature) and the
+phone-side `autopilot/wearsync/`. Its findings were verified in the source before any change; the
+wear list below is the subset that was *still live* at the start of this pass (four of its eight
+findings had already been fixed earlier in the session and are marked as such).
+
+**Self-update: the install flow could not complete (two blockers, both real).**
+
+| # | Finding (verified at `file:line`) | Verdict |
+|---|---|---|
+| U1 | `UpdateInstaller.kt:146` committed the session with a `PendingIntent` to `MainActivity`, and **nothing in the app read `PackageInstaller.EXTRA_STATUS`** (verified: `grep -rn "EXTRA_STATUS" app/src` → empty). On API 26+ a normal app gets `STATUS_PENDING_USER_ACTION` and must launch the confirmation itself; the system does not. The flow stalled after the ~50 MB download and `installStaged` had already returned `null` (success) | **FIXED**: new `UpdateInstallResultReceiver` (registered in the manifest) launches `Intent.EXTRA_INTENT` on `STATUS_PENDING_USER_ACTION` and reports success/failure; `installStaged` commits to it |
+| U2 | `REQUEST_INSTALL_PACKAGES` was **not declared anywhere** (verified), while the file's own KDoc claimed "no extra permission is declared" — the opposite of Google's documented requirement for `PackageInstaller` on API 26+. Without it the app is never a trusted installer | **FIXED**: declared in the **fdroid flavor manifest only**; the KDoc correction states why, and a test asserts the play flavor never carries it |
+| U3 | `UpdateDownloadAction.notifyOffer` / `UpdateInstaller.notifyProgress` posted on `hermes_autopilot`, a channel created only by the *memory* notification (`ensureChannel` was private, one call site) — on API 26+ an unregistered channel drops the notification, and since that notification is the only download trigger, the feature was silently dead for a user who had never received a memory note | **FIXED**: `AutopilotNotifier.ensureChannelForUpdates`, called before both update notifications |
+| U4 | The flavor gate covered only the check half (`UpdateCheckWorker`, `UpdateChannelStartup`); `UpdateDownloadWorker` had none, so a play build carrying a stored offer could download/install the fdroid APK — the exact thing `UpdateChannel`'s docs forbid. `UpdateInstaller` also referenced a `gateReason` that does not exist | **FIXED**: gate enforced in the download worker; the dangling reference replaced with the real enforcement points |
+| U5 | The offer notification's body text said "Tap to download" but had no `setContentIntent` — the tap dismissed it and did nothing | **FIXED**: the body triggers the same download as the action button |
+
+**Wearsync (phone side) — verified findings, fixed:**
+
+| # | Finding (verified at `file:line`) | Verdict |
+|---|---|---|
+| W1 | `PairingListenerService.kt:87` read `settings.selectedModel.value` immediately after the container's construction. The service can be **cold-started by the watch's request** (its whole point), and `selectedModel` starts at the repository default (`gemini-1.5-flash`) — so a cold-started pairing pushed a complete, valid, **wrong** config that the watch installed and acked as success | **FIXED**: `settings.awaitInitialLoad()` (the repository's own barrier, whose KDoc names this exact case) before the read |
+| W2 | `PairingListenerService.kt:70` used `runCatching`, which also swallows `CancellationException`; the scope is cancelled in `onDestroy`, so a teardown mid-pairing surfaced as a *false* refusal ("no watch reachable" / "no key configured") for work that was simply abandoned — contradicting the module's documented rule | **FIXED**: cancellation rethrown; only real errors become a refusal |
+
+**Wear (second-pass list) — four still live, fixed:**
+
+| # | Finding (verified at `file:line`) | Verdict |
+|---|---|---|
+| V1 | `WearListeners.kt` deleted the Data Layer item **only after** the version/`isValid`/write checks, so a push the watch *refused* (phone one version ahead, incomplete config) left the API key in the replicated store indefinitely — the exact exposure the service exists to close | **FIXED**: the item is consumed as soon as its payload is read, before any validation return |
+| V2 | `WearOfflineQueue.writeAll` discarded `WearAtomicFile.write`'s boolean: `enqueue` handed back an id for a question never persisted, and `complete` returned `true` while the entry was still on disk — the drainer counted it delivered and re-sent it next pass (**double charge**) | **FIXED**: `writeAll` returns the boolean; `enqueue` returns `null` on a failed persist (the send path tells the user instead of sending); `complete` returns the durability answer; the drain pass **stops** at the first failed commit rather than spending more provider calls |
+| V3 | `WearMainActivity`'s notice line preferred `voiceProblem` unconditionally and never cleared it, so one denied mic permanently shadowed every later notice for the rest of the process | **FIXED**: a fresh notice takes the line; the voice problem is the fallback |
+| V4 | `WearChatClient.endpoint` returned `parsed.toString()` for a URL already ending in `/chat/completions/`, putting the trailing slash *back* — a permanent 404 that dead-lettered every question | **FIXED**: the trimmed path is what gets built; covered by a wire-level test |
+
+Also fixed while in the file: `WearSetupScreen`'s Save discarded `store.write`'s result, so a failed
+save still said "saved", set `ready = true` and called `onConfigured` — it now reports
+`wear_setup_save_failed` and stays on the screen.
+
+Tests added this pass: `UpdateInstallHandshakeContractTest` (7, app), `WearQueueDurabilityTest`
+(8, wear) and a wire-level trailing-slash case in `WearChatClientTest`. Two of the wear tests are
+mutation-proved: reverting `enqueue`'s null-on-failure and the drainer's commit check each turns a
+test red (verified by running both mutations and restoring). Counts: **fdroid 2658 → 2665, wear
+159 → 168, play 2641 → 2648**; `audit_test_counts.py` exit 0.
+
 ### Session 4 — 2026-09-19 (R8 gate, instrumented suites executed, self-update channel, audit sweep)
 
 Opened against `main` @ `4f816a56`, `upstream/master` @ `360ae4f8`. (Session 5 rewrote history to
@@ -164,7 +206,7 @@ registered (#5 `MainActivity`, #17 `AgoraApplication`) and one manifest receiver
 | dex keep assertions | **13/13 KEPT** (the list above, checked by `grep` over `classes*.dex`) |
 | Install on `emulator-5554` + launch | process alive, crash buffer empty, `topResumedActivity=com.hermes.app/...MainActivity` |
 | Worker smoke in the minified APK | `WM-WorkerWrapper: Starting work for …UpdateCheckWorker` → `Worker result SUCCESS`; same for `AutoBackupWorker` and `MemorySnapshotPushWorker` |
-| Full unit suite (fdroid + play + wear) | `2658 / 2641 / 159 tests, 0 failures, 0 errors` → `audit_test_counts.py` exit 0 |
+| Full unit suite (fdroid + play + wear) | `2665 / 2648 / 168 tests, 0 failures, 0 errors` → `audit_test_counts.py` exit 0 |
 
 **Audit sweep (10 read-only subagents + 2 re-dispatches)**
 

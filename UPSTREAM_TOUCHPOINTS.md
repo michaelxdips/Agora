@@ -21,7 +21,8 @@ fastlane/metadata/android/en-US/changelogs/33.txt :: max=8
 fastlane/metadata/android/en-US/changelogs/34.txt :: max=8
 fastlane/metadata/android/en-US/changelogs/35.txt :: max=8
 .gitignore :: max=24
-app/src/main/AndroidManifest.xml :: max=16
+app/src/main/AndroidManifest.xml :: max=24
+app/src/fdroid/AndroidManifest.xml :: max=16
 app/src/main/res/values/strings.xml :: max=4
 app/src/main/java/com/newoether/agora/ui/settings/SettingsScreen.kt :: max=32
 app/src/main/java/com/newoether/agora/ui/settings/SettingsAboutPage.kt :: max=16
@@ -51,7 +52,8 @@ app/src/test/java/com/newoether/agora/api/util/ProviderWireFormatRejectionTest.k
 | # | Path | Why | Phase |
 |---|------|-----|-------|
 | 1 | `app/build.gradle.kts` | `applicationId` → `com.hermes.app`; `testInstrumentationRunner`; androidTest deps for the instrumented verification. **Budget raised 16 → 20 (Phase 15):** `versionCode 31 → 32` and `versionName 3.0.0-hermesx → 3.0.1-hermesx` — the fork's first published release. The two version lines are the only addition; without the raise the guard would have failed on a change that ships the release. **Raised 60 → 64 (Session 3):** `versionCode 34 → 35` and `versionName 3.0.3-hermesx → 3.0.4-hermesx`, the two lines the next release needs | 1, 3, 15, 18 |
-| 2 | `app/src/main/AndroidManifest.xml` (raised 6 → 16) | only if the fdroid overlay cannot carry a manifest change — it cannot for a receiver whose class lives in `main` (a flavor overlay cannot register a `main`-source receiver without duplicating it). Pairing listener service + self-update download receiver | 1 |
+| 2 | `app/src/main/AndroidManifest.xml` (raised 6 → 16 → 24) | only if the fdroid overlay cannot carry a manifest change — it cannot for a receiver whose class lives in `main` (a flavor overlay cannot register a `main`-source receiver without duplicating it). Pairing listener service + self-update download receiver. **Raised 16 → 24 (Session 5):** the `PackageInstaller` status receiver (`UpdateInstallResultReceiver`) — the missing half of the install handshake; without it the confirmation screen never appears and the update stalls after a 50 MB download | 1, 5 |
+| 2b | `app/src/fdroid/AndroidManifest.xml` | `REQUEST_INSTALL_PACKAGES`, declared in the **flavor** overlay only: it is what makes this app a trusted installer for `PackageInstaller` on API 26+, and the play flavor must never carry it (Play forbids self-update outside Play). Registering the fdroid manifest is new in Session 5 — the guard correctly refused an unregistered edit to an upstream-owned file | 5 |
 | 3 | `app/src/main/res/values/strings.xml` | only if the fdroid resource overlay cannot carry `app_name` | 1 |
 | 4 | `app/src/main/java/com/newoether/agora/ui/settings/SettingsScreen.kt` | Adaptation History entry + `"adaptation"` dispatch + `initialCategory`; Phase 6 persona entry + `"personas"` dispatch |
 | 5 | `app/src/main/java/com/newoether/agora/MainActivity.kt` (raised 44 → 48) | notification tap → Settings/Adaptation History (`openAdaptationHistory` flag); Phase 6 persona startup (`PersonaStartup.run`); self-update channel (`UpdateChannelUi.collectOffers` — worker offers collected into the same update dialog the startup check uses) |

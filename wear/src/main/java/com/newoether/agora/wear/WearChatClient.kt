@@ -211,8 +211,18 @@ class WearChatClient(private val config: WearConfig) {
         // `…/chat/completions/chat/completions`, a 404 the user cannot explain from their own config.
         // Trailing slashes are trimmed first (the caller already trims spaces).
         val path = parsed.encodedPath.trimEnd('/')
-        if (path.endsWith("/chat/completions")) return parsed.toString()
+        // HERMES INTEGRATION POINT (Session 5 audit): returning `parsed.toString()` here put the
+        // trailing slash *back* — `trimEnd` only fed the `endsWith` check, never the returned URL.
+        // So a pasted `https://host/v1/chat/completions/` POSTed to `…/completions/`, which most
+        // providers answer 404 — a permanent failure, so every question was dead-lettered. The
+        // trimmed path is what gets built.
+        if (path.endsWith("/chat/completions")) {
+            return parsed.newBuilder().encodedPath(path).build().toString()
+        }
+        // `encodedPath("")` is rejected by OkHttp, so a bare host (path is blank) keeps the
+        // builder's own empty path and only gains the segments below.
         val builder = parsed.newBuilder()
+        if (path.isNotBlank()) builder.encodedPath(path)
         if (path.isBlank()) builder.addPathSegment("v1")
         builder.addPathSegment("chat")
         builder.addPathSegment("completions")

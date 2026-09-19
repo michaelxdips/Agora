@@ -49,6 +49,10 @@ class UpdateDownloadAction : BroadcastReceiver() {
         /** Posts "Update <version> available" with a Download & install action. */
         fun notifyOffer(context: Context, info: UpdateInfo) {
             if (!AutopilotNotifier.canNotify(context)) return
+            // The channel is created here, not assumed: it was previously only created by the
+            // memory notification, so on a device that had never received one this notification
+            // was dropped by the system and the whole update path was silently dead (Session 5).
+            AutopilotNotifier.ensureChannelForUpdates(context)
             val appContext = context.applicationContext
             val download = Intent(appContext, UpdateDownloadAction::class.java)
                 .setAction(ACTION_DOWNLOAD_UPDATE)
@@ -57,12 +61,15 @@ class UpdateDownloadAction : BroadcastReceiver() {
             val downloadPending = PendingIntent.getBroadcast(
                 appContext, REQUEST_DOWNLOAD, download, flags,
             )
+            // A tap on the body used to dismiss the notification and do nothing, while the text
+            // said "Tap to download" — the body now triggers the same download as the action.
             val notification = NotificationCompat.Builder(appContext, AutopilotNotifier.CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.stat_sys_download_done)
                 .setContentTitle("Update ${info.version} available")
                 .setContentText("Tap to download and install Hermes X ${info.version}.")
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setAutoCancel(true)
+                .setContentIntent(downloadPending)
                 .addAction(
                     android.R.drawable.stat_sys_download,
                     "Download & install",

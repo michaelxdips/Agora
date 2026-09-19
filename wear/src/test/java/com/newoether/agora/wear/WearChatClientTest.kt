@@ -120,6 +120,16 @@ class WearChatClientTest {
     }
 
     @Test
+    fun endpointTrimsATrailingSlashAfterTheCompletionsPath() {
+        // Session 5: `trimEnd('/')` only fed the `endsWith` check, never the returned URL, so a
+        // pasted `…/v1/chat/completions/` POSTed to `…/completions/` — a permanent 404 that
+        // dead-lettered every question. The wire request is the proof.
+        serve(200, """{"choices":[{"message":{"content":"hi"}}]}""")
+        WearChatClient(config("http://127.0.0.1:$port/v1/chat/completions/")).ask("q", "")
+        assertEquals("POST /v1/chat/completions HTTP/1.1", requests.first().trim())
+    }
+
+    @Test
     fun aBaseUrlWithAQueryStringKeepsItAndStillGetsThePath() {
         // String concatenation produced `…/v1?api-version=2024/chat/completions`, which is not a URL
         // any provider recognises — the user saw a 404 for a base URL copied from the provider's own

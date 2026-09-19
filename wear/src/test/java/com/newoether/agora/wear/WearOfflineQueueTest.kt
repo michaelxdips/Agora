@@ -30,6 +30,17 @@ class WearOfflineQueueTest {
         return context
     }
 
+    /**
+     * `enqueue` returns null when the queue cannot be persisted (Session 5). Every test here writes
+     * into a writable temp dir, so a null is a failure of the test's own premise — asserted once,
+     * here, instead of scattering `!!` through the suite.
+     */
+    private suspend fun WearOfflineQueue.enqueueOrFail(
+        text: String,
+        now: Long = System.currentTimeMillis(),
+    ): WearOfflineQueue.Entry =
+        enqueue(text, now) ?: error("enqueue failed to persist into a writable directory")
+
     @Before
     fun setUp() {
         queueDir = temporaryFolder.newFolder("files")
@@ -38,7 +49,7 @@ class WearOfflineQueueTest {
 
     @Test
     fun `a queued question survives a new queue instance`() = runTest {
-        val entry = queue.enqueue("what is my project?", now = 1000L)
+        val entry = queue.enqueueOrFail("what is my project?", now = 1000L)
 
         val reopened = WearOfflineQueue(context(queueDir))
         assertEquals(1, reopened.size())
@@ -49,16 +60,16 @@ class WearOfflineQueueTest {
 
     @Test
     fun `ids are monotonic and stable across restarts`() = runTest {
-        val first = queue.enqueue("one")
-        val second = queue.enqueue("two")
+        val first = queue.enqueueOrFail("one")
+        val second = queue.enqueueOrFail("two")
         assertTrue(second.id > first.id)
         assertEquals(listOf(first.id, second.id), queue.all().map { it.id })
     }
 
     @Test
     fun `completing removes exactly the sent entry`() = runTest {
-        val first = queue.enqueue("one")
-        val second = queue.enqueue("two")
+        val first = queue.enqueueOrFail("one")
+        val second = queue.enqueueOrFail("two")
 
         assertTrue(queue.complete(first.id))
         assertEquals(listOf("two"), queue.all().map { it.text })
@@ -69,7 +80,7 @@ class WearOfflineQueueTest {
 
     @Test
     fun `a failing entry is dropped only after the attempt ceiling`() = runTest {
-        val entry = queue.enqueue("flaky")
+        val entry = queue.enqueueOrFail("flaky")
 
         repeat(WearOfflineQueue.MAX_ATTEMPTS - 1) {
             assertFalse("dropped too early", queue.recordFailure(entry.id))
@@ -81,7 +92,7 @@ class WearOfflineQueueTest {
 
     @Test
     fun `recordFailure on an unknown id is a no-op`() = runTest {
-        queue.enqueue("one")
+        queue.enqueueOrFail("one")
         assertFalse(queue.recordFailure(999L))
         assertEquals(1, queue.size())
     }
@@ -92,7 +103,7 @@ class WearOfflineQueueTest {
         val broken = WearOfflineQueue(context(queueDir))
         assertEquals(0, broken.size())
         // And it must still be usable afterwards.
-        broken.enqueue("recovered")
+        broken.enqueueOrFail("recovered")
         assertEquals(1, broken.size())
     }
 
@@ -110,7 +121,7 @@ class WearOfflineQueueTest {
         assertTrue("the unreadable bytes must be kept, not deleted", quarantined.isFile)
         assertEquals("[{\"id\":1,\"text\":\"held\",\"createdAt\":1}", quarantined.readText())
 
-        broken.enqueue("recovered")
+        broken.enqueueOrFail("recovered")
         assertEquals(1, broken.size())
     }
 
@@ -119,7 +130,7 @@ class WearOfflineQueueTest {
         // Before this, `recordFailure` at the ceiling removed the entry and the text went with it: a
         // user whose key expired lost every question they had asked offline, with one error line as
         // the only trace.
-        val entry = queue.enqueue("please do not lose me")
+        val entry = queue.enqueueOrFail("please do not lose me")
         repeat(WearOfflineQueue.MAX_ATTEMPTS - 1) { queue.recordFailure(entry.id) }
 
         assertTrue(queue.recordFailure(entry.id))
@@ -130,7 +141,7 @@ class WearOfflineQueueTest {
 
     @Test
     fun `a permanent failure dead-letters immediately instead of spending attempts`() = runTest {
-        val entry = queue.enqueue("revoked key")
+        val entry = queue.enqueueOrFail("revoked key")
 
         assertTrue("a permanent failure leaves at once", queue.recordFailure(entry.id, permanent = true))
         assertEquals(0, queue.size())
@@ -140,7 +151,7 @@ class WearOfflineQueueTest {
     @Test
     fun `the dead letter is bounded so it cannot fill the watch`() = runTest {
         repeat(WearOfflineQueue.MAX_DEAD_LETTER + 5) { index ->
-            val entry = queue.enqueue("question $index")
+            val entry = queue.enqueueOrFail("question $index")
             queue.recordFailure(entry.id, permanent = true)
         }
 
@@ -156,7 +167,7 @@ class WearOfflineQueueTest {
     fun `the queue itself is bounded and keeps the newest questions`() = runTest {
         // A queue that grows without a ceiling is a queue that eventually fails to write — and then
         // loses everything. The user is waiting on the newest question, so the oldest is evicted.
-        repeat(WearOfflineQueue.MAX_ENTRIES + 3) { index -> queue.enqueue("q$index") }
+        repeat(WearOfflineQueue.MAX_ENTRIES + 3) { index -> queue.enqueueOrFail("q$index") }
 
         assertEquals(WearOfflineQueue.MAX_ENTRIES, queue.size())
         assertEquals("q${WearOfflineQueue.MAX_ENTRIES + 2}", queue.all().last().text)
@@ -167,7 +178,7 @@ class WearOfflineQueueTest {
     fun `a write leaves no temp file behind`() = runTest {
         // The atomic write is temp-then-rename; a leftover temp file would be re-read on the next
         // launch by anything that globs the directory.
-        queue.enqueue("one")
+        queue.enqueueOrFail("one")
         queue.complete(queue.all().single().id)
 
         val leftovers = queueDir.listFiles().orEmpty().map { it.name }

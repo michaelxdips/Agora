@@ -94,6 +94,14 @@
             android:name=".autopilot.update.UpdateDownloadAction"
             android:exported="false" />
 
+        <!-- HERMES INTEGRATION POINT: the PackageInstaller status callback. On API 26+ the
+             platform delivers STATUS_PENDING_USER_ACTION here and the app must launch the
+             system's confirmation itself; without this receiver the install stalled after the
+             download (Session 5 audit). Sender is the system via our own PendingIntent. -->
+        <receiver
+            android:name=".autopilot.update.UpdateInstallResultReceiver"
+            android:exported="false" />
+
         <!-- Re-arms task alarms after reboot / app update. -->
         <receiver
             android:name=".service.BootReceiver"

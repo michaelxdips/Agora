@@ -37,6 +37,14 @@ class ConfigListenerService : WearableListenerService() {
             if (event.type != DataEvent.TYPE_CHANGED) return@forEach
             if (event.dataItem.uri.path != PATH) return@forEach
             val map = DataMapItem.fromDataItem(event.dataItem).dataMap
+            // HERMES INTEGRATION POINT (Session 5 audit): the item is consumed the moment its
+            // payload has been read into memory, *before* any validation return. Previously the
+            // delete sat after the version/isValid/store-write checks, so a push the watch refused
+            // (a phone one version ahead, an incomplete config) left the API key sitting in the
+            // Data Layer's replicated store indefinitely — exactly the persistence exposure this
+            // service exists to close. Consuming first means the worst case is "the phone must push
+            // again", never "the credential stays in the shared store".
+            deleteConsumed(event.dataItem.uri)
             val config = WearConfig(
                 version = map.getInt(KEY_VERSION, WearConfig.CURRENT_VERSION),
                 baseUrl = map.getString(KEY_BASE_URL).orEmpty(),
@@ -54,15 +62,13 @@ class ConfigListenerService : WearableListenerService() {
             }
             // HERMES INTEGRATION POINT (Session 4): the write's result used to be discarded, so a
             // failed write (ENOSPC, fsync error) still deleted the item below — the only other copy
-            // of the credential — and reported Connected. Leaving the item on failure lets the next
-            // push retry, and the phone keeps the key until the watch says it landed.
+            // of the credential — and reported Connected. The item is now consumed up front (see
+            // above, Session 5), so a failed write is reported to the phone through the ack path
+            // instead: the push is not confirmed and the phone re-sends on the next attempt.
             if (!store.write(config)) {
-                WearLog.w("config write failed; leaving the item for the next push")
+                WearLog.w("config write failed; the phone must push again")
                 return@forEach
             }
-            // Consume the item: the key now lives only in the encrypted app-private store, not in the
-            // Data Layer's replicated store where it would otherwise sit indefinitely.
-            deleteConsumed(event.dataItem.uri)
             // Publish, don't just persist: this is what moves the UI off the setup screen.
             WearSignals.config.value = config
             WearSignals.pairing.value = PairingStatus.Connected

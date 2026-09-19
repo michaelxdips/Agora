@@ -31,10 +31,20 @@ import java.net.URL
  * `REQUEST_INSTALL_PACKAGES` on API 26+ to install an APK from another app's file, which is a
  * Play-policy red flag for a client that is not a store. A `PackageInstaller` session is the
  * platform's own install path — the system still shows its confirmation UI, so nothing is
- * silent, but no extra permission is declared and no manifest line is touched.
+ * silent.
+ *
+ * Correction (Session 5 audit): the earlier text here claimed "no extra permission is declared
+ * and no manifest line is touched". That was wrong — Google's documented requirement for
+ * `PackageInstaller` on API 26+ **is** `REQUEST_INSTALL_PACKAGES`, and without it the platform
+ * never treats this app as a trusted installer, so the confirmation intent is never offered and
+ * the flow stalls after the download. The permission is declared in the **fdroid flavor
+ * manifest only** (`app/src/fdroid/AndroidManifest.xml`); the play flavor never carries it,
+ * because Play builds must not self-update outside Play.
  *
  * Policy note: this path runs only on builds whose update channel is the fork's own GitHub
- * Releases (fdroid flavor). Play builds must update through Play; see [UpdateInstaller.gateReason].
+ * Releases (fdroid flavor). Play builds must update through Play; the gate is enforced at the
+ * offer ([UpdateChannel.isForkReleaseChannel] in `UpdateCheckWorker`) and again at the download
+ * (`UpdateDownloadWorker`), so a stored offer cannot smuggle a sideload onto a Play build.
  *
  * Maintainer: Michael — this file belongs to the Hermes fork of Agora (see NOTICE.md).
  */
@@ -124,6 +134,18 @@ object UpdateInstaller {
     /**
      * Streams a staged APK into a [PackageInstaller] session and commits it. The system shows
      * its own install confirmation — this never installs silently.
+     *
+     * HERMES INTEGRATION POINT (Session 5 audit): the commit used to hand the system a
+     * `PendingIntent` targeting `MainActivity`, and nothing in the app ever read
+     * `PackageInstaller.EXTRA_STATUS`. That is the documented contract on API 26+: a normal app
+     * installing an update gets `STATUS_PENDING_USER_ACTION`, and **the app must launch the
+     * confirmation activity itself** (`Intent.EXTRA_INTENT`). The system does not show it for us.
+     * With a bare activity PendingIntent the flow stalled after a ~50 MB download and the
+     * confirmation never appeared. The receiver below is that missing half: it launches the
+     * system's confirmation intent, and reports a real outcome.
+     *
+     * @return `null` when the commit was handed to the system (confirmation pending or complete);
+     *   a [GateReason] when the session could not even be committed.
      */
     fun installStaged(context: Context, apk: File): GateReason? {
         val installer = context.packageManager.packageInstaller
@@ -139,11 +161,12 @@ object UpdateInstaller {
                         session.fsync(output)
                     }
                 }
-                val intent = Intent(context, MainActivity::class.java)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                val intent = Intent(context, UpdateInstallResultReceiver::class.java)
+                    .setAction(UpdateInstallResultReceiver.ACTION_INSTALL_RESULT)
+                    .putExtra(UpdateInstallResultReceiver.EXTRA_VERSION_FOR_UI, currentVersionOrEmpty(context))
                 val flags = PendingIntent.FLAG_UPDATE_CURRENT or
                     (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0)
-                val statusReceiver = PendingIntent.getActivity(context, 4201, intent, flags)
+                val statusReceiver = PendingIntent.getBroadcast(context, 4201, intent, flags)
                 session.commit(statusReceiver.intentSender)
             }
             return null
@@ -154,9 +177,17 @@ object UpdateInstaller {
         }
     }
 
+    private fun currentVersionOrEmpty(context: Context): String =
+        runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        }.getOrNull().orEmpty()
+
     /** Posts download/install progress on the existing autopilot channel (no new channel). */
     fun notifyProgress(context: Context, title: String, text: String, progress: Int = -1) {
         if (!AutopilotNotifier.canNotify(context)) return
+        // See UpdateDownloadAction.notifyOffer: the channel must exist before anything is posted
+        // on it, or the system drops the notification (Session 5 audit).
+        AutopilotNotifier.ensureChannelForUpdates(context)
         val intent = Intent(context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         val pending = PendingIntent.getActivity(

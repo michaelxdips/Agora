@@ -52,15 +52,22 @@ class WearOfflineQueue(private val context: android.content.Context) {
 
     fun size(): Int = readAll().size
 
-    /** Adds a question. Returns its id, which the UI keeps to match the eventual answer. */
-    suspend fun enqueue(text: String, now: Long = System.currentTimeMillis()): Entry = mutex.withLock {
+    /**
+     * Adds a question. Returns its id, which the UI keeps to match the eventual answer.
+     *
+     * HERMES INTEGRATION POINT (Session 5 audit): this used to return an [Entry] unconditionally,
+     * so a failed persist (disk full) still handed the caller an id for a question that was never
+     * written — lost on process death, with the UI believing it was safely held. `null` now means
+     * "not persisted", and the caller must say so instead of sending.
+     */
+    suspend fun enqueue(text: String, now: Long = System.currentTimeMillis()): Entry? = mutex.withLock {
         val entries = readAll().toMutableList()
         val entry = Entry(id = (entries.maxOfOrNull { it.id } ?: 0L) + 1, text = text, createdAt = now)
         entries += entry
         // Oldest first, and never unbounded: a queue that grows without a ceiling is a queue that
         // eventually fails to write (and then loses everything). The newest entry is the one the user
         // is waiting for, so the *oldest* is the one that goes.
-        writeAll(entries.takeLast(MAX_ENTRIES))
+        if (!writeAll(entries.takeLast(MAX_ENTRIES))) return@withLock null
         entry
     }
 
@@ -70,13 +77,17 @@ class WearOfflineQueue(private val context: android.content.Context) {
      * This is the exactly-once half: the entry survives a crash *during* the send, so the worst case
      * on crash is one duplicate send, never a lost question. Callers must not remove before the
      * response is in hand.
+     *
+     * HERMES INTEGRATION POINT (Session 5 audit): a failed [writeAll] used to be discarded, so
+     * `complete` returned `true` while the entry was still on disk — the drainer counted the
+     * question delivered and the *next* pass sent it again (double charge). `false` now means the
+     * entry is still held, whatever the reason.
      */
     suspend fun complete(id: Long): Boolean = mutex.withLock {
         val entries = readAll()
         val remaining = entries.filterNot { it.id == id }
         if (remaining.size == entries.size) return@withLock false
         writeAll(remaining)
-        true
     }
 
     /**
@@ -108,8 +119,14 @@ class WearOfflineQueue(private val context: android.content.Context) {
         )
         if (permanent || updated.attempts >= MAX_ATTEMPTS) {
             entries.removeAt(index)
-            writeAll(entries)
+            // The dead letter is written first: if the queue write fails, the text is still
+            // preserved there, and the entry stays in the queue (a retry may yet deliver it).
+            // Reporting `true` (dropped) with the entry still on disk was the old bug.
             deadLetter(updated)
+            if (!writeAll(entries)) {
+                WearLog.w("could not persist the queue after dropping an entry; it stays queued")
+                return@withLock false
+            }
             return@withLock true
         }
         entries[index] = updated
@@ -134,11 +151,19 @@ class WearOfflineQueue(private val context: android.content.Context) {
         emptyList()
     }
 
-    private fun writeAll(entries: List<Entry>) {
+    /**
+     * Persists the queue; the boolean is the durability answer.
+     *
+     * HERMES INTEGRATION POINT (Session 5 audit): this returned `Unit`, so every caller above
+     * reported success on a write that failed (disk full, fsync error) — the drainer counted a
+     * delivered question that was still on disk and re-sent it next pass (double charge), and the
+     * UI marked a question held that would vanish on process death.
+     */
+    private fun writeAll(entries: List<Entry>): Boolean {
         // One implementation, shared with the config store and the memory cache: temp file, fsync,
         // rename. See WearAtomicFile for why the fsync matters on a device that is killed without
         // warning.
-        WearAtomicFile.write(file, json.encodeToString(entries))
+        return WearAtomicFile.write(file, json.encodeToString(entries))
     }
 
     /**

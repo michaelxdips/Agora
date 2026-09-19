@@ -25,18 +25,18 @@ Upstream ref used for the classification: `upstream/master`
 | `wear/src/main/java/com/newoether/agora/wear/WearAnswerText.kt` | 342 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearAtomicFile.kt` | 90 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearBuildInfo.kt` | 30 | fork-only |
-| `wear/src/main/java/com/newoether/agora/wear/WearChatClient.kt` | 342 | fork-only |
+| `wear/src/main/java/com/newoether/agora/wear/WearChatClient.kt` | 352 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearConfig.kt` | 112 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearCoreContext.kt` | 111 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearCrypto.kt` | 102 | fork-only |
-| `wear/src/main/java/com/newoether/agora/wear/WearListeners.kt` | 216 | fork-only |
-| `wear/src/main/java/com/newoether/agora/wear/WearMainActivity.kt` | 756 | fork-only |
+| `wear/src/main/java/com/newoether/agora/wear/WearListeners.kt` | 222 | fork-only |
+| `wear/src/main/java/com/newoether/agora/wear/WearMainActivity.kt` | 774 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearMemoryRules.kt` | 54 | fork-only |
-| `wear/src/main/java/com/newoether/agora/wear/WearOfflineQueue.kt` | 183 | fork-only |
+| `wear/src/main/java/com/newoether/agora/wear/WearOfflineQueue.kt` | 208 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearPairing.kt` | 415 | fork-only |
-| `wear/src/main/java/com/newoether/agora/wear/WearQueueDrainer.kt` | 197 | fork-only |
+| `wear/src/main/java/com/newoether/agora/wear/WearQueueDrainer.kt` | 205 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearSendCoordinator.kt` | 66 | fork-only |
-| `wear/src/main/java/com/newoether/agora/wear/WearSetupScreen.kt` | 350 | fork-only |
+| `wear/src/main/java/com/newoether/agora/wear/WearSetupScreen.kt` | 359 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearSignals.kt` | 38 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearTheme.kt` | 46 | fork-only |
 
@@ -48,18 +48,19 @@ Upstream ref used for the classification: `upstream/master`
 | `wear/src/test/java/com/newoether/agora/wear/WearAnswerTextCoverageTest.kt` | 112 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearAnswerTextTest.kt` | 108 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearAtomicFileTest.kt` | 129 | fork-only |
-| `wear/src/test/java/com/newoether/agora/wear/WearChatClientTest.kt` | 450 | fork-only |
+| `wear/src/test/java/com/newoether/agora/wear/WearChatClientTest.kt` | 460 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearCoreContextTest.kt` | 123 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearFieldSurvivalSourceContractTest.kt` | 139 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearFontCoverage.kt` | 77 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearFontCoverageTest.kt` | 100 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearMainThreadSentinelTest.kt` | 100 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearMemoryRulesTest.kt` | 92 | fork-only |
-| `wear/src/test/java/com/newoether/agora/wear/WearOfflineQueueTest.kt` | 181 | fork-only |
+| `wear/src/test/java/com/newoether/agora/wear/WearOfflineQueueTest.kt` | 192 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearPairingTest.kt` | 354 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearQueueDrainerTest.kt` | 379 | fork-only |
+| `wear/src/test/java/com/newoether/agora/wear/WearQueueDurabilityTest.kt` | 192 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearSendCoordinatorTest.kt` | 122 | fork-only |
-| `wear/src/test/java/com/newoether/agora/wear/WearSendNowContractTest.kt` | 109 | fork-only |
+| `wear/src/test/java/com/newoether/agora/wear/WearSendNowContractTest.kt` | 113 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearSession5FixTest.kt` | 205 | fork-only |
 
 ### wear/ — instrumented tests
@@ -76,7 +77,7 @@ Upstream ref used for the classification: `upstream/master`
 | `app/src/main/java/com/newoether/agora/autopilot/AdaptationHistoryPresenter.kt` | 40 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/AdaptationLog.kt` | 190 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/AutopilotControlsSection.kt` | 98 | fork-only |
-| `app/src/main/java/com/newoether/agora/autopilot/AutopilotNotifier.kt` | 88 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/AutopilotNotifier.kt` | 102 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/AutopilotSettings.kt` | 73 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/AutopilotTriggerObserver.kt` | 88 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/CircuitBreaker.kt` | 141 | fork-only |
@@ -103,15 +104,16 @@ Upstream ref used for the classification: `upstream/master`
 | `app/src/main/java/com/newoether/agora/autopilot/update/UpdateChannelUi.kt` | 81 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/update/UpdateCheckStore.kt` | 43 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/update/UpdateCheckWorker.kt` | 98 | fork-only |
-| `app/src/main/java/com/newoether/agora/autopilot/update/UpdateDownloadAction.kt` | 79 | fork-only |
-| `app/src/main/java/com/newoether/agora/autopilot/update/UpdateDownloadWorker.kt` | 102 | fork-only |
-| `app/src/main/java/com/newoether/agora/autopilot/update/UpdateInstaller.kt` | 184 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/update/UpdateDownloadAction.kt` | 86 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/update/UpdateDownloadWorker.kt` | 112 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/update/UpdateInstallResultReceiver.kt` | 110 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/update/UpdateInstaller.kt` | 215 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/wearsync/CoreContextDerivation.kt` | 99 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/wearsync/MemoryPushScheduler.kt` | 52 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/wearsync/MemoryPushStartup.kt` | 94 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/wearsync/MemorySnapshotPushWorker.kt` | 105 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/wearsync/MemorySnapshotPusher.kt` | 67 | fork-only |
-| `app/src/main/java/com/newoether/agora/autopilot/wearsync/PairingListenerService.kt` | 148 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/wearsync/PairingListenerService.kt` | 165 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/wearsync/PairingRequest.kt` | 97 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/wearsync/PushReason.kt` | 59 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/wearsync/SettingsWatchSetupPage.kt` | 145 | fork-only |
@@ -141,6 +143,7 @@ Upstream ref used for the classification: `upstream/master`
 | `app/src/test/java/com/newoether/agora/autopilot/SkillSynthesizerTest.kt` | 196 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/UpstreamContractSentinelTest.kt` | 158 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/update/UpdateChannelTest.kt` | 60 | fork-only |
+| `app/src/test/java/com/newoether/agora/autopilot/update/UpdateInstallHandshakeContractTest.kt` | 154 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/wearsync/CoreContextDerivationTest.kt` | 133 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/wearsync/PairingRequestTest.kt` | 119 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/wearsync/WatchProtocolContractTest.kt` | 189 | fork-only |
@@ -187,7 +190,8 @@ so this table cannot disagree with what the guard enforces.
 | `fastlane/metadata/android/en-US/changelogs/34.txt` | 8 | 4 |
 | `fastlane/metadata/android/en-US/changelogs/35.txt` | 8 | 4 |
 | `.gitignore` | 24 | 24 |
-| `app/src/main/AndroidManifest.xml` | 16 | 11 |
+| `app/src/main/AndroidManifest.xml` | 24 | 19 |
+| `app/src/fdroid/AndroidManifest.xml` | 16 | 7 |
 | `app/src/main/res/values/strings.xml` | 4 | 0 |
 | `app/src/main/java/com/newoether/agora/ui/settings/SettingsScreen.kt` | 32 | 30 |
 | `app/src/main/java/com/newoether/agora/ui/settings/SettingsAboutPage.kt` | 16 | 15 |

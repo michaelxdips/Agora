@@ -149,6 +149,12 @@ if [ "${SYNC_SKIP_BUILD:-0}" != "1" ]; then
     fi
     export ANDROID_SDK_ROOT="${ANDROID_HOME:-}"
     export PATH="${JAVA_HOME:-}/bin:$PATH"
+    # HERMES INTEGRATION POINT (Session 5 audit): `gradlew` is committed mode 100644 (upstream
+    # does the same) and this script had no `chmod`, so on a fresh Linux/macOS checkout the gate
+    # below died with exit 126 ("Permission denied") — and reported it as "TESTS/BUILD FAILED",
+    # aborting a merge that was fine. `build.yml` already compensates the same way; this is the
+    # same one-line fix for the sync path.
+    [ -x ./gradlew ] || chmod +x ./gradlew 2>/dev/null || true
     if ! ./gradlew :app:testFdroidDebugUnitTest :app:assembleFdroidDebug --console=plain \
         > "${SYNC_BUILD_LOG:-/tmp/hermes-sync-build.log}" 2>&1; then
         log "TESTS/BUILD FAILED after merge — main untouched. See ${SYNC_BUILD_LOG:-/tmp/hermes-sync-build.log}"

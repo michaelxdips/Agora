@@ -130,7 +130,13 @@ fi
 # ── claim 4: the suites ran on the tagged commit ──────────────────────────────────────────
 # The evidence is a CI check named for the test job; without it there is no proof the suites passed
 # on this commit (and a local run proves nothing about the artifact that was published).
-if printf '%s' "$CI_STATE" | grep -qiE 'test|unit'; then
+#
+# HERMES INTEGRATION POINT (Session 5 audit): the pattern used to be `test|unit`, which the *build*
+# job's name satisfied whenever the check text contained "build=… Unit tests=…" — so claim 4 could
+# pass on a commit whose test job never ran. The test job is named "Unit tests" in build.yml; the
+# match is now anchored on that name (case-insensitive) and excludes any line that only mentions the
+# build job. Both halves are required: a check named for the tests, with a successful conclusion.
+if printf '%s' "$CI_STATE" | grep -qiE '(^|[^a-z])unit tests([^a-z]|$)'; then
     note "ok    claim 4: a test job ran on the tagged commit"
 else
     note "FAIL  claim 4: no test-job check on the tagged commit — the suites were not proved to pass"

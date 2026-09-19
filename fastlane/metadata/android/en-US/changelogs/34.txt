@@ -1,0 +1,4 @@
+* Watch: Markdown and LaTeX no longer reach the screen as markup
+* Watch: fixed a crash where every answer failed to display
+* Watch: fixed the invisible voice fallback when no speech recognizer is installed
+* Smaller watch APK, and layout measured across five screen profiles

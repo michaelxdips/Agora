@@ -16,8 +16,9 @@ The maintainer is surfaced in the product itself, not only here: `HermesBuildInf
 shown on screen — Settings → About on the phone, and the Debug panel on the watch.
 
 Bundled third-party components keep their own licences, unchanged from upstream:
-`thirdparty/llama.cpp`, `thirdparty/proot`, `thirdparty/talloc` (git submodules — see
-`.gitmodules`), and the Gradle dependencies declared in `gradle/libs.versions.toml`.
+`thirdparty/llama.cpp` and `thirdparty/proot` (git submodules — see `.gitmodules`), plus
+`thirdparty/talloc`, which upstream tracks directly rather than as a submodule, and the Gradle
+dependencies declared in `gradle/libs.versions.toml`.
 
 No upstream file is relicensed by this fork. Modified upstream files are listed, with reasons, in
 `UPSTREAM_TOUCHPOINTS.md`.

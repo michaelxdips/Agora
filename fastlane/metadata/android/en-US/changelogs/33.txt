@@ -1,0 +1,2 @@
+* Fixed: the update check offered a release to the device already running it
+* Both APKs are signed with the same certificate, which the Wear OS Data Layer requires to pair them

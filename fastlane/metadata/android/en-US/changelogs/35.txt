@@ -1,0 +1,4 @@
+* Reflection: a fact is only written when its quoted evidence actually appears in the conversation, so an invented fact can no longer be saved with invented proof
+* Reflection: the transcript is delimited and marked as data, so text inside a conversation can no longer read as an instruction to the extractor
+* Reflection: the transcript is prepared once per pass instead of once per extracted fact
+* Metadata: changelogs for 32, 33 and 34 backfilled; NOTICE corrected to the two submodules the repo actually has; mkdocs site/repo URLs point at the fork

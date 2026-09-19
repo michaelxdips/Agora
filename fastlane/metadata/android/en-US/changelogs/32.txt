@@ -1,0 +1,4 @@
+* First Hermes X release: a governed fork of Agora with its own applicationId, so it installs beside upstream
+* Adaptation history, personas, and the autopilot reflection loop
+* Watch app: ask a question from the wrist, with voice input and spoken answers
+* Superseded by the next release: this one's phone APK was debug-signed and its update check offered itself to devices already running it

@@ -1,8 +1,14 @@
 site_name: Agora User Manual
 site_description: Guide for configuring and using Agora
-site_url: https://newo-ether.github.io/Agora/
-repo_url: https://github.com/newo-ether/Agora
-repo_name: newo-ether/Agora
+# HERMES INTEGRATION POINT: the fork deploys its own Pages site (the Deploy MkDocs workflow runs in
+# this repository), so `site_url` has to be the URL the fork actually serves. It pointed at
+# upstream's site, which meant every canonical link and sitemap entry in the built site named a
+# domain this fork does not own. `repo_url`/`repo_name` follow for the same reason Phase 13
+# repointed the in-app links: a bug in Hermes X reported to upstream's tracker cannot be reproduced
+# from the build that has it.
+site_url: https://michaelxdips.github.io/Agora/
+repo_url: https://github.com/michaelxdips/Agora
+repo_name: michaelxdips/Agora
 
 theme:
   name: material

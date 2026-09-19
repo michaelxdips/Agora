@@ -50,6 +50,7 @@ Upstream ref used for the classification: `upstream/master`
 | `wear/src/test/java/com/newoether/agora/wear/WearAtomicFileTest.kt` | 129 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearChatClientTest.kt` | 427 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearCoreContextTest.kt` | 123 | fork-only |
+| `wear/src/test/java/com/newoether/agora/wear/WearFieldSurvivalSourceContractTest.kt` | 94 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearFontCoverage.kt` | 77 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearFontCoverageTest.kt` | 100 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearMainThreadSentinelTest.kt` | 100 | fork-only |
@@ -65,7 +66,7 @@ Upstream ref used for the classification: `upstream/master`
 | File | Lines | Status |
 |---|---|---|
 | `wear/src/androidTest/java/com/newoether/agora/wear/WearPlatformInstrumentedTest.kt` | 176 | fork-only |
-| `wear/src/androidTest/java/com/newoether/agora/wear/WearSetupFieldsSaveableTest.kt` | 80 | fork-only |
+| `wear/src/androidTest/java/com/newoether/agora/wear/WearSetupFieldsSaveableTest.kt` | 101 | fork-only |
 
 ### app/.../autopilot/ — main
 

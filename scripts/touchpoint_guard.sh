@@ -31,7 +31,23 @@ UPSTREAM_REF="${UPSTREAM_REF:-upstream/master}"
 # and a new one (e.g. a mega-prompt handed to the next session) then fails the guard for the crime of
 # existing. Docs are Hermes-owned by definition — upstream's root .md files are already covered by the
 # registered-touchpoint check, so widening this cannot hide an upstream edit.
-ALLOWED_RE='^([A-Z][A-Za-z0-9_.-]*\.md|AGENTS\.md|ROADMAP\.md|NOTICE\.md|evidence/|personas/|scripts/|\.github/workflows/upstream-sync\.yml|app/src/fdroid/res/|app/src/play/res/|app/src/main/assets/personas/|app/src/main/java/com/newoether/agora/autopilot/|app/src/test/java/com/newoether/agora/autopilot/|app/src/androidTest/java/com/newoether/agora/autopilot/|wear/)'
+#
+# HERMES INTEGRATION POINT (Session 5 audit): that last sentence was false, and this is the fix.
+# `ARCHITECTURE.md`, `PRIVACY.md` and `README.md` all exist *upstream*; only the *registered* ones
+# were covered, and none of the three is registered — so `README.md` (392 changed lines) sailed
+# through the class match while the identical edit to a Kotlin file failed loudly. The class is now
+# narrowed to the paths upstream does not own, and a separate rule below requires registration for
+# any modified file that exists upstream regardless of which class it matches. A genuinely new root
+# doc (no upstream counterpart) is still free — that is what the class was for.
+ALLOWED_RE='^(AGENTS\.md|ROADMAP\.md|NOTICE\.md|CODE_MAP\.md|MEGA_PLAN\.md|STATUS\.md|UPSTREAM_SYNC\.md|UPSTREAM_TOUCHPOINTS\.md|V2_BACKLOG\.md|evidence/|personas/|app/src/fdroid/res/|app/src/play/res/|app/src/main/assets/personas/|app/src/main/java/com/newoether/agora/autopilot/|app/src/test/java/com/newoether/agora/autopilot/|app/src/androidTest/java/com/newoether/agora/autopilot/|wear/)'
+
+# Paths this fork owns outright even though they live in upstream-owned directories: upstream never
+# had these files, so editing them is not an upstream edit. `scripts/` is upstream-owned as a
+# directory (it has `round_icon.py`, `test-native-utf8.py`, `native-tests/`), which is why the
+# blanket `scripts/` class above had to go.
+# `release-provenance.yml` joins `upstream-sync.yml` for the same reason: a workflow file that
+# exists only in this fork (F2 remainder — wiring verify_release_provenance.sh into CI).
+FORK_OWNED_RE='^scripts/(touchpoint_guard|upstream_sync|gen_code_map|audit_gate0|verify_release_provenance|persona_update)\.sh$|^scripts/audit_test_counts\.py$|^\.github/workflows/(upstream-sync|release-provenance)\.yml$'
 
 fail=0
 note() { printf '%s\n' "$*"; }
@@ -103,7 +119,21 @@ exists_upstream() {
 
 while IFS=$'\t' read -r added removed path; do
     [ -z "${path:-}" ] && continue
-    if [[ "$path" =~ $ALLOWED_RE ]]; then
+    # HERMES INTEGRATION POINT (Session 5 audit): the order of these two checks is the fix.
+    # `exists_upstream` used to be consulted only *inside* the registered branch, so a modified
+    # upstream file that matched ALLOWED_RE was skipped before anything asked whether upstream owned
+    # it — `README.md` (392 changed lines) passed silently. Now: a file upstream owns must be
+    # registered, full stop; the class match only decides whether a *fork-owned* path needs a reason
+    # at all.
+    if exists_upstream "$path"; then
+        if [ -z "${BUDGET[$path]:-}" ]; then
+            note "touchpoint_guard: FAIL upstream file modified without registration: $path"
+            note "touchpoint_guard: register it in UPSTREAM_TOUCHPOINTS.md with a line budget."
+            fail=1
+            continue
+        fi
+    elif [[ "$path" =~ $ALLOWED_RE ]] || [[ "$path" =~ $FORK_OWNED_RE ]]; then
+        # Fork-owned and not upstream's: free to change without a budget.
         continue
     fi
     if [ -n "${BUDGET[$path]:-}" ]; then

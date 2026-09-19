@@ -1,3 +1,6 @@
+<!-- HERMES INTEGRATION POINT (Session 5, F5): README.md exists upstream; this fork rewrites it to
+     describe Hermes X (product identity, package id, release channel, Wear module, update policy).
+     Registered in UPSTREAM_TOUCHPOINTS.md — see that registry row for the reason and the budget. -->
 <div align="center">
   <img src="app/src/main/assets/agora_transparent_large.png" alt="Hermes X" width="120" />
 

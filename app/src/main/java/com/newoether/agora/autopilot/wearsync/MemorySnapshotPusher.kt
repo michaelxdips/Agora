@@ -6,7 +6,6 @@ import com.newoether.agora.util.DebugLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 
@@ -40,7 +39,15 @@ object MemorySnapshotPusher {
     /**
      * Starts observing active memory. Returns the job so the caller's scope owns its lifetime.
      *
-     * @param scope the composition scope, which cancels this with the UI.
+     * HERMES INTEGRATION POINT: this used to push **directly** (`WatchSync.pushMemorySnapshot`) on the
+     * composition scope, while `MemoryPushStartup` scheduled a worker for the *same* `activeMemoryRevision`
+     * change. With the phone UI open, one memory write therefore travelled to the watch twice — the same
+     * bytes over Bluetooth twice, and two Data Layer items for one fact. It now only *requests* the push
+     * through the one scheduler, which collapses the burst into a single worker run; the direct path is
+     * gone, so there is exactly one owner of "a push happened".
+     *
+     * @param scope the composition scope, which cancels the *observer* with the UI. The push itself is
+     *   WorkManager's, so it survives that cancellation — see `MemoryPushStartup` for why that matters.
      */
     @OptIn(FlowPreview::class)
     fun start(context: Context, scope: CoroutineScope) = scope.launch {
@@ -48,11 +55,13 @@ object MemorySnapshotPusher {
         val container = application.awaitContainer() ?: return@launch
         container.memoryManager.activeMemoryRevision
             .drop(1)                       // the value at subscribe time is not a change
-            .distinctUntilChanged()
+            // No `distinctUntilChanged()`: the source is a `StateFlow`, which already conflates equal
+            // values, so the operator was redundant here. Removed to match `MemoryPushStartup`.
             .debounce(DEBOUNCE_MS)
             .collect {
-                val pushed = WatchSync.pushMemorySnapshot(context)
-                DebugLog.d(TAG, "memory snapshot pushed on change: $pushed")
+                // Scheduling, not pushing: `MemoryPushScheduler` owns the debounce and the worker.
+                MemoryPushScheduler.schedule(context)
+                DebugLog.d(TAG, "memory snapshot push requested (ui observer)")
             }
     }
 }

@@ -370,12 +370,18 @@ marker from the tree and the guard registry; `--check` fails when it is stale. T
 
 ## 5. Plan C — OPTIMISE
 
-**O1 — R8 for the phone release (N7). NOT DONE, and the reason is a real one.** The gate is "build
-with R8, run the full 2597-test suite plus a device smoke pass, keep only if both are green". The
-device smoke pass cannot be run on this machine (no emulator, no device), and a phone release with R8
-that has never been smoke-tested is exactly the artifact this plan exists to avoid shipping. The
-measurement that *was* taken: the phone release APK is **49.5 MB** unminified against the watch's
-**2.8 MB** minified, so the headroom is real and the item stays open rather than silently dropped.
+**O1 — R8 for the phone release (N7). DONE (Session 4).** The gate was "build with R8, run the full
+suite plus a device smoke pass, keep only if both are green", and it stayed open because the device
+half could not run — no emulator, no device. Session 4 created the emulator pair and ran the whole
+gate: `assembleFdroidRelease` green with `isMinifyEnabled = true` + `isShrinkResources = true`, the
+APK **49,631,099 → 29,497,445 bytes (−40.6%)**, 13/13 dex keep assertions present, the release APK
+installed and launched on `emulator-5554` with no crash, and the R8-sensitive workers
+(`UpdateCheckWorker`, `AutoBackupWorker`, `MemorySnapshotPushWorker`) each reporting
+`Worker result SUCCESS` in the minified build. The keep rules that made it safe are derived from the
+C++ call sites (`llama_chat_template.cpp` resolves Kotlin classes by literal name through
+`FindClass`/`GetFieldID`; `llama_chat_callbacks.cpp` fetches `NativeChatCallback` methods by name),
+plus every manifest component, every `ListenableWorker` and both `SandboxManagerFactory` classes.
+Full evidence in `STATUS.md` §Session 4.
 **O2 — atomic writes. DONE.** `WearAtomicFile` (temp → fsync → rename, with a copy fallback that is the
 only in-place path) now backs all three watch state files: the offline queue, the config store and the
 memory cache. `WearAtomicFileTest` covers the round trip, the absence of a leftover temp file, a failed
@@ -544,7 +550,7 @@ sounds correct to anyone who has not read SQLite's join documentation.
 
 | # | Item | Why |
 |---|---|---|
-| O1 | R8 for the phone release (P1.27) | Gate needs a device smoke pass; `adb devices` is empty on this machine. Headroom is real (49.5 MB unminified vs 2.8 MB minified watch). |
+| O1 | ~~R8 for the phone release (P1.27)~~ | **CLOSED (Session 4).** Emulator pair created; gate run end to end — R8 build green, 2658/2631/149 tests 0 failures, dex keeps 13/13, release APK installed and launched, workers SUCCESS. APK 49.6 MB → 29.5 MB. |
 | O6 | Split `WearMainActivity` | 748 lines, under the cap, heavily changed this session. |
 | P1.20–P1.22 | Sandbox `--allow-untrusted`, shared-storage bind, TOCTOU | Each is a deliberate design decision in the PRoot integration; the fixes change the sandbox's security *model*, which wants the maintainer's call, not a drive-by patch. |
 | P1.8, P1.10, P1.11, P1.13 | Plaintext secrets in DataStore / export / backup / proxy password | Each needs a **migration** — existing installs hold plaintext that must keep working. P1.9's marked fallback is the prerequisite and is now in place. |

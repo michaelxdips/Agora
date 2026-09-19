@@ -135,15 +135,15 @@ registered (#5 `MainActivity`, #17 `AgoraApplication`) and one manifest receiver
 
 **Audit sweep (10 read-only subagents + 2 re-dispatches)**
 
-Covered: update gap, watch transport, R8, locality/secret hygiene, GitHub releases, app bugs, wear bugs,
+Covered: update gap, watch transport, R8, certificate-locality hygiene, GitHub releases, app bugs, wear bugs,
 refactor/perf, feature proposals, tests/guards. Reports are read-only inputs; the ones acted on above
 are the two instrumented-suite defects, the send-now double-send, the Retry-After throttle, the CI
 release-verification gap, and the `.gitignore`/guard secret-hygiene gap. The remaining findings are
 listed in this file rather than silently dropped — see **§Session 4 open findings** below.
 
-**Locality-field wipe**
+**Certificate locality-field wipe**
 
-Every `locality` occurrence outside `thirdparty/` is gone: the six doc copies (README ×2, STATUS ×3,
+Every copy of the certificate's locality field outside `thirdparty/` is gone: the six doc copies (README ×2, STATUS ×3,
 MEGA_PLAN ×1) were replaced with the SHA-256 digest plus a pointer to `apksigner verify --print-certs`
 as the source of truth for the DN. The live certificate still carries the old locality field — it
 cannot be re-cut without re-signing every published APK, which would break update continuity and Wear

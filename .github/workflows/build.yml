@@ -200,7 +200,10 @@ jobs:
           watch=$(find wear/build/outputs/apk/release -name '*.apk' -print -quit)
           test -n "$phone" && test -n "$watch"
           for apk in "$phone" "$watch"; do
-            "$apksigner" verify --print-certs "$apk" | tee "$apk.certs"
+            # NOT `tee`: `--print-certs` includes the certificate DN, and this log is public — a
+            # previous run echoed it. The full output stays in a file; only the digest is printed.
+            "$apksigner" verify --print-certs "$apk" > "$apk.certs"
+            grep -m1 'certificate SHA-256 digest' "$apk.certs" | sed "s|^|$(basename "$apk"): |"
             "$apksigner" verify "$apk"
           done
           phone_digest=$(grep -m1 'certificate SHA-256 digest' "$phone.certs" | awk '{print $NF}')

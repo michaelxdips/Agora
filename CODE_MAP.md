@@ -23,7 +23,7 @@ Upstream ref used for the classification: `upstream/master`
 | File | Lines | Status |
 |---|---|---|
 | `wear/src/main/java/com/newoether/agora/wear/WearAnswerText.kt` | 342 | fork-only |
-| `wear/src/main/java/com/newoether/agora/wear/WearAtomicFile.kt` | 94 | fork-only |
+| `wear/src/main/java/com/newoether/agora/wear/WearAtomicFile.kt` | 90 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearBuildInfo.kt` | 30 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearChatClient.kt` | 342 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearConfig.kt` | 112 | fork-only |
@@ -60,7 +60,7 @@ Upstream ref used for the classification: `upstream/master`
 | `wear/src/test/java/com/newoether/agora/wear/WearQueueDrainerTest.kt` | 379 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearSendCoordinatorTest.kt` | 122 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearSendNowContractTest.kt` | 109 | fork-only |
-| `wear/src/test/java/com/newoether/agora/wear/WearSession5FixTest.kt` | 206 | fork-only |
+| `wear/src/test/java/com/newoether/agora/wear/WearSession5FixTest.kt` | 205 | fork-only |
 
 ### wear/ — instrumented tests
 
@@ -179,7 +179,7 @@ so this table cannot disagree with what the guard enforces.
 | `app/build.gradle.kts` | 68 | 65 |
 | `settings.gradle.kts` | 4 | 3 |
 | `gradle/libs.versions.toml` | 10 | 6 |
-| `.github/workflows/build.yml` | 140 | 123 |
+| `.github/workflows/build.yml` | 140 | 126 |
 | `.github/workflows/mkdocs.yml` | 4 | 4 |
 | `mkdocs.yml` | 16 | 12 |
 | `fastlane/metadata/android/en-US/changelogs/32.txt` | 8 | 4 |

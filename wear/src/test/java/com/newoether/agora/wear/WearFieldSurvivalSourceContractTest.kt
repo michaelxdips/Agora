@@ -91,4 +91,37 @@ class WearFieldSurvivalSourceContractTest {
             saveableFields >= 4,
         )
     }
+
+    @Test
+    fun `send-now completes the held entry before it sends, so one tap is one call`() {
+        // The bug (Session 4): the handler called `send(entry.text)` alone. `send` enqueues a new
+        // entry, and its success branch drains the queue — which still held the original — so the
+        // original went out too: two provider calls for one tap. The fix is an ordering, and an
+        // ordering inside a composable lambda has no unit-test seam, so it is asserted here the way
+        // this module already asserts screen invariants (WearMainThreadSentinelTest).
+        //
+        // The assertion is positional, not merely "both lines exist": `queue.complete(entry.id)`
+        // must appear *before* `send(entry.text)` inside the Send-now handler. Reversing them
+        // restores the double-send, and this test fails.
+        //
+        // `lastIndexOf` for the send, not `indexOf`: the fix's own comment quotes the old call
+        // (`just send(entry.text)`) a few lines above the code, so the first match is prose. The
+        // test caught exactly that on its first run — it compared the comment's position against a
+        // `queue.complete` from the sendOnce path 15 KB earlier and failed for the wrong reason.
+        val handler = mainActivity.lastIndexOf("send(entry.text)")
+        assertTrue("the Send-now handler must call send(entry.text)", handler > 0)
+        val complete = mainActivity.lastIndexOf("queue.complete(entry.id)", handler)
+        assertTrue(
+            "the Send-now handler must complete the held entry before sending it; " +
+                "completing after (or not at all) re-runs the original through the drain",
+            complete > 0 && complete < handler,
+        )
+        // And the completion must be inside the same handler window — a `queue.complete` somewhere
+        // else in the file (the Discard button also completes) must not satisfy this test by
+        // accident, so the gap between the two calls is bounded.
+        assertTrue(
+            "the complete and the send must be in the same handler (gap was ${handler - complete} chars)",
+            handler - complete < 1200,
+        )
+    }
 }

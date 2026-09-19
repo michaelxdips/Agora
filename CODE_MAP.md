@@ -50,7 +50,7 @@ Upstream ref used for the classification: `upstream/master`
 | `wear/src/test/java/com/newoether/agora/wear/WearAtomicFileTest.kt` | 129 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearChatClientTest.kt` | 427 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearCoreContextTest.kt` | 123 | fork-only |
-| `wear/src/test/java/com/newoether/agora/wear/WearFieldSurvivalSourceContractTest.kt` | 94 | fork-only |
+| `wear/src/test/java/com/newoether/agora/wear/WearFieldSurvivalSourceContractTest.kt` | 127 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearFontCoverage.kt` | 77 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearFontCoverageTest.kt` | 100 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearMainThreadSentinelTest.kt` | 100 | fork-only |

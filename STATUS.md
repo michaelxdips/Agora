@@ -14,7 +14,7 @@ the repo **as it was when that phase closed** and may legitimately contradict th
 
 | | Value | Command |
 |---|---|---|
-| `main` HEAD | `63bfcfef` | `git rev-parse --short main` |
+| `main` HEAD | `e46fb037` | `git rev-parse --short main` |
 | Versions | `3.0.4-hermesx` / `versionCode` 35, both modules | `app/build.gradle.kts`, `wear/build.gradle.kts` |
 | Releases | `v3.0.4` (latest), `v3.0.3`, `v3.0.2`, `v3.0.1` (pre-release) | `gh release list -R michaelxdips/Agora` |
 | App unit tests | **2658 tests, 0 failures, 0 errors, 3 skipped** (406 XML files) | `./gradlew :app:testFdroidDebugUnitTest` |

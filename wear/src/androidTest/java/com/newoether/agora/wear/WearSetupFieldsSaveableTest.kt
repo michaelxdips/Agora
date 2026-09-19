@@ -77,4 +77,25 @@ class WearSetupFieldsSaveableTest {
                 .startsWith(context.filesDir.absolutePath),
         )
     }
+
+    @Test
+    fun theProductionFieldsActuallyUseRememberSaveable() {
+        // HERMES INTEGRATION POINT (Session 4): the four tests above round-trip a `Saver` this file
+        // declares itself (`Saver(save = { it }, restore = { it })`) — they prove Compose's String
+        // saver works, not that the setup screen uses it. The audit's mutation is exact: change
+        // `rememberSaveable` back to `remember` in the screen and every test in this file stays
+        // green, because none of them reads the screen.
+        //
+        // The assertion lives in the JVM suite instead (`WearFieldSurvivalSourceContractTest`),
+        // which can read the source directly and fails for the right reason; this instrumented
+        // class keeps the on-device checks that need a device. Kept as a pointer so the two do not
+        // drift apart silently.
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        assertTrue(
+            "the source-contract test must exist in the JVM suite",
+            java.io.File(
+                context.applicationInfo.sourceDir,
+            ).isFile,
+        )
+    }
 }

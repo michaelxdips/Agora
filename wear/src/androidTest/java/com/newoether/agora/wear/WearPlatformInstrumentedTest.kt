@@ -124,14 +124,29 @@ class WearPlatformInstrumentedTest {
         val intent = android.content.Intent(android.content.Intent.ACTION_MAIN)
             .addCategory(android.content.Intent.CATEGORY_LAUNCHER)
             .setPackage(context.packageName)
+        // NO `MATCH_DEFAULT_ONLY`: that flag means "match filters declaring CATEGORY_DEFAULT", and a
+        // launcher activity is *supposed* to declare MAIN + LAUNCHER only — it has no DEFAULT
+        // category, and it must not, or every share/open intent would offer it as a target. With
+        // the flag the query returns an empty list on a perfectly correct manifest, which is how
+        // this test failed the first time it was ever executed (both AVDs, 2026-09-19) while the
+        // manifest itself was correct: `cmd package query-activities` on the same device found
+        // `com.hermes.app/com.newoether.agora.wear.WearMainActivity` with match=0x108000.
+        // `MATCH_DISABLED_COMPONENTS` is added so the assertion reflects the manifest, not whether
+        // the platform happens to have the component enabled right now.
         val resolved = context.packageManager
-            .queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+            .queryIntentActivities(intent, PackageManager.MATCH_DISABLED_COMPONENTS)
             .map { it.activityInfo.name }
 
         assertTrue(
             "no launcher activity for ${context.packageName}: $resolved",
             resolved.contains("com.newoether.agora.wear.WearMainActivity"),
         )
+        // Exported is part of the claim: the launcher must be able to start it from outside the app.
+        val info = context.packageManager.getActivityInfo(
+            android.content.ComponentName(context.packageName, "com.newoether.agora.wear.WearMainActivity"),
+            0,
+        )
+        assertTrue("WearMainActivity must be exported", info.exported)
     }
 
     @Test

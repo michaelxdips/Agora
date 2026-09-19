@@ -67,15 +67,22 @@ class AutopilotMemoryInstrumentedTest {
 
         var applied = 0
         seeded.forEachIndexed { index, seed ->
+            // The quote must GROUND: it has to be text that occurs in the transcript the engine is
+            // shown (`ReflectionProtocol.grounds`), or the op is refused by design. This test used
+            // to quote `quote ${index + 1}` against a transcript that never contained it, so after
+            // the Session-3 grounding check landed it applied 0 of 3 ops. It was never executed on
+            // hardware until 2026-09-19, which is why the staleness survived. The transcript below
+            // contains the quoted span, so the assertion measures the apply path, not the refusal.
+            val transcript = "USER: seeded conversation ${index + 1} about a topic"
             val engine = engine(
                 reply = """{"ops":[{"op":"update","target_file":"${seed.file}","content":""" +
                     """"${seed.initial.trim()}\n- fact ${index + 1} $PROVENANCE_TAG\n","category":"c",""" +
-                    """"confidence":0.95,"source_quote":"quote ${index + 1}"}]}"""
+                    """"confidence":0.95,"source_quote":"seeded conversation ${index + 1}"}]}"""
                 ,
                 baselineCount = baseline,
             )
             val outcome = engine.run(
-                transcript = "USER: seeded conversation ${index + 1}",
+                transcript = transcript,
                 existingFiles = memoryManager.listFiles().map { it.name },
                 sourceSessionId = seed.file,
             )

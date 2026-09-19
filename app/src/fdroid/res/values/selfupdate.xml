@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- HERMES: fdroid flavor self-update gate. The fdroid flavor is distributed only through the
+     fork's own GitHub Releases, so it may download and install a newer release itself. -->
+<resources>
+    <bool name="hermes_self_update_enabled">true</bool>
+</resources>

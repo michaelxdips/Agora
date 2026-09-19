@@ -353,6 +353,9 @@ fun MainNavigation(
         // background writes actually happen; this composition-scoped start remains for the "the user
         // is looking at the app right now" path and is cancelled with the UI.
         com.newoether.agora.autopilot.wearsync.MemorySnapshotPusher.start(appContext, autopilotScope)
+        // HERMES INTEGRATION POINT: fork self-update channel (worker offers via UpdateCheckBus,
+        // collected into the same update dialog the startup check uses). One collect, no screen.
+        com.newoether.agora.autopilot.update.UpdateChannelUi.collectOffers(viewModel, autopilotScope, appContext)
     }
     // HERMES INTEGRATION POINT: autopilot notification → Settings (pre-selected on Adaptation
     // History). Runs before the conversation-target effect and never changes its behaviour.

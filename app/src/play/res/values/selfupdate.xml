@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- HERMES: play flavor self-update gate. A Play-distributed build must update through Play;
+     a sideloaded APK over a Play install splits the update path and risks the "unverified app"
+     screen. The update UI stays a release-notes link here, never a download. -->
+<resources>
+    <bool name="hermes_self_update_enabled">false</bool>
+</resources>

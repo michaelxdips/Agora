@@ -65,6 +65,9 @@ class AgoraApplication : Application() {
         // a ReflectionWorker run, an autopilot adaptation — never reached the watch. Process-scoped,
         // one line, no upstream behaviour touched.
         com.newoether.agora.autopilot.wearsync.MemoryPushStartup.start(this, startupScope)
+        // HERMES INTEGRATION POINT (touchpoint #17): same one-line pattern for the fork's daily
+        // update check — it must not depend on the user opening a screen.
+        com.newoether.agora.autopilot.update.UpdateChannelStartup.start(this, startupScope)
         startupScope.launch {
             try {
                 DeveloperDiagnostics.initialize(noBackupFilesDir, startupScope)

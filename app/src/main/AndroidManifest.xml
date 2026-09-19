@@ -88,6 +88,12 @@
             android:name=".automation.AutomationAlarmReceiver"
             android:exported="false" />
 
+        <!-- HERMES INTEGRATION POINT: fork self-update "Download & install" tap; explicit intent
+             to this package only, so exported=false needs no permission. -->
+        <receiver
+            android:name=".autopilot.update.UpdateDownloadAction"
+            android:exported="false" />
+
         <!-- Re-arms task alarms after reboot / app update. -->
         <receiver
             android:name=".service.BootReceiver"

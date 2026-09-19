@@ -168,6 +168,8 @@ jobs:
         with:
           name: hermes-wear-release
           path: wear/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Verify PRoot runtime packaging
         run: |
@@ -184,8 +186,42 @@ jobs:
             }
           done
 
+      # HERMES INTEGRATION POINT (Session 4): the release APKs are verified in CI, not by hand after
+      # upload. Before this step the certificate check and the digest file lived in a release-notes
+      # checklist a human was trusted to run; the release audit found no CI step produced
+      # `SHA256SUMS` and none ran `apksigner`. Both now run here, so a release built from a machine
+      # whose keystore differs (or an APK whose bytes changed after the notes were written) fails the
+      # build instead of being published.
+      - name: Verify release APK signatures and emit SHA256SUMS
+        run: |
+          set -euo pipefail
+          apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort | tail -n 1)
+          phone=$(find app/build/outputs/apk/fdroid/release -name '*.apk' -print -quit)
+          watch=$(find wear/build/outputs/apk/release -name '*.apk' -print -quit)
+          test -n "$phone" && test -n "$watch"
+          for apk in "$phone" "$watch"; do
+            "$apksigner" verify --print-certs "$apk" | tee "$apk.certs"
+            "$apksigner" verify "$apk"
+          done
+          phone_digest=$(grep -m1 'certificate SHA-256 digest' "$phone.certs" | awk '{print $NF}')
+          watch_digest=$(grep -m1 'certificate SHA-256 digest' "$watch.certs" | awk '{print $NF}')
+          if [ "$phone_digest" != "$watch_digest" ]; then
+            echo "phone and watch APKs are signed by different certificates:" >&2
+            echo "  phone: $phone_digest" >&2
+            echo "  watch: $watch_digest" >&2
+            echo "The Wear OS Data Layer refuses to pair APKs with different signing keys." >&2
+            exit 1
+          fi
+          ( cd "$(dirname "$phone")" && sha256sum "$(basename "$phone")" ) > SHA256SUMS
+          ( cd "$(dirname "$watch")" && sha256sum "$(basename "$watch")" ) >> SHA256SUMS
+          cat SHA256SUMS
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: agora-fdroid-release
-          path: app/build/outputs/apk/fdroid/release/*.apk
+          path: |
+            app/build/outputs/apk/fdroid/release/*.apk
+            SHA256SUMS
+          if-no-files-found: error
+          retention-days: 14

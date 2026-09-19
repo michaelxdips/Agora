@@ -24,6 +24,15 @@ build*.ps1
 deploy.ps1
 logs/
 
+# HERMES INTEGRATION POINT (Session 4): the signing key classes belong in .gitignore, not only in
+# `.git/info/exclude` — that file is not cloned, so a fresh checkout had no protection at all
+# until the guard happened to run. A `.p12`/`.pem`/`.key` next to the project would otherwise be
+# one `git add -A` away from a public commit.
+*.jks
+*.keystore
+*.p12
+*.pfx
+
 # Proot build artifacts
 /.build-proot/
 app/src/fdroid/assets/alpine-minirootfs.tar.gz

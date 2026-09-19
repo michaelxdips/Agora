@@ -119,17 +119,21 @@ while IFS=$'\t' read -r added removed path; do
 done <<< "$NUMSTAT"
 
 # ── 3. secret hygiene: local-only files must never be tracked ───────────────
-for f in local.properties; do
+# Session 4: `signing.properties` was in `.gitignore` but not checked here, and the tracked-file
+# scan covered `*.jks`/`*.keystore` only — a differently-named key (`.p12`, `.pem`, `.key`) or the
+# properties file itself could have been committed and the guard would still have passed. The
+# history scan already covered `local.properties`; this makes the tracked scan agree with it.
+for f in local.properties signing.properties; do
     if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
-        note "touchpoint_guard: FAIL '$f' is tracked — it must stay in .git/info/exclude."
+        note "touchpoint_guard: FAIL '$f' is tracked — it must stay out of git."
         fail=1
     fi
 done
-if git ls-files | grep -qiE '\.(jks|keystore)$'; then
-    note "touchpoint_guard: FAIL keystore/jks file is tracked in git."
+if git ls-files | grep -qiE '\.(jks|keystore|p12|pfx|pem|key)$'; then
+    note "touchpoint_guard: FAIL a keystore/key file is tracked in git."
     fail=1
 fi
-if git log --all --diff-filter=A --name-only --pretty=format: 2>/dev/null | grep -qE '(^|/)(local\.properties|.*\.jks|.*\.keystore)$'; then
+if git log --all --diff-filter=A --name-only --pretty=format: 2>/dev/null | grep -qE '(^|/)(local\.properties|signing\.properties|.*\.(jks|keystore|p12|pfx))$'; then
     note "touchpoint_guard: FAIL a secret-ish file exists somewhere in git history."
     fail=1
 fi

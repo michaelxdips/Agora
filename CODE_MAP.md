@@ -186,7 +186,7 @@ so this table cannot disagree with what the guard enforces.
 | `fastlane/metadata/android/en-US/changelogs/33.txt` | 8 | 2 |
 | `fastlane/metadata/android/en-US/changelogs/34.txt` | 8 | 4 |
 | `fastlane/metadata/android/en-US/changelogs/35.txt` | 8 | 4 |
-| `.gitignore` | 24 | 20 |
+| `.gitignore` | 24 | 24 |
 | `app/src/main/AndroidManifest.xml` | 16 | 11 |
 | `app/src/main/res/values/strings.xml` | 4 | 0 |
 | `app/src/main/java/com/newoether/agora/ui/settings/SettingsScreen.kt` | 32 | 30 |

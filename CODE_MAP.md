@@ -145,7 +145,7 @@ Upstream ref used for the classification: `upstream/master`
 |---|---|---|
 | `scripts/audit_gate0.sh` | 205 | fork-only |
 | `scripts/audit_test_counts.py` | 36 | fork-only |
-| `scripts/gen_code_map.sh` | 128 | fork-only |
+| `scripts/gen_code_map.sh` | 134 | fork-only |
 | `scripts/native-tests/native_utf8_probe.cpp` | 23 | upstream (budgeted) |
 | `scripts/native-tests/NativeUtf8Probe.java` | 46 | upstream (budgeted) |
 | `scripts/persona_update.sh` | 141 | fork-only |
@@ -165,7 +165,7 @@ so this table cannot disagree with what the guard enforces.
 | `app/build.gradle.kts` | 60 | 54 |
 | `settings.gradle.kts` | 4 | 3 |
 | `gradle/libs.versions.toml` | 10 | 6 |
-| `.github/workflows/build.yml` | 80 | 66 |
+| `.github/workflows/build.yml` | 80 | 78 |
 | `.github/workflows/mkdocs.yml` | 4 | 4 |
 | `.gitignore` | 12 | 11 |
 | `app/src/main/AndroidManifest.xml` | 6 | 5 |

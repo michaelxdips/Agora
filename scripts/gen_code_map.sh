@@ -110,7 +110,13 @@ if [ "$CHECK" -eq 1 ]; then
     TMP="$(mktemp)"
     { awk -v m="$MARKER" 'BEGIN{done=0} { if (done==0 && index($0,m)==1) { exit } print }' "$TARGET"
       emit_generated; } > "$TMP"
-    if diff -q "$TARGET" "$TMP" >/dev/null; then
+    # HERMES INTEGRATION POINT: `diff` compares bytes, and this repository checks out with CRLF line
+    # endings on Windows while the generator emits LF — so on a fresh clone (which is what CI has)
+    # every single line differed and `--check` reported the whole file as stale. Proved: on a shallow
+    # clone of the pushed commit, `diff` printed `1,193c1,193` and exited 1 while the *content* was
+    # identical. Normalising line endings before the comparison is the fix; `tr -d '\r'` is POSIX and
+    # costs nothing.
+    if diff -q <(tr -d '\r' < "$TARGET") <(tr -d '\r' < "$TMP") >/dev/null; then
         printf 'gen_code_map: CODE_MAP.md is up to date.\n'
         rm -f "$TMP"
         exit 0

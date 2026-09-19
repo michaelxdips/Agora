@@ -40,6 +40,18 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # HERMES INTEGRATION POINT: the guard scripts compare the tree against the real upstream ref
+      # (`upstream/master`). `actions/checkout@v4` fetches a single branch and creates no remote
+      # tracking refs, so inside CI the guard found no ref at all and — correctly, since a guard that
+      # cannot run is a FAIL — exited 1. It was right to fail; this step is what was missing.
+      # `origin/master` is deliberately NOT used as a fallback: in this fork it is the *fork point*
+      # (914e7c8d), not upstream, so a comparison against it would silently pass on real upstream drift.
+      - name: Add the upstream remote
+        run: |
+          git remote add upstream https://github.com/newo-ether/Agora.git 2>/dev/null || true
+          git fetch --no-tags --depth=1 upstream master
+          git rev-parse --verify upstream/master
+
       - name: Run application and build-logic tests
         run: |
           chmod +x ./gradlew

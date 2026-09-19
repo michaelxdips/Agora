@@ -44,7 +44,21 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew -p build-logic test --stacktrace
-          ./gradlew :app:testFdroidDebugUnitTest :app:testPlayDebugUnitTest verifyKotlinFileSize --no-daemon --max-workers=1 --stacktrace
+          ./gradlew :app:testFdroidDebugUnitTest :app:testPlayDebugUnitTest :wear:testDebugUnitTest verifyKotlinFileSize --no-daemon --max-workers=1 --stacktrace
+
+      # HERMES INTEGRATION POINT: the guard scripts existed and were wired to nothing. `grep -c` over
+      # this file for `touchpoint_guard|gen_code_map|audit_gate0|audit_test_counts|verify_release` was
+      # 0, so a PR could edit an upstream file without registering it, ship a stale CODE_MAP, or land
+      # an unminified/unsigned release shape, and CI stayed green. Only `upstream-sync.yml` ran the
+      # touchpoint guard, and only on its own schedule.
+      - name: Touchpoint guard
+        run: bash scripts/touchpoint_guard.sh
+
+      - name: CODE_MAP is up to date
+        run: bash scripts/gen_code_map.sh --check
+
+      - name: Test counts match the documented numbers
+        run: python scripts/audit_test_counts.py
 
       - name: Upload test reports
         if: failure()
@@ -54,6 +68,8 @@ jobs:
           path: |
             app/build/reports/tests/
             app/build/test-results/
+            wear/build/reports/tests/
+            wear/build/test-results/
             build-logic/build/reports/tests/
             build-logic/build/test-results/
           if-no-files-found: warn
@@ -63,6 +79,16 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # HERMES INTEGRATION POINT: job-level `env` so the step condition below can actually read it. A
+    # step's own `env:` block is NOT visible to that same step's `if:` — the expression is evaluated
+    # before the step's environment exists — so `if: ${{ env.KEYSTORE_BASE64 != '' }}` on the step
+    # that defined it was always false. The keystore was therefore never restored, and with release
+    # signing fail-closed the build job failed on a repo whose secrets are set correctly.
+    env:
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -78,12 +104,16 @@ jobs:
           packages: "platform-tools ndk;28.2.13676358"
 
       - name: Restore signing key
+        # HERMES INTEGRATION POINT: the condition was `if: ${{ env.KEYSTORE_BASE64 != '' }}` on the
+        # same step that *defines* `KEYSTORE_BASE64` in its own `env:` block. A step's `env` is not
+        # visible to its own `if` (the expression is evaluated before the step's environment exists),
+        # so the condition was always false, the keystore was never restored, and — since M3 made
+        # release signing fail-closed — the release build then failed on a repo whose secrets are set
+        # correctly. Job-level `env` is the fix: it exists when the step's `if` is evaluated.
+        # HERMES INTEGRATION POINT: the step used to carry its own `env:` block with these four
+        # secrets, which its own `if:` could not see. They now live at job level (see above) and are
+        # inherited here.
         if: ${{ env.KEYSTORE_BASE64 != '' }}
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           echo "$KEYSTORE_BASE64" | base64 -d > ${{ github.workspace }}/release.jks
           cat >> local.properties <<EOF
@@ -104,6 +134,21 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew assembleFdroidRelease
+
+      # HERMES INTEGRATION POINT (touchpoint #13/M2): the Wear module was never exercised by CI —
+      # `grep -c "wear:" .github/workflows/build.yml` was 0, so a watch-only regression (a missing
+      # proguard keep-rule, a lintVital failure, a test that only runs in :wear) could not fail a
+      # build. Its unit tests moved into the `test` job above; the release build and lint vital are
+      # here because they need the keystore, which this job restores.
+      - name: Build Wear Release APK
+        run: |
+          ./gradlew :wear:assembleRelease :wear:lintVitalRelease
+
+      - name: Upload Wear APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: hermes-wear-release
+          path: wear/build/outputs/apk/release/*.apk
 
       - name: Verify PRoot runtime packaging
         run: |

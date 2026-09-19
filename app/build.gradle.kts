@@ -62,11 +62,43 @@ android {
     }
 
     val hasKeystore = keystoreProperties.getProperty("storeFile", ".").let { it != "." }
-    val releaseSigning = if (hasKeystore) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
+    // HERMES INTEGRATION POINT (touchpoint #22): release signing is **fail-closed**.
+    //
+    // It used to fall back to `signingConfigs.getByName("debug")`, so `assembleFdroidRelease` on a
+    // machine with no keystore produced an APK signed with the debug key. That artifact installs over
+    // a debug build and cannot be updated by the real release, and — worse — it looks like a release:
+    // same versionName, same output directory, and the only way to tell is `apksigner verify`.
+    // A release build with no keystore is a misconfiguration, and it now fails at configuration time
+    // with a sentence that says which file to fill in.
+    if (hasKeystore) {
+        buildTypes { release { signingConfig = signingConfigs.getByName("release") } }
+    } else {
+        gradle.taskGraph.whenReady {
+            val releaseTasks = allTasks.filter { task ->
+                val name = task.name
+                // HERMES INTEGRATION POINT: `install…` was missing from this list, so
+                // `installPlayRelease` / `installFdroidRelease` were not treated as release tasks. On a
+                // machine with no keystore those two installed an APK built by the release variant but
+                // signed with the debug key — the exact silent-debug-signed-release this fail-closed
+                // block exists to prevent, reachable by the most convenient task name there is.
+                (name.startsWith("assemble") || name.startsWith("bundle") ||
+                    name.startsWith("package") || name.startsWith("install")) &&
+                    name.contains("Release")
+            }
+            if (releaseTasks.isNotEmpty()) {
+                throw GradleException(
+                    "Release signing is not configured: no keystore in local.properties " +
+                        "(storeFile/storePassword/keyAlias/keyPassword), so " +
+                        "${releaseTasks.map { it.name }.sorted()} would have been signed with the " +
+                        "debug key. Fill in the release section of local.properties, or build a debug " +
+                        "variant instead."
+                )
+            }
+        }
+    }
 
     buildTypes {
         release {
-            signingConfig = releaseSigning
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

@@ -3,6 +3,7 @@ package com.newoether.agora.util
 import android.content.Context
 import android.os.Build
 import com.newoether.agora.api.HttpClient
+import com.newoether.agora.diagnostics.DiagnosticRedactor
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -83,8 +84,14 @@ object CrashReporter {
     private fun writeReport(context: Context, throwable: Throwable) {
         val trace = StringWriter().also { throwable.printStackTrace(PrintWriter(it)) }
             .toString().take(MAX_TRACE_CHARS)
+        // HERMES INTEGRATION POINT: the trace was written verbatim. A stack trace's *message* is
+        // whatever the throwing code put there, and in this app that includes request URLs, header
+        // values and provider error bodies — i.e. the same material `DiagnosticRedactor` exists to
+        // strip from diagnostics, here bypassing it entirely and landing in a file that is later POSTed
+        // to the crash endpoint. Redacted through the same helper as every other captured text.
+        val redactedTrace = DiagnosticRedactor.captureContent(trace).value
         val json = JSONObject().apply {
-            put("trace", trace)
+            put("trace", redactedTrace)
             put("appVersion", appInfo.versionName)
             put("versionCode", appInfo.versionCode)
             put("androidApi", Build.VERSION.SDK_INT)

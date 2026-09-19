@@ -167,15 +167,31 @@ echo
 echo "===== [7] launcher label + applicationId, all APKs ====="
 AAPT2="$ANDROID_HOME/build-tools/36.0.0/aapt2.exe"
 [ -x "$AAPT2" ] || AAPT2="$ANDROID_HOME/build-tools/36.0.0/aapt2"
+# HERMES INTEGRATION POINT: this section used to grep the labels and print the counts, then fall
+# through to the end of the script without touching `$fail`. `grep -c` exits 1 when it counts zero,
+# and that status was discarded — so an APK still labelled "Agora" (the wrong product identity for
+# this fork) printed `labels still reading "Agora": 1` and the gate still exited 0. The counts are now
+# compared and a mismatch sets `fail`.
 for apk in app/build/outputs/apk/fdroid/debug/app-fdroid-debug.apk \
            app/build/outputs/apk/play/debug/app-play-debug.apk \
            app/build/outputs/apk/fdroid/release/app-fdroid-release.apk \
            wear/build/outputs/apk/release/wear-release.apk; do
     [ -f "$apk" ] || continue
     echo "  --- $(basename "$apk")"
-    "$AAPT2" dump badging "$apk" 2>/dev/null | grep "^package:" | sed 's/^/    /'
-    "$AAPT2" dump badging "$apk" 2>/dev/null | grep -c "application-label:'Hermes X'" | sed 's/^/    labels reading "Hermes X": /'
-    "$AAPT2" dump badging "$apk" 2>/dev/null | grep -c "application-label:'Agora'" | sed 's/^/    labels still reading "Agora": /'
+    badging="$("$AAPT2" dump badging "$apk" 2>/dev/null)"
+    echo "$badging" | grep "^package:" | sed 's/^/    /'
+    hermes_labels="$(printf '%s\n' "$badging" | grep -c "application-label:'Hermes X'" || true)"
+    agora_labels="$(printf '%s\n' "$badging" | grep -c "application-label:'Agora'" || true)"
+    echo "    labels reading \"Hermes X\": $hermes_labels"
+    echo "    labels still reading \"Agora\": $agora_labels"
+    if [ "$hermes_labels" -lt 1 ]; then
+        echo "  label: FAIL — $(basename "$apk") does not carry the fork's product name"
+        fail=1
+    fi
+    if [ "$agora_labels" -gt 0 ]; then
+        echo "  label: FAIL — $(basename "$apk") still carries the upstream product name"
+        fail=1
+    fi
 done
 
 echo

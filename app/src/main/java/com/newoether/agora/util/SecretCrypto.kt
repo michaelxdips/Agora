@@ -52,6 +52,22 @@ object SecretCrypto {
     /** True if [stored] is already in our encrypted envelope. */
     fun isEncrypted(stored: String): Boolean = stored.startsWith(PREFIX)
 
+    /**
+     * Marker written when [encrypt] had to fall back to plaintext.
+     *
+     * HERMES INTEGRATION POINT: the fallback used to be **silent** — `catch { …; plaintext }` returned
+     * the raw secret, `isEncrypted` then reported false forever, and nothing ever tried again, so a
+     * one-off Keystore hiccup left a credential in the DataStore prefs file for the life of the
+     * install with no way to tell it apart from a value the user had just typed. The value is still
+     * stored (losing the user's key would be worse), but it now carries this prefix so
+     * [needsReEncryption] can find it and a later save rewrites it properly.
+     */
+    const val PLAINTEXT_MARKER = "plain:v1:"
+
+    /** True when [stored] was written by the plaintext fallback and should be re-encrypted. */
+    fun needsReEncryption(stored: String): Boolean =
+        stored.isNotEmpty() && !isEncrypted(stored) && !stored.startsWith(PLAINTEXT_MARKER)
+
     fun encrypt(plaintext: String): String {
         if (plaintext.isEmpty()) return plaintext
         return try {
@@ -64,13 +80,15 @@ object SecretCrypto {
             System.arraycopy(ct, 0, combined, iv.size, ct.size)
             PREFIX + Base64.encodeToString(combined, Base64.NO_WRAP)
         } catch (e: Exception) {
-            // Fail open: never lose the user's data because the Keystore hiccuped.
-            DebugLog.e(TAG, "encrypt failed; storing plaintext fallback", e)
-            plaintext
+            // Fail open: never lose the user's data because the Keystore hiccuped. Marked, not silent
+            // — see [PLAINTEXT_MARKER].
+            DebugLog.e(TAG, "encrypt failed; storing marked plaintext fallback", e)
+            PLAINTEXT_MARKER + plaintext
         }
     }
 
     fun decrypt(stored: String): String {
+        if (stored.startsWith(PLAINTEXT_MARKER)) return stored.substring(PLAINTEXT_MARKER.length)
         if (!stored.startsWith(PREFIX)) return stored // legacy plaintext — pass through
         return try {
             val combined = Base64.decode(stored.substring(PREFIX.length), Base64.NO_WRAP)

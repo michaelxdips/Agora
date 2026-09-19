@@ -23,6 +23,15 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 object HttpClient {
+    /**
+     * HERMES INTEGRATION POINT: defaults for the streaming caps. Both were `null` and no caller ever
+     * supplied a value, so every SSE read was unbounded. 1 MiB for a single wire line is far above any
+     * real provider frame (the watch client caps a whole body at 256 KiB) and still finite; 64 KiB is
+     * more than any error page this app parses, and an error body is diagnostic text, not data.
+     */
+    private const val DEFAULT_MAX_LINE_BYTES: Long = 1L * 1024 * 1024
+    private const val DEFAULT_MAX_ERROR_BYTES: Long = 64L * 1024
+
     class RequestTrace(
         private val requestId: String,
         private val origin: String,
@@ -270,8 +279,14 @@ object HttpClient {
         private val scope: com.newoether.agora.viewmodel.StreamScope?,
         private val trace: RequestTrace?,
         private val diagnosticContext: DiagnosticRequestContext?,
-        private val maxLineBytes: Long? = null,
-        private val maxErrorBytes: Long? = null,
+        // HERMES INTEGRATION POINT: these two were `null` by default and **no caller in the tree ever
+        // passed a value** (`grep -rn maxLineBytes app/src/main/java/com/newoether/agora/api/` → only
+        // this file), so every streaming read took the unbounded branch below. A provider (or a proxy,
+        // or a hostile redirect) that emits a very long line with no newline grew the heap until the
+        // process died, and an error body was read whole the same way. Bounded by default now, which is
+        // what the caps were written for; the parameters stay so a caller can still widen one.
+        private val maxLineBytes: Long? = DEFAULT_MAX_LINE_BYTES,
+        private val maxErrorBytes: Long? = DEFAULT_MAX_ERROR_BYTES,
     ) : com.newoether.agora.viewmodel.GenerationCancelHandle {
         private val response = AtomicReference<okhttp3.Response?>(null)
         private val cancelled = AtomicBoolean(false)
@@ -376,8 +391,8 @@ object HttpClient {
         headers: Map<String, String> = emptyMap(),
         scope: com.newoether.agora.viewmodel.StreamScope?,
         callClient: OkHttpClient = client,
-        maxLineBytes: Long? = null,
-        maxErrorBytes: Long? = null,
+        maxLineBytes: Long? = DEFAULT_MAX_LINE_BYTES,
+        maxErrorBytes: Long? = DEFAULT_MAX_ERROR_BYTES,
     ): StreamHandle = streamPostBody(
         url = url,
         body = jsonBody.toRequestBody(JSON),
@@ -400,6 +415,11 @@ object HttpClient {
         headers = headers,
         diagnosticBody = diagnosticBody,
         scope = boundStreamScope(),
+        // HERMES INTEGRATION POINT: forwarded explicitly. This overload is the one every provider
+        // actually calls; leaving the two caps to the parameter default meant the bounded path below
+        // was never taken.
+        maxLineBytes = DEFAULT_MAX_LINE_BYTES,
+        maxErrorBytes = DEFAULT_MAX_ERROR_BYTES,
     )
 
     fun streamPostBody(
@@ -409,8 +429,8 @@ object HttpClient {
         diagnosticBody: String? = null,
         scope: com.newoether.agora.viewmodel.StreamScope?,
         callClient: OkHttpClient = client,
-        maxLineBytes: Long? = null,
-        maxErrorBytes: Long? = null,
+        maxLineBytes: Long? = DEFAULT_MAX_LINE_BYTES,
+        maxErrorBytes: Long? = DEFAULT_MAX_ERROR_BYTES,
     ): StreamHandle {
         guardCleartextCredentials(url, headers)
         val trace = boundRequestTrace()

@@ -196,10 +196,10 @@ so this table cannot disagree with what the guard enforces.
 | `app/src/main/java/com/newoether/agora/viewmodel/GenerationRequestBuilder.kt` | 8 | 5 |
 | `app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt` | 20 | 15 |
 | `app/src/main/java/com/newoether/agora/viewmodel/ProviderRegistry.kt` | 24 | 17 |
-| `app/src/main/java/com/newoether/agora/api/DuckDuckGoScraper.kt` | 12 | 9 |
+| `app/src/main/java/com/newoether/agora/api/DuckDuckGoScraper.kt` | 24 | 17 |
 | `app/src/test/java/com/newoether/agora/ui/components/LatexRendererTest.kt` | 22 | 22 |
 | `app/src/test/java/com/newoether/agora/ui/chat/message/IncrementalStreamingMarkdownTest.kt` | 40 | 32 |
-| `app/src/test/java/com/newoether/agora/api/DuckDuckGoScraperTest.kt` | 30 | 19 |
+| `app/src/test/java/com/newoether/agora/api/DuckDuckGoScraperTest.kt` | 56 | 51 |
 | `app/src/main/java/com/newoether/agora/AgoraApplication.kt` | 12 | 9 |
 | `app/src/main/java/com/newoether/agora/api/HttpClient.kt` | 40 | 32 |
 | `app/src/main/java/com/newoether/agora/api/anthropic/AnthropicProvider.kt` | 16 | 9 |

@@ -107,6 +107,14 @@ class DuckDuckGoScraper(
      * feedback to the LLM or user.
      */
     fun search(query: String, maxResults: Int = DEFAULT_MAX_RESULTS): SearchResponse {
+        // HERMES INTEGRATION POINT (Session 4): a non-positive `maxResults` used to fall through the
+        // loop (its `allResults.size >= maxResults` check breaks on the first pass, so no page was
+        // fetched) and then reach the `allResults.isEmpty()` tail, which reported
+        // `Error(NO_RESULTS)` — "DuckDuckGo returned no results for this query" for a request that
+        // never asked for any. A caller that asked for zero results got an error string blaming the
+        // search engine. Nothing in this app reaches it today (the tool clamps to 1..10), but the
+        // public API answered a question nobody asked with a lie about the network.
+        if (maxResults <= 0) return SearchResponse.Success(emptyList())
         val allResults = mutableListOf<WebResult>()
         val seenUrls = mutableSetOf<String>()
         var offset = 0

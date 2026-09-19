@@ -355,4 +355,36 @@ class DuckDuckGoScraperTest {
             <td>&nbsp;</td>
         </tr>
     """.trimIndent()
+
+    // -- bounded input -------------------------------------------------------------
+
+    @Test
+    fun `a non-positive maxResults returns empty without touching the network`() {
+        // HERMES INTEGRATION POINT (Session 4): the audit flagged `maxResults <= 0` as an unchecked
+        // path. Verified by reading `search`: the loop is `for (page in 0 until MAX_PAGES)` and its
+        // first statement is `if (allResults.size >= maxResults) break`, so 0 and negatives break
+        // before `fetchPage` — no request, no exception. That was true but untested, and an
+        // untested bound is one refactor away from becoming a live scrape of every page. This
+        // pins it with a query that must never leave the process: `search` would throw on a real
+        // network call in a unit test environment (no Robolectric, no HTTP), so reaching the
+        // network here is itself the failure.
+        listOf(0, -1, Int.MIN_VALUE).forEach { limit ->
+            val response = scraper.search("hello world", maxResults = limit)
+            assertTrue(
+                "maxResults=$limit must return an empty success, not an error or a scrape",
+                response is DuckDuckGoScraper.SearchResponse.Success && response.results.isEmpty(),
+            )
+        }
+    }
+
+    @Test
+    fun `a blank query is refused rather than scraped`() {
+        // Same class: a blank query is not a search. Whatever the implementation decides (refuse,
+        // or an empty result), it must be a decision — not a request for the empty string.
+        val response = scraper.search("   ", maxResults = 5)
+        assertTrue(
+            "a blank query must not produce results",
+            response !is DuckDuckGoScraper.SearchResponse.Success || response.results.isEmpty(),
+        )
+    }
 }

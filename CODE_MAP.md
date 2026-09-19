@@ -23,20 +23,20 @@ Upstream ref used for the classification: `upstream/master`
 | File | Lines | Status |
 |---|---|---|
 | `wear/src/main/java/com/newoether/agora/wear/WearAnswerText.kt` | 342 | fork-only |
-| `wear/src/main/java/com/newoether/agora/wear/WearAtomicFile.kt` | 59 | fork-only |
+| `wear/src/main/java/com/newoether/agora/wear/WearAtomicFile.kt` | 94 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearBuildInfo.kt` | 30 | fork-only |
-| `wear/src/main/java/com/newoether/agora/wear/WearChatClient.kt` | 335 | fork-only |
-| `wear/src/main/java/com/newoether/agora/wear/WearConfig.kt` | 91 | fork-only |
+| `wear/src/main/java/com/newoether/agora/wear/WearChatClient.kt` | 342 | fork-only |
+| `wear/src/main/java/com/newoether/agora/wear/WearConfig.kt` | 112 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearCoreContext.kt` | 111 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearCrypto.kt` | 102 | fork-only |
-| `wear/src/main/java/com/newoether/agora/wear/WearListeners.kt` | 209 | fork-only |
+| `wear/src/main/java/com/newoether/agora/wear/WearListeners.kt` | 216 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearMainActivity.kt` | 756 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearMemoryRules.kt` | 54 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearOfflineQueue.kt` | 183 | fork-only |
-| `wear/src/main/java/com/newoether/agora/wear/WearPairing.kt` | 380 | fork-only |
+| `wear/src/main/java/com/newoether/agora/wear/WearPairing.kt` | 415 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearQueueDrainer.kt` | 197 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearSendCoordinator.kt` | 66 | fork-only |
-| `wear/src/main/java/com/newoether/agora/wear/WearSetupScreen.kt` | 335 | fork-only |
+| `wear/src/main/java/com/newoether/agora/wear/WearSetupScreen.kt` | 350 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearSignals.kt` | 38 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearTheme.kt` | 46 | fork-only |
 
@@ -48,9 +48,9 @@ Upstream ref used for the classification: `upstream/master`
 | `wear/src/test/java/com/newoether/agora/wear/WearAnswerTextCoverageTest.kt` | 112 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearAnswerTextTest.kt` | 108 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearAtomicFileTest.kt` | 129 | fork-only |
-| `wear/src/test/java/com/newoether/agora/wear/WearChatClientTest.kt` | 427 | fork-only |
+| `wear/src/test/java/com/newoether/agora/wear/WearChatClientTest.kt` | 450 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearCoreContextTest.kt` | 123 | fork-only |
-| `wear/src/test/java/com/newoether/agora/wear/WearFieldSurvivalSourceContractTest.kt` | 127 | fork-only |
+| `wear/src/test/java/com/newoether/agora/wear/WearFieldSurvivalSourceContractTest.kt` | 139 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearFontCoverage.kt` | 77 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearFontCoverageTest.kt` | 100 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearMainThreadSentinelTest.kt` | 100 | fork-only |
@@ -60,6 +60,7 @@ Upstream ref used for the classification: `upstream/master`
 | `wear/src/test/java/com/newoether/agora/wear/WearQueueDrainerTest.kt` | 379 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearSendCoordinatorTest.kt` | 122 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearSendNowContractTest.kt` | 109 | fork-only |
+| `wear/src/test/java/com/newoether/agora/wear/WearSession5FixTest.kt` | 206 | fork-only |
 
 ### wear/ — instrumented tests
 

@@ -52,7 +52,14 @@ class ConfigListenerService : WearableListenerService() {
                 WearLog.w("config rejected: incomplete or non-HTTPS base URL")
                 return@forEach
             }
-            store.write(config)
+            // HERMES INTEGRATION POINT (Session 4): the write's result used to be discarded, so a
+            // failed write (ENOSPC, fsync error) still deleted the item below — the only other copy
+            // of the credential — and reported Connected. Leaving the item on failure lets the next
+            // push retry, and the phone keeps the key until the watch says it landed.
+            if (!store.write(config)) {
+                WearLog.w("config write failed; leaving the item for the next push")
+                return@forEach
+            }
             // Consume the item: the key now lives only in the encrypted app-private store, not in the
             // Data Layer's replicated store where it would otherwise sit indefinitely.
             deleteConsumed(event.dataItem.uri)

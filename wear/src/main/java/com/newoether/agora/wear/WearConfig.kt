@@ -26,9 +26,21 @@ data class WearConfig(
     val model: String,
     val updatedAt: Long = 0L,
 ) {
-    fun isValid(): Boolean =
-        baseUrl.isNotBlank() && apiKey.isNotBlank() && model.isNotBlank() &&
-            (baseUrl.startsWith("https://") || isLocalDevBaseUrl(baseUrl))
+    fun isValid(): Boolean {
+        // HERMES INTEGRATION POINT (Session 4): this used to be
+        // `baseUrl.startsWith("https://") || isLocalDevBaseUrl(baseUrl)`, which accepted
+        // `"https://"` — no host at all — and any unparseable string with that prefix. Such a config
+        // passed validation, was stored, and then failed at send time as `NOT_CONFIGURED`, which is
+        // **non-retryable**: the question went to the dead letter. It also rejected a valid
+        // `HTTPS://…` (case-sensitive prefix) and, with no trim, rejected `" https://…"` although
+        // `WearChatClient` trims before use. The host is now parsed and required, the scheme compared
+        // case-insensitively, and the value trimmed — matching what the client actually accepts.
+        val url = baseUrl.trim()
+        if (apiKey.isBlank() || model.isBlank()) return false
+        val host = runCatching { java.net.URI(url).host }.getOrNull()
+        if (host.isNullOrBlank()) return false
+        return url.startsWith("https://", ignoreCase = true) || isLocalDevBaseUrl(url)
+    }
 
     /**
      * The localhost escape hatch, for a dev-side model server (Ollama, LM Studio, llama.cpp).
@@ -46,7 +58,7 @@ data class WearConfig(
      */
     private fun isLocalDevBaseUrl(url: String): Boolean {
         val host = runCatching { java.net.URI(url).host }.getOrNull()?.lowercase() ?: return false
-        return url.startsWith("http://") && host in LOCAL_DEV_HOSTS
+        return url.startsWith("http://", ignoreCase = true) && host in LOCAL_DEV_HOSTS
     }
 
     companion object {
@@ -78,11 +90,20 @@ class WearConfigStore(private val context: Context) {
         return runCatching { WearCrypto.json.decodeFromString<WearConfig>(plain) }.getOrNull()
     }
 
-    fun write(config: WearConfig) {
+    /**
+     * Writes the config, returning whether it landed.
+     *
+     * HERMES INTEGRATION POINT (Session 4): this returned `Unit`, so `ConfigListenerService` could
+     * not tell a successful write from a failed one — and it deleted the Data Layer item (the only
+     * other copy of the credential) either way. On a watch out of space, the phone's push was
+     * consumed and the key existed nowhere. The boolean is what lets the caller leave the item in
+     * place so the next push retries.
+     */
+    fun write(config: WearConfig): Boolean {
         val plain = WearCrypto.json.encodeToString(WearConfig.serializer(), config)
         // Atomic: a config file that is half-written fails to decrypt, and the user is dropped back
         // on the setup screen with their key apparently gone. See WearAtomicFile.
-        WearAtomicFile.write(file, WearCrypto.encrypt(context, plain))
+        return WearAtomicFile.write(file, WearCrypto.encrypt(context, plain))
     }
 
     companion object {

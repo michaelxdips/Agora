@@ -1,5 +1,6 @@
 package com.newoether.agora.wear
 
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -64,17 +65,28 @@ class WearFieldSurvivalSourceContractTest {
         val saveableFields = Regex("var \\w+ by rememberSaveable").findAll(setupScreen).count()
         assertTrue(
             "the setup screen's fields must survive a wrist-down (found $saveableFields saveable fields)",
-            saveableFields >= 3,
+            saveableFields >= 2,
         )
-        // The user-typed fields specifically. A transient status line may use plain `remember` — it
-        // is recomputed on the next action and losing it costs nothing — but the three fields the
-        // user typed, and the masked key they cannot retype, must be saveable.
-        listOf("baseUrl", "apiKey", "model").forEach { field ->
+        // The non-secret fields specifically: losing a typed base URL or model to a rotation costs
+        // the user a re-type on a 384 px keyboard.
+        listOf("baseUrl", "model").forEach { field ->
             assertTrue(
                 "`$field` must be rememberSaveable, not plain remember",
                 Regex("var $field by rememberSaveable").containsMatchIn(setupScreen),
             )
         }
+        // The API key is the opposite decision (Session 4): `rememberSaveable` writes the value into
+        // the Activity's saved-instance-state Bundle, which the system may persist — a plaintext
+        // credential outside the encrypted store this screen's own KDoc points at. It must be plain
+        // `remember`, and the screen re-seeds it from the encrypted store instead.
+        assertTrue(
+            "the API key must NOT be rememberSaveable — that leaks it into the saved-state Bundle",
+            Regex("var apiKey by remember \\{ mutableStateOf").containsMatchIn(setupScreen),
+        )
+        assertFalse(
+            "the API key must not be written to saved instance state",
+            Regex("var apiKey by rememberSaveable").containsMatchIn(setupScreen),
+        )
     }
 
     @Test

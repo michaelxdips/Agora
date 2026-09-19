@@ -30,29 +30,64 @@ import java.io.File
 internal object WearAtomicFile {
 
     /**
+     * One lock per destination path, so two writers of the same target cannot interleave their
+     * temp-rename sequence.
+     *
+     * A unique temp name alone was not enough. The `renameTo` fallback below has to `delete()` the
+     * destination before renaming — that pair is not atomic, and on a filesystem where `renameTo`
+     * refuses to replace an existing name (the very reason the fallback exists) two writers could
+     * delete each other's just-renamed file. The lock is what makes the pair safe; it is keyed by
+     * absolute path so writes to *different* files still run in parallel.
+     */
+    private val locks = java.util.concurrent.ConcurrentHashMap<String, Any>()
+
+    private fun lockFor(target: File): Any =
+        locks.computeIfAbsent(target.absolutePath) { Any() }
+
+    /**
      * Replaces [target] with [bytes], durably.
      *
      * @return true when the destination now holds [bytes].
      */
-    fun write(target: File, bytes: ByteArray): Boolean = runCatching {
-        target.parentFile?.mkdirs()
-        val temp = File(target.parentFile, "${target.name}.tmp")
-        java.io.FileOutputStream(temp).use { out ->
-            out.write(bytes)
-            out.flush()
-            out.fd.sync()
+    fun write(target: File, bytes: ByteArray): Boolean = synchronized(lockFor(target)) {
+        var temp: File? = null
+        return runCatching {
+            target.parentFile?.mkdirs()
+            // HERMES INTEGRATION POINT (Session 4): a fixed `"${target.name}.tmp"` name was shared by
+            // every writer of the same target — `ConfigListenerService` racing the setup screen's
+            // Save, or two `WearOfflineQueue` instances after a wrist-down recreates the composition.
+            // The loser of that race had its temp renamed away underneath it, so its `copyTo` threw
+            // `FileNotFoundException` and the write reported `false` with nothing on screen. A unique
+            // temp per call removes the race; the `finally` removes the leak.
+            temp = File.createTempFile(target.name, ".tmp", target.parentFile)
+            java.io.FileOutputStream(temp).use { out ->
+                out.write(bytes)
+                out.flush()
+                out.fd.sync()
+            }
+            if (temp.renameTo(target)) return true
+            // A rename can fail on a filesystem that refuses to replace an existing name. The copy is
+            // the fallback, and it is the *only* case where the destination is written in place: the
+            // temp file already holds the fsynced bytes, so the window is as small as this filesystem
+            // allows rather than "we never tried to be atomic".
+            //
+            // HERMES INTEGRATION POINT: `temp.copyTo(target, overwrite = true)` truncated the
+            // destination and copied into it, so a kill mid-copy left a *short* config — which fails
+            // to decrypt and reads as "my key is gone", the exact failure this helper exists to
+            // prevent. The fallback now deletes first and renames, so the destination is either the
+            // old file or the complete new one.
+            target.delete()
+            if (temp.renameTo(target)) return true
+            temp.copyTo(target, overwrite = true)
+            true
+        }.getOrElse { error ->
+            WearLog.w("atomic write failed for ${target.name}: ${error.javaClass.simpleName}")
+            false
+        }.also {
+            // Always: a leftover temp is a file the next write has to work around, and on a watch
+            // every stray byte is worth reclaiming.
+            runCatching { temp?.delete() }
         }
-        if (temp.renameTo(target)) return@runCatching true
-        // A rename can fail on a filesystem that refuses to replace an existing name. The copy is
-        // the fallback, and it is the *only* case where the destination is written in place: the
-        // temp file already holds the fsynced bytes, so the window is as small as this filesystem
-        // allows rather than "we never tried to be atomic".
-        temp.copyTo(target, overwrite = true)
-        temp.delete()
-        true
-    }.getOrElse { error ->
-        WearLog.w("atomic write failed for ${target.name}: ${error.javaClass.simpleName}")
-        false
     }
 
     fun write(target: File, text: String): Boolean = write(target, text.toByteArray(Charsets.UTF_8))

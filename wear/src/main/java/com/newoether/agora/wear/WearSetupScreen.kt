@@ -86,14 +86,29 @@ fun WearSetupScreen(
     // (the keystore read has not finished on the first composition), so an unkeyed `remember` used to
     // capture that null and leave the fields empty forever; a `remember(existing)` would instead wipe
     // anything the user had already typed each time the load completes.
+    //
+    // HERMES INTEGRATION POINT (Session 4): the API key is deliberately **not** `rememberSaveable`.
+    // That mechanism writes the value into the Activity's saved-instance-state Bundle, which the
+    // system may persist to disk — a plaintext copy of the credential outside the encrypted store
+    // this screen's own KDoc points at ("the key lives only in the encrypted app-private store").
+    // A base URL and a model name are not secrets and stay saveable; the key survives a wrist-down
+    // by being re-read from the encrypted store, which is what `existing` already provides.
     var baseUrl by rememberSaveable { mutableStateOf("") }
-    var apiKey by rememberSaveable { mutableStateOf("") }
+    var apiKey by remember { mutableStateOf("") }
     var model by rememberSaveable { mutableStateOf("") }
     var seeded by rememberSaveable { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
     LaunchedEffect(existing) {
         val loaded = existing ?: return@LaunchedEffect
         if (seeded) return@LaunchedEffect
+        // HERMES INTEGRATION POINT: `seeded` only covered the *already seeded* case, so a keystore
+        // read that finished after the user had started typing (`existing` flipping null → value)
+        // still overwrote all three fields. Bailing on any non-empty field means a load that lands
+        // late can never discard in-progress input; a genuinely empty form still gets seeded.
+        if (baseUrl.isNotEmpty() || apiKey.isNotEmpty() || model.isNotEmpty()) {
+            seeded = true
+            return@LaunchedEffect
+        }
         baseUrl = loaded.baseUrl
         apiKey = loaded.apiKey
         model = loaded.model

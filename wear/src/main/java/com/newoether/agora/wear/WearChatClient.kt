@@ -108,14 +108,21 @@ class WearChatClient(private val config: WearConfig) {
             ?: return Result.failure(
                 WearChatException("bad base URL", WearChatException.Kind.NOT_CONFIGURED)
             )
-        val request = Request.Builder()
-            .url(endpoint)
-            .addHeader("Authorization", "Bearer ${config.apiKey}")
-            .addHeader("Content-Type", "application/json")
-            .post(body.toString().toRequestBody(JSON_MEDIA_TYPE))
-            .build()
 
         return try {
+            // HERMES INTEGRATION POINT (Session 4): the builder used to sit *above* this `try`, and
+            // OkHttp's `addHeader`/`build` throw `IllegalArgumentException` for control characters
+            // (≤0x1f except tab) and for values ≥0x7f. A key the phone pushed with a trailing
+            // newline — `isBlank()` passes, `isValid()` passes, `WatchSync.pushConfig` sends it
+            // verbatim — therefore crashed the watch on the next send, breaking this function's own
+            // contract ("never throws"). Building inside the try turns it into a typed failure, and
+            // the key is trimmed of the whitespace that caused it.
+            val request = Request.Builder()
+                .url(endpoint)
+                .addHeader("Authorization", "Bearer ${config.apiKey.trim()}")
+                .addHeader("Content-Type", "application/json")
+                .post(body.toString().toRequestBody(JSON_MEDIA_TYPE))
+                .build()
             http.newCall(request).execute().use { response ->
                 // Status first, body second. The previous order read (and buffered) the whole body
                 // before looking at the code, so a 401 page with a large HTML body was read into

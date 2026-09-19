@@ -18,8 +18,8 @@ the repo **as it was when that phase closed** and may legitimately contradict th
 | Versions | `3.0.4-hermesx` / `versionCode` 35, both modules | `app/build.gradle.kts`, `wear/build.gradle.kts` |
 | Releases | `v3.0.4` (latest), `v3.0.3`, `v3.0.2`, `v3.0.1` (pre-release) | `gh release list -R michaelxdips/Agora` |
 | App unit tests | **2658 tests, 0 failures, 0 errors, 3 skipped** (406 XML files) | `./gradlew :app:testFdroidDebugUnitTest` |
-| Wear unit tests | **149 tests, 0 failures, 0 errors** (14 XML files) | `./gradlew :wear:testDebugUnitTest` |
-| Play flavor tests | 2631 tests, 0 failures, 0 errors, 3 skipped | `:app:testPlayDebugUnitTest` |
+| Wear unit tests | **159 tests, 0 failures, 0 errors** (15 XML files) | `./gradlew :wear:testDebugUnitTest` |
+| Play flavor tests | 2641 tests, 0 failures, 0 errors, 3 skipped | `:app:testPlayDebugUnitTest` |
 | Kotlin size gate | 1055 files, maximum 800 lines, 0 baseline entries | `verifyKotlinFileSize` |
 | Upstream position | `main` is **113 ahead** of the fork point `914e7c8d`; upstream is **0 ahead** | `git rev-list --left-right --count upstream/master...main` |
 | Release certificate | `7188ce70…aa56d7` on **both** published APKs | `bash scripts/verify_release_provenance.sh v3.0.4` → **PASS, all four claims** |
@@ -46,6 +46,30 @@ that only a real device run surfaces; fixed and re-run green. The phone→watch 
 itself remains unproven end to end (`Accounts: 0` on both emulators; both apps installed and launched,
 `adb devices` non-empty), and is still recorded as HS4 rather than implied by the contract test that
 now guards the wire format.
+
+### Session 5 — 2026-09-19 (wear audit: 10 verified findings, 9 fixed, 1 disproved)
+
+A read-only audit of `wear/src/main/java/` produced ten findings; each was verified in the source
+before any change, and one was **disproved** by reading the Play Services bytecode rather than being
+"fixed".
+
+| # | Finding (verified at `file:line`) | Verdict |
+|---|---|---|
+| 1 | `WearListeners.kt:59` deleted the credential item even when `WearConfigStore.write` failed — on a full disk the key then existed nowhere | **FIXED**: `write` returns `Boolean`; the item stays for the next push |
+| 2 | `WearChatClient.kt:111` built the request *outside* the `try`; a key with a newline (which `isBlank()`/`isValid()` accept) made OkHttp throw and broke the "never throws" contract | **FIXED**: build inside the `try`, key trimmed |
+| 3 | `WearAtomicFile.kt:39` used a fixed temp name — concurrent writers raced, the loser's `copyTo` threw and the write reported `false` silently | **FIXED**: unique temp + per-path lock; mutation-proved (test red 2/3 without the lock, green 5/5 with it) |
+| 4 | `WearAtomicFile.kt:45` copy fallback truncated the destination in place and leaked the temp on throw | **FIXED**: delete-then-rename fallback, `finally` cleanup |
+| 5 | `WearSetupScreen.kt:94` late seed overwrote in-progress typing when the keystore read finished after the first keystroke | **FIXED**: seed bails when any field is non-empty |
+| 6 | `WearSetupScreen.kt:89` kept the API key in `rememberSaveable`, i.e. plaintext in the saved-instance-state Bundle | **FIXED**: key is plain `remember`, re-seeded from the encrypted store |
+| 7 | `WearConfig.kt:29` `isValid()` accepted `"https://"` (no host) and rejected `HTTPS://…` / `" https://…"` | **FIXED**: host parsed and required, scheme case-insensitive, value trimmed |
+| 8 | `WearPairing.kt:255` clearing the ack slot with `.value = null` could destroy a live answer that arrived between read and clear | **FIXED**: `compareAndSet` |
+| 9 | `WearPairing.kt:199` `FILTER_REACHABLE` conflated "app not installed" with "phone out of range" | **FIXED**: second `FILTER_ALL` query; new `PHONE_UNREACHABLE` state with its own sentence |
+| 10 | Claim: `onDataChanged` runs on the main thread, so the blocking delete causes ANR | **DISPROVED** — `WearableListenerService` (19.0.0) creates its own `HandlerThread` and posts callbacks to it (`zzs.post`), verified in the bytecode; no change made |
+
+Tests: `WearSession5FixTest` (9 tests, new) plus updates to `WearChatClientTest`,
+`WearFieldSurvivalSourceContractTest`. Wear suite **149 → 159, 0 failures**; full suite
+`2658 / 2641 / 159`. The `#3` race test is honest about being probabilistic: it fails 2 of 3 runs
+against the mutated (unlocked) code and passes 5 of 5 against the fixed code.
 
 ### Session 4 — 2026-09-19 (R8 gate, instrumented suites executed, self-update channel, audit sweep)
 
@@ -107,7 +131,7 @@ registered (#5 `MainActivity`, #17 `AgoraApplication`) and one manifest receiver
 | dex keep assertions | **13/13 KEPT** (the list above, checked by `grep` over `classes*.dex`) |
 | Install on `emulator-5554` + launch | process alive, crash buffer empty, `topResumedActivity=com.hermes.app/...MainActivity` |
 | Worker smoke in the minified APK | `WM-WorkerWrapper: Starting work for …UpdateCheckWorker` → `Worker result SUCCESS`; same for `AutoBackupWorker` and `MemorySnapshotPushWorker` |
-| Full unit suite (fdroid + play + wear) | `2658 / 2631 / 149 tests, 0 failures, 0 errors` → `audit_test_counts.py` exit 0 |
+| Full unit suite (fdroid + play + wear) | `2658 / 2641 / 159 tests, 0 failures, 0 errors` → `audit_test_counts.py` exit 0 |
 
 **Audit sweep (10 read-only subagents + 2 re-dispatches)**
 

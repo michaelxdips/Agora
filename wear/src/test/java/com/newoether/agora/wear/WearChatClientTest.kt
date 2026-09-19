@@ -84,9 +84,12 @@ class WearChatClientTest {
         }
     }
 
-    private fun config(base: String = "http://127.0.0.1:0/v1") = WearConfig(
+    private fun config(
+        base: String = "http://127.0.0.1:0/v1",
+        apiKey: String = "sk-test-not-a-real-key",
+    ) = WearConfig(
         baseUrl = base,
-        apiKey = "sk-test-not-a-real-key",
+        apiKey = apiKey,
         model = "test-model",
     )
 
@@ -131,17 +134,37 @@ class WearChatClientTest {
 
     @Test
     fun aMalformedBaseUrlIsAFailureRatherThanAnException() {
-        // `Request.Builder.url` throws on a URL it cannot parse. `ask`'s contract is "never throws", so
-        // the parse has to happen before the builder is handed the string. `https://…` passes
-        // `WearConfig.isValid()` (which only checks the scheme), so this reaches the URL builder.
+        // `Request.Builder.url` throws on a URL it cannot parse. `ask`'s contract is "never throws",
+        // so the parse has to happen before the builder is handed the string.
+        //
+        // HERMES INTEGRATION POINT (Session 4): this used to assert the `"bad base URL"` message,
+        // because `WearConfig.isValid()` checked only the scheme and let `https://not a host/v1`
+        // through to the URL builder. `isValid()` now parses the host, so a URL with no parseable
+        // host is refused earlier and reported as `"not configured"` — the same outcome, one layer
+        // up, and the check that decides it is the one whose message the user sees. The assertion
+        // was updated to the contract as it now is; the *point* of the test (a typed failure, never
+        // a thrown exception) is unchanged.
         val result = WearChatClient(config("https://not a host/v1")).ask("q", "")
 
         assertTrue(result.isFailure)
-        assertEquals("bad base URL", result.exceptionOrNull()?.message)
+        assertEquals("not configured", result.exceptionOrNull()?.message)
         assertEquals(
             WearChatException.Kind.NOT_CONFIGURED,
             (result.exceptionOrNull() as WearChatException).kind,
         )
+    }
+
+    @Test
+    fun aBadApiKeyIsAFailureRatherThanAnException() {
+        // The other half of the "never throws" contract (Session 4): OkHttp's `addHeader` rejects
+        // control characters and non-ASCII, so a key pushed with a trailing newline — which passes
+        // `isBlank()` and `isValid()` — used to crash the watch when the builder sat outside the
+        // try. It must now come back as a typed failure.
+        val result = WearChatClient(config("https://api.example.com/v1", apiKey = "sk-test\n"))
+            .ask("q", "")
+
+        assertTrue("a key OkHttp cannot encode must not throw", result.isFailure)
+        assertTrue(result.exceptionOrNull() is WearChatException)
     }
 
     @Test

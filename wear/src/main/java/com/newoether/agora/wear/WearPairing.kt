@@ -21,6 +21,13 @@ enum class PairingSend {
     /** No node to send to: no phone app paired with this watch. */
     NO_PHONE,
 
+    /**
+     * The phone app is installed on a paired device, but no node is reachable right now (out of
+     * range, phone asleep, Bluetooth off). Distinct from [NO_PHONE] because the instruction differs:
+     * "move closer and try again" is actionable, "install the app" is wrong and confusing.
+     */
+    PHONE_UNREACHABLE,
+
     /** A node existed but every send failed (Data Layer refused, transport error). */
     FAILED,
 }
@@ -34,6 +41,9 @@ enum class PairingStatus(val message: String) {
     Idle("Not paired yet"),
     Sending("Asking the phone…"),
     NoPhone("No phone app found. Install it and open it once, or use a key on the watch."),
+    // Distinct sentence from `NoPhone` (Session 4): "install the app" is wrong advice when the app
+    // is already installed on a paired phone that is simply out of range or asleep.
+    PhoneUnreachable("Your phone is paired but not reachable. Move closer and try again."),
     SendFailed("Could not reach the phone. Try again."),
     Sent("Request sent. Waiting for the phone to answer…"),
     TimedOut("The phone did not answer. Open the phone app on Watch setup and press Send to watch."),
@@ -208,6 +218,25 @@ class WearPairingTransport(private val context: Context) : PairingTransport {
             return@withContext PairingSend.FAILED
         }
         if (nodes.isEmpty()) {
+            // HERMES INTEGRATION POINT (Session 4): `FILTER_REACHABLE` alone conflates "the phone
+            // app is not installed" with "the phone is out of range / asleep", and the UI told the
+            // user to install an app that may already be there. A second, unfiltered query
+            // distinguishes them so the sentence can be right: the capability exists but no node is
+            // reachable → "move closer", not "install it".
+            val known = try {
+                Wearable.getCapabilityClient(context)
+                    .getCapability(PHONE_CAPABILITY, CapabilityClient.FILTER_ALL)
+                    .await()
+                    .nodes
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                emptySet()
+            }
+            if (known.isNotEmpty()) {
+                WearLog.w("pairing: $PHONE_CAPABILITY exists but no node is reachable")
+                return@withContext PairingSend.PHONE_UNREACHABLE
+            }
             // Logged because the honest "no phone" outcome is otherwise invisible on the device: the
             // UI shows it, but a log line is what a future investigation reads first.
             WearLog.w("pairing: no node advertises $PHONE_CAPABILITY")
@@ -258,7 +287,12 @@ class WearPairingTransport(private val context: Context) : PairingTransport {
             // Not ours: clear it and keep waiting. Logged because a stale answer means the phone is
             // slower than the user's retry, which is worth knowing when a report says "timed out".
             WearLog.w("pairing: discarding an ack for ${next.requestId.ifBlank { "an older protocol" }}")
-            WearSignals.pairingAck.value = null
+            // HERMES INTEGRATION POINT (Session 4): a plain `.value = null` destroyed an ack that
+            // arrived between the read above and this write — `PairingAckListenerService` publishes
+            // from another thread, so an answer to *this* request could be discarded and the request
+            // reported `StaleAck`/`TimedOut` although the phone had answered. `compareAndSet` only
+            // clears the slot if it still holds the ack we decided to discard.
+            WearSignals.pairingAck.compareAndSet(next, null)
         }
     }
 
@@ -337,6 +371,7 @@ object WearPairing {
             val sent = transport.sendRequest(requestPayload(requestId))
             val afterSend = when (sent) {
                 PairingSend.NO_PHONE -> PairingStatus.NoPhone
+                PairingSend.PHONE_UNREACHABLE -> PairingStatus.PhoneUnreachable
                 PairingSend.FAILED -> PairingStatus.SendFailed
                 PairingSend.SENT -> PairingStatus.Sent
             }

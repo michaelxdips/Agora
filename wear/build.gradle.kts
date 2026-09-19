@@ -29,8 +29,8 @@ android {
         applicationId = "com.hermes.app"
         minSdk = 30
         targetSdk = 36
-        versionCode = 34
-        versionName = "3.0.3-hermesx"
+        versionCode = 35
+        versionName = "3.0.4-hermesx"
         // HERMES INTEGRATION POINT: the instrumented source set. Before this there was no
         // `wear/src/androidTest` at all, so the module's platform-facing claims (keystore round-trip,
         // listener services resolvable from the manifest, R8 keeping the entry points) were asserted by

@@ -31,8 +31,8 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         minSdk = 26
         targetSdk = 36
-        versionCode = 34
-        versionName = "3.0.3-hermesx"
+        versionCode = 35
+        versionName = "3.0.4-hermesx"
 
 
         ndk {

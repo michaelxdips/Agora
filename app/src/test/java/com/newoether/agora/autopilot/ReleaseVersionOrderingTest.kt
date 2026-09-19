@@ -65,4 +65,17 @@ class ReleaseVersionOrderingTest {
         assertFalse("3.0.3-hermesx must not be offered v3.0.3", UpdateChecker.isNewer("v3.0.3", "3.0.3-hermesx"))
         assertFalse(UpdateChecker.isNewer("v3.0.3", "3.0.3"))
     }
+
+    @Test
+    fun `the v3_0_4 release is offered to every earlier install and to none of its own`() {
+        // Same two directions for the next release, so a version bump that forgets the ordering rule
+        // fails here rather than on a user's device. The bump is not only a number: `isNewer` strips
+        // the build's own suffix, so `3.0.4-hermesx` must not be offered `v3.0.4`.
+        assertTrue("v3.0.4 must be offered to a 3.0.3-hermesx install", UpdateChecker.isNewer("v3.0.4", "3.0.3-hermesx"))
+        assertTrue(UpdateChecker.isNewer("v3.0.4", "3.0.0-hermesx"))
+        assertTrue(UpdateChecker.isNewer("v3.0.4", "3.0.3"))
+        assertFalse("3.0.4-hermesx must not be offered v3.0.4", UpdateChecker.isNewer("v3.0.4", "3.0.4-hermesx"))
+        assertFalse(UpdateChecker.isNewer("v3.0.4", "3.0.4"))
+        assertFalse("a released version must not be offered to a newer install", UpdateChecker.isNewer("v3.0.4", "3.0.5-hermesx"))
+    }
 }

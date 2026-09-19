@@ -111,13 +111,13 @@ Upstream ref used for the classification: `upstream/master`
 | `app/src/main/java/com/newoether/agora/autopilot/wearsync/CoreContextDerivation.kt` | 99 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/wearsync/MemoryPushScheduler.kt` | 52 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/wearsync/MemoryPushStartup.kt` | 94 | fork-only |
-| `app/src/main/java/com/newoether/agora/autopilot/wearsync/MemorySnapshotPushWorker.kt` | 105 | fork-only |
-| `app/src/main/java/com/newoether/agora/autopilot/wearsync/MemorySnapshotPusher.kt` | 67 | fork-only |
-| `app/src/main/java/com/newoether/agora/autopilot/wearsync/PairingListenerService.kt` | 165 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/wearsync/MemorySnapshotPushWorker.kt` | 109 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/wearsync/MemorySnapshotPusher.kt` | 70 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/wearsync/PairingListenerService.kt` | 167 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/wearsync/PairingRequest.kt` | 97 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/wearsync/PushReason.kt` | 59 | fork-only |
-| `app/src/main/java/com/newoether/agora/autopilot/wearsync/SettingsWatchSetupPage.kt` | 145 | fork-only |
-| `app/src/main/java/com/newoether/agora/autopilot/wearsync/WatchSync.kt` | 197 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/wearsync/SettingsWatchSetupPage.kt` | 153 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/wearsync/WatchSync.kt` | 215 | fork-only |
 
 ### app/.../autopilot/ — unit tests
 
@@ -160,16 +160,16 @@ Upstream ref used for the classification: `upstream/master`
 
 | File | Lines | Status |
 |---|---|---|
-| `scripts/audit_gate0.sh` | 205 | fork-only |
-| `scripts/audit_test_counts.py` | 36 | fork-only |
+| `scripts/audit_gate0.sh` | 246 | fork-only |
+| `scripts/audit_test_counts.py` | 98 | fork-only |
 | `scripts/gen_code_map.sh` | 134 | fork-only |
 | `scripts/native-tests/NativeUtf8Probe.java` | 46 | upstream (budgeted) |
 | `scripts/native-tests/native_utf8_probe.cpp` | 23 | upstream (budgeted) |
 | `scripts/persona_update.sh` | 141 | fork-only |
 | `scripts/round_icon.py` | 39 | upstream (budgeted) |
 | `scripts/test-native-utf8.py` | 76 | upstream (budgeted) |
-| `scripts/touchpoint_guard.sh` | 173 | fork-only |
-| `scripts/upstream_sync.sh` | 186 | fork-only |
+| `scripts/touchpoint_guard.sh` | 203 | fork-only |
+| `scripts/upstream_sync.sh` | 238 | fork-only |
 | `scripts/verify_release_provenance.sh` | 181 | fork-only |
 
 ### Upstream files this fork edits
@@ -182,7 +182,7 @@ so this table cannot disagree with what the guard enforces.
 | `app/build.gradle.kts` | 68 | 65 |
 | `settings.gradle.kts` | 4 | 3 |
 | `gradle/libs.versions.toml` | 10 | 6 |
-| `.github/workflows/build.yml` | 140 | 139 |
+| `.github/workflows/build.yml` | 160 | 152 |
 | `.github/workflows/mkdocs.yml` | 4 | 4 |
 | `mkdocs.yml` | 16 | 12 |
 | `fastlane/metadata/android/en-US/changelogs/32.txt` | 8 | 4 |
@@ -190,6 +190,7 @@ so this table cannot disagree with what the guard enforces.
 | `fastlane/metadata/android/en-US/changelogs/34.txt` | 8 | 4 |
 | `fastlane/metadata/android/en-US/changelogs/35.txt` | 8 | 4 |
 | `.gitignore` | 24 | 24 |
+| `README.md` | 400 | 395 |
 | `app/src/main/AndroidManifest.xml` | 24 | 19 |
 | `app/src/fdroid/AndroidManifest.xml` | 16 | 7 |
 | `app/src/main/res/values/strings.xml` | 4 | 0 |

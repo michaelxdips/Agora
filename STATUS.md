@@ -144,6 +144,72 @@ mutation-proved: reverting `enqueue`'s null-on-failure and the drainer's commit 
 test red (verified by running both mutations and restoring). Counts: **fdroid 2658 → 2665, wear
 159 → 168, play 2641 → 2648**; `audit_test_counts.py` exit 0.
 
+**Session 5, third pass — the F-findings from the CI/guard audit, the N10 detector fix, and the
+app-side bug hunt.** A read-only audit of `build.yml` + the guard/scripts layer produced the F-list
+below; each finding was verified in the source (or in a throwaway clone) before any change, and
+every gate claim was re-run on this tree. The app-side bug hunt was re-dispatched (the first batch,
+`deleg_a92d36f1`, never returned) and its findings are recorded in the same table.
+
+| # | Finding (verified) | Verdict |
+|---|---|---|
+| F1 | `audit_gate0.sh` hardcoded `build-tools/36.0.0` and no workflow invoked it — the pinned fork identity, the phone's `lintVitalFdroidRelease` and the launcher-label checks ran nowhere automatic | **FIXED**: `--ci` mode (artifact sections only) + build-tools discovery; wired into `build.yml` as the `Gate 0 artifact checks` step after the APK verification. Budget raise: build.yml 140 → 160 (touchpoint #28) |
+| F2 | `verify_release_provenance.sh` matched claim 4 on `test|unit`, which the *build* job's name satisfied — a commit whose test job never ran could pass claim 4. And nothing invoked the script in CI at all | **FIXED (both halves)**: claim 4 is anchored on the `Unit tests` job name (mutation-checked: `build=success` no longer matches, `Unit tests=success` does); a new `workflow_dispatch` workflow `.github/workflows/release-provenance.yml` runs the script against a named tag. Claims 3/4 also now check the commit the provenance note names — **only when its tree is byte-identical to the tag's** (verified on v3.0.4: the note names `4f816a56`, its tree differs — three redacted docs — so it is correctly ignored) |
+| F4 | `audit_test_counts.py` counted but never compared against the numbers STATUS.md documents — a suite shrinking 99% passed the step named "Test counts match the documented numbers" | **FIXED**: the STATUS.md table is parsed and compared per suite; a missing row is a FAIL, not a skip. **Mutation-proved**: `2665 → 999` in STATUS.md → `FAIL fdroid: 26 tests ran but STATUS.md documents 999`, exit 1; restored → exit 0 |
+| F5 | The guard's root-`*.md` class match let `README.md` (which **exists upstream**, 392 changed lines) be rewritten with no registration — the identical edit to a Kotlin file failed loudly | **FIXED**: the class is narrowed to paths upstream does not own; a modified file that exists upstream now requires registration regardless of class. **Mutation-proved twice**: removing the registry line → `FAIL upstream file modified without registration: README.md`; removing the marker → `FAIL README.md is registered but has no 'HERMES INTEGRATION POINT' marker.`; both restored → PASS. README.md registered as touchpoint #30 (budget 400) |
+| F8 | `upstream_sync.sh` had no `chmod +x ./gradlew`, so on a fresh Linux/macOS checkout the post-merge gate died with exit 126 and aborted a merge that was fine | **FIXED**: same one-line compensation `build.yml` already carries (committed in `eb805690`) |
+| F10 | The N10 contract detector (`upstream_sync.sh` gate 4) computed `git merge-base "$TARGET" HEAD` **after** `merge --no-ff` — so the base was `$TARGET` itself and the diff was `diff($TARGET,$TARGET)` = empty on every sync. Proved on the real merge `9dab99d5`: `merge-base(upstream/master, 9dab99d5)` = `360ae4f8` = its own second parent, detector diff = 0 lines, `gh issue list --label contract-change` = **0 issues ever opened** | **FIXED**: the pre-merge base is captured before `run_merge` and gate 4 diffs it against `$TARGET`; the already-merged path diffs from the **last recorded sync** (`evidence/upstream-sync-state`, written and committed after a fully gated sync) instead of a base that is definitionally $TARGET. **Mutation-proved in a scratch clone** (5 phases, logs in the session record): fixed → fires on both paths; the old form → silent on both; fixed restored → fires again |
+| F11 | `.github/workflows/build.yml` budget sat at 140/160 during the work; the `Upload Wear APK` step ran **before** signature verification, so a run whose verification failed had already published the watch APK as a downloadable artifact | **FIXED**: the upload moved after `Verify release APK signatures and emit SHA256SUMS`; budget formalized at 160 (touchpoint #28). The wrapper-jar question was investigated rather than assumed: `gradle-wrapper.jar` is `76805e32…`, which **is** an official Gradle wrapper-JAR checksum (9.0.0/9.1.0 per gradle.org/release-checksums) and `setup-gradle@v4` already validates it on every run (CI log: "All Gradle Wrapper jars are valid") — no change needed. The `\.(pem\|key)$` substring-match concern was tested rather than assumed: `docs/foo.apikey` and `docs/foo.pem.md` do **not** match (no false positive), `certs/ca.pem` and `x.key` do — the pattern behaves as intended |
+
+**The app-side bug hunt (re-dispatch).** Three read-only subagents covered
+`ConversationMessageSearch`/`ChatSearchDao`, the autopilot trio
+(`CircuitBreaker`/`MemoryApplier`/`ReflectionWorker`) and the parser/UI group
+(`DuckDuckGoScraper`/`LatexRenderer`/`IncrementalStreamingMarkdown`/`SettingsScreen`/`ProviderRegistry`).
+Their reports were treated as raw input; each claim was verified against the source before any fix,
+and findings that did not survive verification were dropped rather than "fixed". [Findings table
+appended when the batch returns; anything not re-verified is marked UNVERIFIED rather than patched.]
+
+**Wearsync cleanups (all verified dead or wrong before touching).** `PushOutcome.ok` was a second
+copy of `PushReason.ok` — six call sites repeated what the enum already said, and the two could
+disagree (`ok = true, reason = NO_KEY` compiled fine) — so `ok` is now derived. `UNREACHABLE` was a
+wire sentence no code path could send. `KEY_REASON` was written into the worker's input data and
+never read; it now reaches logcat. `sourceChars` was a Data Layer key the watch never read
+(`grep -rn sourceChars wear/src` → 0) whose only consumer was a test asserting it is written; both
+the key and the assertion are gone. `MemorySnapshotPusher.DEBOUNCE_MS` was a second copy of the
+scheduler's constant. `WearMemoryPushWorker` was a stale name in a KDoc. `PairingRequest.schemaVersion`
+was parse-only; it now appears in the refusal log line where it diagnoses a version mismatch.
+`SettingsWatchSetupPage` read `lastPushOutcome` without consuming it, so every later visit re-showed
+a stale sentence; it now consumes with `getAndUpdate { null }` — shown once, by the page that can act
+on it.
+
+**Gates, all run after the work (this tree: `8cf12295` + the batch above)**
+
+| Gate | Result |
+|---|---|
+| `./gradlew :app:testFdroidDebugUnitTest :app:testPlayDebugUnitTest :wear:testDebugUnitTest --rerun-tasks` | **BUILD SUCCESSFUL in 7m 40s**, 91 tasks executed |
+| `python scripts/audit_test_counts.py` | fdroid **2665** / play **2648** / wear **168**, 0 failures, 0 errors → exit 0 (documented numbers match) |
+| `bash scripts/touchpoint_guard.sh` | **PASS** — 30 registry entries, none over budget (README.md 395/400, build.yml 152/160) |
+| `bash scripts/gen_code_map.sh --check` | `CODE_MAP.md is up to date` → exit 0 |
+| `bash scripts/verify_release_provenance.sh v3.0.4` | claims 1, 2, 4 **hold** (both APKs `7188ce70…aa56d7`; assets match `SHA256SUMS`; a test job ran); claim 3 **FAILS honestly** — the tag's tree ≠ the tree CI built (the three redacted docs), which is the limitation already stated in the v3.0.4 release notes. The anchoring rule (tree must be identical) is what keeps this honest rather than papering over it |
+| CI run `35454388391` (for `615dd6e5`) | **success** — the run the previous window left `in_progress` |
+| CI run `35454464452` (dispatch on tag `v3.0.4`) | **failure, expected** — the tag's tree predates the guard fix; explained in the release notes |
+
+**Hygiene, re-run at the end of this pass**
+
+| Surface | Result |
+|---|---|
+| `git grep -Inw Loning` (tracked tree) | 0 hits |
+| `git log --all -S Loning` | **0 hits** — and this is where the pass found a real leak: a leftover audit worktree (`C:/tmp/atci`, detached at pre-rewrite `1201bf6d`) kept the pre-rewrite objects *reachable locally* (`--source` attributed 11 commits to `worktrees/atci/HEAD`). The handoff's claim of 0 was true for refs, not for `--all`. Worktree removed + pruned; `--all` is now genuinely 0 |
+| `gh release view` × every release | 0 hits |
+| `gh api search/code` + `search/commits` | 0 / 0 |
+| `git ls-files` key-like files | 0 |
+| Stale pre-rewrite SHAs via the REST API | still `HTTP 200` when requested directly — unchanged honest limitation, GitHub GC pending |
+
+**Limitasi jujur yang masih berlaku (unchanged, restated):** the Data Layer transport phone→watch
+has never run end-to-end (`Accounts: 0` on both emulators — although both AVDs are alive in this
+session, `adb devices` non-empty); the self-update install flow is source-contract-tested but has no
+on-device install; v3.0.4's claim 3 cannot hold by construction (tree mismatch, explained in the
+notes); pre-rewrite SHAs remain fetchable until GitHub GC.
+
 ### Session 4 — 2026-09-19 (R8 gate, instrumented suites executed, self-update channel, audit sweep)
 
 Opened against `main` @ `4f816a56`, `upstream/master` @ `360ae4f8`. (Session 5 rewrote history to

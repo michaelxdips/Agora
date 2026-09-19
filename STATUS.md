@@ -17,9 +17,9 @@ the repo **as it was when that phase closed** and may legitimately contradict th
 | `main` HEAD | `ffb14ebf` + the Session 3 working tree | `git rev-parse --short main` |
 | Versions | `3.0.4-hermesx` / `versionCode` 35, both modules | `app/build.gradle.kts`, `wear/build.gradle.kts` |
 | Releases | `v3.0.3` (latest), `v3.0.2`, `v3.0.1` (pre-release) | `gh release list -R michaelxdips/Agora` |
-| App unit tests | **2634 tests, 0 failures, 0 errors, 3 skipped** (404 XML files) | `./gradlew :app:testFdroidDebugUnitTest` |
+| App unit tests | **2635 tests, 0 failures, 0 errors, 3 skipped** (404 XML files) | `./gradlew :app:testFdroidDebugUnitTest` |
 | Wear unit tests | **141 tests, 0 failures, 0 errors** (13 XML files) | `./gradlew :wear:testDebugUnitTest` |
-| Play flavor tests | 2617 tests, 0 failures, 0 errors, 3 skipped | `:app:testPlayDebugUnitTest` |
+| Play flavor tests | 2618 tests, 0 failures, 0 errors, 3 skipped | `:app:testPlayDebugUnitTest` |
 | Kotlin size gate | 1044 files, maximum 800 lines, 0 baseline entries | `verifyKotlinFileSize` |
 | Upstream position | `main` is **89 ahead** of the fork point `914e7c8d`; upstream is **0 ahead** | `git rev-list --left-right --count upstream/master...main` |
 | Release certificate | `7188ce70…aa56d7` on **both** published APKs | `bash scripts/verify_release_provenance.sh v3.0.3` → **PASS, all four claims** |
@@ -1134,7 +1134,7 @@ that forgets the suffix rule fails here instead of on a device.
 | Gate | Result |
 |---|---|
 | `./gradlew :app:testFdroidDebugUnitTest :app:testPlayDebugUnitTest :wear:testDebugUnitTest verifyKotlinFileSize --rerun-tasks` | **BUILD SUCCESSFUL in 5m 37s**, 91 tasks executed |
-| `python scripts/audit_test_counts.py` | fdroid **2634** / play **2617** / wear **141**, 0 failures, 0 errors → exit 0 |
+| `python scripts/audit_test_counts.py` | fdroid **2635** / play **2618** / wear **141**, 0 failures, 0 errors → exit 0 |
 | `bash scripts/touchpoint_guard.sh` | **PASS** (360ae4f8fe73ed035cbbfa838d9fc265ef68779a) |
 | `bash scripts/gen_code_map.sh --check` | `CODE_MAP.md is up to date` → exit 0 |
 

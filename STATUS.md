@@ -53,6 +53,37 @@ A read-only audit of `wear/src/main/java/` produced ten findings; each was verif
 before any change, and one was **disproved** by reading the Play Services bytecode rather than being
 "fixed".
 
+**Certificate locality-field purge (git history rewrite).** The locality field of the release
+certificate's DN was still present in the repository's *history* (12 commits across `README.md`,
+`STATUS.md`, `MEGA_PLAN.md`, `CLEANUP_REPORT.md`, `app/src/fdroid/res/values/colors.xml`), in 7 tag
+targets, in the release notes of v3.0.2–v3.0.4, and — worst — in the **public CI log** of run
+35441407423, where the verification step echoed `apksigner --print-certs` output verbatim. All four
+surfaces were cleaned:
+
+| Surface | Action | Verified by |
+|---|---|---|
+| Release notes v3.0.2/3/4 | literal DN replaced with a digest pointer | `gh release view … --jq .body` → 0 hits |
+| CI log run 35441407423 | run deleted | `gh run view` → HTTP 404; 60 remaining runs scanned → 0 hits |
+| Workflow | `tee` removed; only the SHA-256 digest is printed | `build.yml` L203-206 |
+| Git history + 7 tags | `git-filter-repo --replace-text --replace-message`, scoped to `360ae4f8..main` and the seven fork-side tags so upstream objects (which carry `gpgsig` headers) keep their hashes | fresh clone from GitHub: 0 hits in messages, trees, tag messages, and all 17k reachable blobs; `merge-base upstream/master main` still `360ae4f8` |
+
+**Honest limitation, carried forward:** GitHub keeps unreferenced objects until its own GC runs. The
+pre-rewrite SHAs still answer `HTTP 200` on the REST API and render in the web UI when requested
+directly (checked: `de38b199`), although nothing reachable links to them any more. Removing them
+requires GitHub Support; time-based GC may reclaim them. This is stated here rather than implied to
+be gone.
+
+**A latent CI bug this surfaced (found, reproduced, fixed).** After the rewrite, CI failed with 10
+"unregistered upstream file modified" for files under `app/src/.../remote/` — files *upstream* had
+changed (`360ae4f8..b168f266`) and this fork had never touched. Root cause: `actions/checkout@v4`
+clones shallow, `git fetch --depth=1 upstream` adds no history, so `git merge-base` fails and the
+guard's fallback (`DIFF_ARGS=${MERGE_BASE:-$UPSTREAM_REF}`) compared HEAD against the **upstream
+tip** — turning every post-fork-point upstream commit into a fork edit. Fixed in
+`scripts/touchpoint_guard.sh` (merge-base failure is now a FAIL that names the fix) and
+`build.yml` (`fetch-depth: 0`; upstream fetched as a full graph, `--filter=blob:none` where
+supported). Both shapes reproduced locally: the new shape PASSes, the old shape now fails with the
+named fix and zero false positives.
+
 | # | Finding (verified at `file:line`) | Verdict |
 |---|---|---|
 | 1 | `WearListeners.kt:59` deleted the credential item even when `WearConfigStore.write` failed — on a full disk the key then existed nowhere | **FIXED**: `write` returns `Boolean`; the item stays for the next push |

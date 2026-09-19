@@ -558,19 +558,46 @@ sounds correct to anyone who has not read SQLite's join documentation.
 2. **DONE.** `bash scripts/touchpoint_guard.sh` → **PASS**, 28 entries, none over budget.
 3. **DONE.** `bash scripts/gen_code_map.sh` regenerated (193 lines); `--check` → exit 0.
 4. **DONE.** `STATUS.md` carries the Session 2 evidence block, counts read from the XML.
-5. Commits, one concern each, `hermes:` prefix:
-   * the wear proguard keeps (`PairingAckListenerService` + serializers)
-   * the ack's `ok` — the phone says whether it *served* the request
-   * bounded wire reads, the redacted crash trace, the release-task filter, the job-level CI env
-   * one owner for the memory push, plus the initial sync
-   * the CI gates + the label check that can actually fail
-   * the docs reconciliation
-6. `git push origin main` (11 commits already ahead, plus these).
-7. `gh run watch` the triggered run — the three new gate steps have never executed in CI before, so
-   they are the ones to read.
+5. **DONE.** Eight `hermes:` commits, one concern each (see the list below).
+6. **DONE.** `git push origin main` → `665a20a1`; `origin/main` == `main`, 0 ahead / 0 behind.
+7. **DONE.** `gh run watch` — run **`35423403564` completed `success`**. The three new gate steps
+   executed for the first time and all three passed, as did the release-signed F-Droid build, the wear
+   release build and the APK uploads. "Restore signing key" ran, which it never had before (P1.4).
+
+The first two pushes were **red**, and both failures were real rather than noise — they are the
+reason the last three commits exist:
+
+| Run | Result | What it caught |
+|---|---|---|
+| `35421339206` | failure | `touchpoint_guard.sh` → `FAIL upstream ref 'upstream/master' not present`. `actions/checkout@v4` fetches one branch and creates no remote tracking refs, so inside CI there was no ref to compare against — and the guard fails closed, which is the behaviour the previous session deliberately built in. The workflow now adds the upstream remote first. |
+| `35422153801` | failure | The guard ran and found upstream, then failed with `FAIL unregistered upstream file modified: gradlew`. `gradlew` is committed mode `100644` and the tests step begins `chmod +x ./gradlew`; on Linux (`core.fileMode` true) that is a mode change to an upstream file. The guard step now runs **before** the tests step, so it sees the tree as committed. |
+| `35422954778` | failure | The guard passed, `CODE_MAP is up to date` failed on **ordering alone** — same rows, same counts, different sequence. Bare `sort` uses host locale collation, so Windows/MSYS and the Linux runner disagree. Seven calls are now `LC_ALL=C sort`. |
+| `35423403564` | **success** | Everything green. |
+
+Three of those four are the same shape: a check that was correct locally but could not be satisfied on
+the host it was meant to run on. Two of them (`HEAD` in the generated file, CRLF) were found by
+testing in a real shallow clone rather than by reasoning about it.
+
+### The commits
+
+```
+665a20a1  sort the code map by bytes so it cannot depend on the host's locale
+14427a4e  run the guard before the chmod, and give build.yml the budget it needs
+88659ac7  make the two new CI gates pass in the environment CI actually has
+d82002a0  reconcile the 2026-09-19 audit, and stop two doc numbers drifting
+44a9be2b  CODE_MAP can now be up to date
+3dc9df59  watch setup entry, base-URL resolution, and the tests that could not fail
+0d132fc8  the core-context payload, the cleartext guard's test, and two gate scripts
+760f004c  watch correctness — atomic writes, duplicate suppression, typed failures
+59eec3a2  one owner for the memory push, and the initial sync that was missing
+c26be0c8  provider URLs and auth, and the image cache off the lock
+2eb27173  bound the wire reads, redact the crash trace, close the release gate
+d5575b1a  the ack says whether the phone served the request, not just which one
+1c7918a8  keep the pairing ack listener and the wear serializers in R8
+```
 
 No force-push, no history rewrite, no tag: `AGENTS.md` rule 5 forbids disabling a guard to pass a gate,
-and nothing above does.
+and nothing above does. `main` is 0 behind / 102 ahead of `upstream/master`, tree clean.
 
 ### What "done" does and does not mean here
 

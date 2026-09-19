@@ -18,36 +18,42 @@ import com.newoether.agora.R
  * defined and unreferenced — a translation that would never be picked up and a copy of every sentence
  * in two places.
  */
-enum class PushReason(@StringRes val stringRes: Int, val wireText: String) {
+enum class PushReason(@StringRes val stringRes: Int, val wireText: String, val ok: Boolean) {
 
     NO_ENDPOINT(
         R.string.hermes_watch_no_endpoint,
         "No base URL or model selected. Configure a provider first.",
+        ok = false,
     ),
 
     NO_KEY(
         R.string.hermes_watch_no_key,
         "No API key configured for the selected model. Set it in Providers first.",
+        ok = false,
     ),
 
     PUSH_FAILED(
         R.string.hermes_watch_push_failed,
         "No watch reachable — open the app on the watch and try again.",
+        ok = false,
     ),
 
     CONFIG_ONLY(
         R.string.hermes_watch_config_only,
         "Config sent; the memory snapshot will follow when the watch is reachable.",
+        ok = true,
     ),
 
     PUSHED(
         R.string.hermes_watch_pushed,
         "Sent. The watch is standalone now.",
+        ok = true,
     ),
 
     /** The phone was still starting up when the watch asked. Not a failure — a retry will work. */
     STARTING_UP(
         R.string.hermes_watch_starting_up,
         "The phone is still starting up. Try again in a moment.",
+        ok = false,
     ),
 }

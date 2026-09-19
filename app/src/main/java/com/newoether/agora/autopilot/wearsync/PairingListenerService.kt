@@ -4,6 +4,7 @@ import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.Wearable
 import com.google.android.gms.wearable.WearableListenerService
 import com.newoether.agora.AgoraApplication
+import com.newoether.agora.autopilot.wearsync.WatchSync.PushOutcome
 import com.newoether.agora.util.DebugLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -59,7 +60,9 @@ class PairingListenerService : WearableListenerService() {
             // watch running a different build got a config it could not use while this side reported
             // success — a setup that looks finished and does not work.
             DebugLog.w(TAG, "pairing refused: unsupported request (protocol=${request?.protocol})")
-            scope.launch { reply(event.sourceNodeId, PROTOCOL_MISMATCH) }
+            scope.launch {
+                reply(event.sourceNodeId, request?.requestId.orEmpty(), PROTOCOL_MISMATCH, ok = false)
+            }
             return
         }
         val application = application as? AgoraApplication ?: return
@@ -67,15 +70,18 @@ class PairingListenerService : WearableListenerService() {
             val ack = runCatching { handle(application) }
                 .getOrElse { error ->
                     DebugLog.w(TAG, "pairing failed: ${error.javaClass.simpleName}")
-                    UNREACHABLE
+                    PushOutcome(false, PushReason.PUSH_FAILED)
                 }
-            reply(event.sourceNodeId, ack)
+            // HERMES INTEGRATION POINT: the outcome travels with the sentence. `reply` used to send
+            // the text alone, so the watch could not tell "your key is missing" from "your key was
+            // installed" — both named the request, both rendered as a successful pairing.
+            reply(event.sourceNodeId, request.requestId, ack.reason.wireText, ok = ack.ok)
         }
     }
 
-    private suspend fun handle(application: AgoraApplication): String {
+    private suspend fun handle(application: AgoraApplication): PushOutcome {
         val container = application.awaitContainer()
-            ?: return PushReason.STARTING_UP.wireText
+            ?: return PushOutcome(false, PushReason.STARTING_UP)
         val settings = container.settingsRepository
         val registry = container.providerRegistry
         val modelId = settings.selectedModel.value.orEmpty()
@@ -93,13 +99,27 @@ class PairingListenerService : WearableListenerService() {
             model = modelId,
         )
         DebugLog.d(TAG, "pairing push ok=${outcome.ok}")
-        return outcome.wireText
+        return outcome
     }
 
-    private suspend fun reply(nodeId: String, ack: String) {
+    /**
+     * Sends the answer, tagged with the request it belongs to.
+     *
+     * The id is not decoration: the watch keeps one process-wide ack slot, so an answer that does not
+     * name its request cannot be told apart from a late answer to the previous one — and the watch
+     * would then report a successful setup for a request this phone never served.
+     *
+     * @param requestId the asking watch's id, echoed verbatim. Empty when the request was unreadable
+     *   (the watch then treats the answer as unattributable, which is the truth).
+     */
+    private suspend fun reply(nodeId: String, requestId: String, ack: String, ok: Boolean) {
         runCatching {
             Wearable.getMessageClient(applicationContext)
-                .sendMessage(nodeId, ACK_PATH, ack.toByteArray(Charsets.UTF_8))
+                .sendMessage(
+                    nodeId,
+                    ACK_PATH,
+                    PairingRequest.ackBody(requestId, ack, ok = ok).toByteArray(Charsets.UTF_8),
+                )
                 .await()
         }.onFailure { error ->
             DebugLog.w(TAG, "ack not delivered: ${error.javaClass.simpleName}")

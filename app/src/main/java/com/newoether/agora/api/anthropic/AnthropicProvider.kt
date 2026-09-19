@@ -416,7 +416,14 @@ class AnthropicProvider(
 
         try {
             thinkingViolation?.let { throw RequestFormatException(name, listOf(it)) }
-            val url = "$baseUrl/messages"
+            // HERMES INTEGRATION POINT: the URL was `"$baseUrl/messages"`, so a custom base URL that
+            // does not already carry the version segment (`https://gateway.example/anthropic`) sent the
+            // request to `/anthropic/messages` and got a bare 404 with nothing naming the cause. The
+            // built-in default (`https://api.anthropic.com/v1`) hid it; a post-sync cached base URL did
+            // not. Same shape as `GeminiProvider`: add `/v1` only when the URL does not already carry a
+            // version segment, so a gateway with its own prefix is left alone.
+            val versionedBaseUrl = if (baseUrl.contains("/v1")) baseUrl else "$baseUrl/v1"
+            val url = "$versionedBaseUrl/messages"
             val headers = mutableMapOf("Content-Type" to "application/json")
             headers["x-api-key"] = config.apiKey
             headers["anthropic-version"] = "2023-06-01"

@@ -18,6 +18,14 @@ internal class RemoteImageCache(private val directory: File, private val maxByte
             slots.withPermit {
                 synchronized(lock) { entries[key]?.takeIf { File(it.path).isFile } }?.let { return@withPermit it }
                 val image = fetch()
+                // HERMES INTEGRATION POINT: the eviction loop used to run *inside* the `synchronized`
+                // block — `File.length()`, `delete()` and `listFiles()` are all blocking syscalls, and
+                // every concurrent `load` waits on this monitor, so a cache over its budget made
+                // unrelated image loads wait on filesystem I/O they do not need. The candidate list and
+                // the bookkeeping stay under the lock (they touch the shared map); the deletions happen
+                // after it is released. The image being returned is never a victim either way.
+                val victims: List<File>
+                val overBudget: Boolean
                 synchronized(lock) {
                     entries[key] = image
                     File(image.path).setLastModified(System.currentTimeMillis())
@@ -27,22 +35,24 @@ internal class RemoteImageCache(private val directory: File, private val maxByte
                     }.toMap()
                     val files = directory.listFiles().orEmpty()
                         .filter { it.isFile && !it.name.startsWith(".") }
-                    var bytes = files.sumOf { it.length() }
-                    var count = files.size
+                    overBudget = files.sumOf { it.length() } > maxBytes || files.size > 64
                     // Filesystem timestamp resolution cannot establish access order.
-                    // Keep the image being returned, and count a victim only after deletion.
-                    val victims = files.filter { it.absolutePath != current }.sortedWith(
+                    victims = files.filter { it.absolutePath != current }.sortedWith(
                         compareBy<File> { recency[it.absolutePath] ?: -1 }
                             .thenBy { it.lastModified() }.thenBy { it.name },
                     )
+                    entries.entries.removeAll { !File(it.value.path).isFile }
+                }
+                if (overBudget) {
+                    var bytes = directory.listFiles().orEmpty().sumOf { it.length() }
+                    var count = directory.listFiles().orEmpty().count { it.isFile }
                     for (old in victims) {
                         if (bytes <= maxBytes && count <= 64) break
                         val size = old.length()
                         if (old.delete()) { bytes -= size; count-- }
                     }
-                    entries.entries.removeAll { !File(it.value.path).isFile }
-                    image
                 }
+                image
             }
         }
 }

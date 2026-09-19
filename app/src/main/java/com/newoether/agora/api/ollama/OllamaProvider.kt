@@ -497,7 +497,13 @@ class OllamaProvider : LlmProvider {
         val effectiveBaseUrl = requireNotNull(baseUrl?.trimEnd('/')?.ifBlank { null }) {
             "Ollama base URL not configured"
         }
-        val responseText = HttpClient.fetchModelsResponse("$effectiveBaseUrl/api/tags")
+        // HERMES INTEGRATION POINT: this call passed no headers at all, so `apiKey` was accepted and
+        // then ignored. Against a key-gated Ollama (an authenticated reverse proxy, or a hosted
+        // Ollama-compatible endpoint) `/api/tags` answers 401 no matter what the user configured, and
+        // the model list is empty while `generate` — which *does* send the header at `:253-254` —
+        // works. The header is now sent when a key exists, matching the generate path.
+        val headers = if (apiKey.isBlank()) emptyMap() else mapOf("Authorization" to "Bearer $apiKey")
+        val responseText = HttpClient.fetchModelsResponse("$effectiveBaseUrl/api/tags", headers)
             .requireModelFetchBody()
         val models = decodeModelFetchResponse {
             json.decodeFromString<OllamaTagsResponse>(responseText)

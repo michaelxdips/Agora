@@ -1,0 +1,40 @@
+name: release-provenance
+
+# HERMES INTEGRATION POINT (Session 5, F2 remainder): `scripts/verify_release_provenance.sh` makes a
+# release's four claims structural — both APKs share one signing identity, the assets match the
+# published SHA256SUMS, the tag names a commit CI actually built, and a test job ran on it. Nothing
+# invoked it: the gate existed and no workflow ran it, so it was a checklist, not a gate. This
+# workflow runs it on demand against a tag the maintainer names.
+#
+# On demand, not on push: the claims are about a *published release*, which is created by hand after
+# a green build; there is no push event that makes them checkable. The run's output is the evidence.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to verify (e.g. v3.0.4)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  checks: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # `apksigner` is taken from the SDK; without build-tools the script reports claim 1 as
+      # SKIPPED-and-FAILED (an unverifiable claim is not a satisfied one), which is the correct
+      # behaviour — but the runner should be able to verify it, so build-tools is installed here.
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: "platform-tools build-tools;36.0.0"
+
+      - name: Verify release provenance
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/verify_release_provenance.sh "${{ inputs.tag }}" "${{ github.repository }}"

@@ -59,6 +59,12 @@ class AgoraApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         CrashReporter.install(this)
+        // HERMES INTEGRATION POINT (touchpoint #17): the watch's memory snapshot must be pushed when
+        // memory changes, including while the phone UI is closed. A composition-scoped observer (the
+        // only trigger before this) stops the moment the user leaves the app, so background writes —
+        // a ReflectionWorker run, an autopilot adaptation — never reached the watch. Process-scoped,
+        // one line, no upstream behaviour touched.
+        com.newoether.agora.autopilot.wearsync.MemoryPushStartup.start(this, startupScope)
         startupScope.launch {
             try {
                 DeveloperDiagnostics.initialize(noBackupFilesDir, startupScope)

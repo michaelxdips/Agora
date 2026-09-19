@@ -96,19 +96,38 @@ object WatchSync {
      *
      * Persona blocks are stripped before sending: the watch derives its own core context, and persona
      * text would spend the watch's 500-token budget on instructions the watch app does not follow.
+     *
+     * An **empty** snapshot is pushed, not skipped. When the user deletes everything from the phone's
+     * active memory the correct message is "there is nothing now" — skipping the push leaves the watch
+     * answering from facts the user has already erased. The watch side distinguishes this from a
+     * missing/undecodable payload by the *presence* of the key, not by its length.
      */
-    suspend fun pushMemorySnapshot(context: Context): Boolean = withContext(Dispatchers.IO) {
+    suspend fun pushMemorySnapshot(context: Context): Boolean =
+        pushMemorySnapshot(context, MemoryManager(context))
+
+    /** As above, with the memory store supplied by the caller (the worker resolves its own). */
+    suspend fun pushMemorySnapshot(context: Context, memoryManager: MemoryManager): Boolean =
+        withContext(Dispatchers.IO) {
         try {
-            val snapshot = MemoryManager(context).getActiveMemory()
-                .let { com.newoether.agora.autopilot.PersonaStore.stripAll(it) }
+            val snapshot = memoryManager.getActiveMemory()
+            // O3: the *derived* core context travels, not the raw snapshot. The phone base64'd the
+            // whole memory file (Data Layer items are ~100 KB, +33% for base64) and the watch then
+            // truncated it to 500 tokens — so most of that payload existed only to be thrown away on
+            // a Bluetooth link. Deriving here costs nothing and the watch keeps its own truncation as
+            // the safety net for a snapshot from an older phone.
+            val payload = CoreContextDerivation.payloadFor(snapshot)
+            CoreContextDerivation.logSaving(snapshot.length, payload)
             val request = PutDataMapRequest.create(MEMORY_PATH).apply {
                 dataMap.putString("payload", android.util.Base64.encodeToString(
-                    snapshot.toByteArray(), android.util.Base64.NO_WRAP,
+                    payload.toByteArray(), android.util.Base64.NO_WRAP,
                 ))
                 dataMap.putLong("updatedAt", System.currentTimeMillis())
+                // The raw length, so the watch's debug screen can say how much memory exists on the
+                // phone even though only the derived core context travels.
+                dataMap.putInt("sourceChars", snapshot.length)
             }.asPutDataRequest().setUrgent()
             Wearable.getDataClient(context).putDataItem(request).await()
-            DebugLog.d(TAG, "watch memory snapshot pushed (${snapshot.length} chars)")
+            DebugLog.d(TAG, "watch memory snapshot pushed (${payload.length} chars)")
             true
         } catch (cancelled: CancellationException) {
             throw cancelled   // see pushConfig: cancellation is not a transport failure
@@ -173,10 +192,6 @@ object WatchSync {
         lastPushOutcome.value = outcome
         return outcome
     }
-
-    /** Sentence for a capability/node query failure, used by the pairing listener. */
-    internal const val UNREACHABLE =
-        "The phone could not reach the watch to send the config."
 
     private const val TAG = "AutopilotWearSync"
 }

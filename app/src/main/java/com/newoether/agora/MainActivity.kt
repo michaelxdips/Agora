@@ -347,8 +347,11 @@ fun MainNavigation(
         // Phase 6 P1/P2: seed vendored persona files + reconcile the persona channel. One line, so
         // the persona feature needs no integration point of its own.
         com.newoether.agora.autopilot.PersonaStartup.run(appContext)
-        // Audit A-013: the watch's memory snapshot is pushed when active memory changes, not only at
-        // setup. Reads the store's own revision flow, so no upstream file is touched.
+        // Audit A-013 / F8: the watch's memory snapshot is pushed when active memory changes, not
+        // only at setup. The *process-scoped* observer in `MemoryPushStartup` (started from
+        // `AgoraApplication`) is the one that survives the UI being closed, which is where the
+        // background writes actually happen; this composition-scoped start remains for the "the user
+        // is looking at the app right now" path and is cancelled with the UI.
         com.newoether.agora.autopilot.wearsync.MemorySnapshotPusher.start(appContext, autopilotScope)
     }
     // HERMES INTEGRATION POINT: autopilot notification → Settings (pre-selected on Adaptation

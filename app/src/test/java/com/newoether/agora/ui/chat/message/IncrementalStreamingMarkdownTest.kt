@@ -489,6 +489,17 @@ class IncrementalStreamingMarkdownTest {
 
     @Test
     fun tracker_serializesWorkerAndInteractionUpdates() {
+        // HERMES INTEGRATION POINT (touchpoint #19): this test used to assert **nothing** — two
+        // threads hammered `update` and `shutdownNow` merely hid a hang, so the name promised a
+        // serialization guarantee that no line of the test checked.
+        //
+        // The invariant it asserts now is the one that actually holds for a *shared* tracker: the two
+        // lanes advance their own clocks independently, so a sample may legitimately contain a glyph
+        // born by the other lane at a later time. What must hold is the tracker's own state contract —
+        // no concurrent modification escapes, and the glyph deque is bounded by the text it was last
+        // shown. Remove the `@Synchronized` from `StreamingTailFadeTracker.update` and the shared
+        // `ArrayDeque` is mutated from two threads: either a `ConcurrentModificationException` escapes
+        // through `futures.get()`, or the deque leaks glyphs past the cap asserted below.
         val tracker = StreamingTailFadeTracker()
         val executor = Executors.newFixedThreadPool(2)
         val start = CountDownLatch(1)
@@ -503,10 +514,31 @@ class IncrementalStreamingMarkdownTest {
                 }
             }
             start.countDown()
+            // Any exception from inside a lane (a torn deque throws) surfaces here.
             futures.forEach { it.get(10, TimeUnit.SECONDS) }
         } finally {
             executor.shutdownNow()
         }
+
+        // The tracker must still be usable, and its state must satisfy its own contract.
+        val after = tracker.update("y".repeat(64), 10_000L)
+        assertEquals(10_000L, after.observedAtMs)
+        assertTrue(
+            "a glyph was born after the final observed time: ${after.birthTimesMs.toList()}",
+            after.birthTimesMs.all { it <= 10_000L },
+        )
+        assertTrue("no glyphs tracked after the concurrent pass", after.birthTimesMs.isNotEmpty())
+        // `retainFadingSuffix` caps the deque at the code-point count of the text it was last given.
+        // A deque corrupted by concurrent mutation overflows that bound.
+        assertTrue(
+            "the glyph deque is not bounded by the text it was shown (${after.birthTimesMs.size} glyphs)",
+            after.birthTimesMs.size <= 64,
+        )
+        // A sample's birth times are the deque's, in insertion order, so they never decrease.
+        assertTrue(
+            "the deque is out of order: ${after.birthTimesMs.toList()}",
+            after.birthTimesMs.toList().zipWithNext().all { (a, b) -> a <= b },
+        )
     }
 
     private fun Int.splitsSurrogatePair(text: String): Boolean =

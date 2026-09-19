@@ -80,13 +80,16 @@ class DuckDuckGoScraper(
         private val SNIPPET_REGEX = Regex("""<td[^>]+class=['"]result-snippet['"][^>]*>([\s\S]*?)</td>""")
         private val UDDG_REGEX = Regex("""uddg=([^&]+)""")
         private val HTML_TAG_REGEX = Regex("<[^>]*>")
-        private val CAPTCHA_REGEX = Regex("""anomaly-modal|challenge-form|Unfortunately.*bots""")
+        // HERMES INTEGRATION POINT (touchpoint #21): `internal`, not `private`, so
+        // `DuckDuckGoScraperTest` asserts against these patterns instead of re-declaring its own copy.
+        // The old tests were green no matter what happened to the production regex.
+        internal val CAPTCHA_REGEX = Regex("""anomaly-modal|challenge-form|Unfortunately.*bots""")
 
         /** Extracts the vqd session token from the Next Page form. */
-        private val VQD_REGEX = Regex("""name="vqd"\s+value="([^"]*)"""")
+        internal val VQD_REGEX = Regex("""name="vqd"\s+value="([^"]*)"""")
 
         /** Offset value from the Next Page form (e.g. `name="s" value="10"`). */
-        private val OFFSET_REGEX = Regex("""name="s"\s+value="(\d+)"""")
+        internal val OFFSET_REGEX = Regex("""name="s"\s+value="(\d+)"""")
     }
 
     // -- public API ----------------------------------------------------------------

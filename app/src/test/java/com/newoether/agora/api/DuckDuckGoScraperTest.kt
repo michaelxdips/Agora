@@ -245,15 +245,17 @@ class DuckDuckGoScraperTest {
             </div>
             </body></html>
         """.trimIndent()
-        val regex = Regex("""anomaly-modal|challenge-form|Unfortunately.*bots""")
-        assertTrue(regex.containsMatchIn(html))
+        // HERMES INTEGRATION POINT (touchpoint #20): the *production* pattern, not a copy of it.
+        // This test used to re-declare the regex inline, so it asserted that a regex it had just
+        // written matches a string it had just written — a change to `DuckDuckGoScraper` could not
+        // fail it. `internal` visibility on the constant is what makes the assertion mean something.
+        assertTrue(DuckDuckGoScraper.CAPTCHA_REGEX.containsMatchIn(html))
     }
 
     @Test
     fun captchaRegex_detectsChallengeForm() {
         val html = """<form id="challenge-form" action="//duckduckgo.com/anomaly.js" method="POST">"""
-        val regex = Regex("""anomaly-modal|challenge-form|Unfortunately.*bots""")
-        assertTrue(regex.containsMatchIn(html))
+        assertTrue(DuckDuckGoScraper.CAPTCHA_REGEX.containsMatchIn(html))
     }
 
     // -- Pagination / vqd tests ---------------------------------------------------
@@ -268,8 +270,7 @@ class DuckDuckGoScraperTest {
             </form>
         """.trimIndent()
 
-        val vqdRegex = Regex("""name="vqd"\s+value="([^"]*)"""")
-        val match = vqdRegex.find(html)
+        val match = DuckDuckGoScraper.VQD_REGEX.find(html)
         assertNotNull("vqd token should be found", match)
         assertEquals("4-303532065876549868505813218373180541363", match!!.groupValues[1])
     }
@@ -277,8 +278,7 @@ class DuckDuckGoScraperTest {
     @Test
     fun vqdRegex_noNextPage_returnsNull() {
         val html = "<html><body>No pagination here.</body></html>"
-        val vqdRegex = Regex("""name="vqd"\s+value="([^"]*)"""")
-        assertNull(vqdRegex.find(html))
+        assertNull(DuckDuckGoScraper.VQD_REGEX.find(html))
     }
 
     @Test
@@ -289,8 +289,7 @@ class DuckDuckGoScraperTest {
             </form>
         """.trimIndent()
 
-        val offsetRegex = Regex("""name="s"\s+value="(\d+)"""")
-        val match = offsetRegex.find(html)
+        val match = DuckDuckGoScraper.OFFSET_REGEX.find(html)
         assertNotNull("offset should be found", match)
         assertEquals("20", match!!.groupValues[1])
     }

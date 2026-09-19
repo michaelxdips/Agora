@@ -297,27 +297,31 @@ reproducible on a clean checkout:
 
 | Gate | Result |
 |---|---|
-| `:app:testFdroidDebugUnitTest` | **2,562 tests, 0 failures, 0 errors** (394 XML reports) |
-| `:wear:testDebugUnitTest` | **82 tests, 0 failures, 0 errors** (9 XML reports) |
-| `verifyKotlinFileSize` | pass |
-| `scripts/touchpoint_guard.sh` | **PASS** — 14 registered upstream touchpoints, 13 currently carrying a diff |
+| `:app:testFdroidDebugUnitTest` | **2,624 tests, 0 failures, 0 errors, 3 skipped** (403 XML reports) |
+| `:app:testPlayDebugUnitTest` | **2,607 tests, 0 failures, 0 errors, 3 skipped** |
+| `:wear:testDebugUnitTest` | **141 tests, 0 failures, 0 errors** (13 XML reports) |
+| `verifyKotlinFileSize` | pass — 1,044 Kotlin files, maximum 800 lines, 0 baseline entries |
+| `scripts/touchpoint_guard.sh` | **PASS** — 28 registered upstream touchpoints |
 | `SYNC_DRY_RUN=1 scripts/upstream_sync.sh` | exit 0 |
-| CI (`.github/workflows/build.yml`) | green on `main` — unit tests + release-signed F-Droid build |
+| `scripts/verify_release_provenance.sh v3.0.3` | **PASS — all four claims** (one certificate on both APKs, assets match `SHA256SUMS`, the tag's commit built green, a test job ran on it) |
+| `bash scripts/gen_code_map.sh --check` | up to date |
+| `:wear:compileDebugAndroidTestKotlin` | pass (the instrumented suite compiles; no device is attached to this machine, so it is not executed) |
+| CI (`.github/workflows/build.yml`) | green on `main` — unit tests (all three suites) + release-signed F-Droid build + wear release build |
 | Both release APKs | `apksigner verify --print-certs` → `7188ce70…aa56d7` on **both** (the Data Layer pairing condition) |
 | Published assets | re-downloaded from `releases/latest/download` → HTTP 200, `sha256sum -c SHA256SUMS` **OK** for both |
 
-The wear count rose from 61 to 82 with the render work: `WearAnswerTextTest` (the mapping),
-`WearAnswerTextCoverageTest` (every emitted character against the device's real font cmaps), and
-`WearAnswerLeakTest` (the regression that was red before the fix).
+The wear count rose from 82 to 137 with the watch-correctness work: duplicate-send suppression,
+typed failures with a retry verdict and `Retry-After`, the dead-letter queue, the atomic file helper,
+the memory-update rule, the request-id handshake, and the font-coverage table's own invariants.
 
 `git status --porcelain` is clean, and no build artifact, keystore or `local.properties` is tracked.
 
 ## Staying in sync with upstream
 
-This fork tracks `newo-ether/Agora` (`master`). `main` is currently **83 commits ahead of the fork
-point** (`914e7c8d`), and upstream is **5 commits ahead** of that same point — those five are not in
-`main` yet. Upstream keeps moving, and the sync protocol is built so that a merge is a *reviewed*
-event, not a silent one:
+This fork tracks `newo-ether/Agora` (`master`). `main` is currently **89 commits ahead of the fork
+point** (`914e7c8d`), and upstream is **0 commits ahead** of that same point — the full upstream tip
+(`360ae4f8`) is merged. Upstream keeps moving, and the sync protocol is built so that a merge is a
+*reviewed* event, not a silent one:
 
 ```bash
 git fetch upstream

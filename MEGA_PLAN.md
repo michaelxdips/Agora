@@ -243,82 +243,157 @@ been exercised yet (it needs a real red run) — that is the honest state.
 
 **F4 — dead paths. DONE** (`audit_gate0.sh`, `persona_update.sh`, `upstream_sync.sh`).
 
-**F5 — classify the phone's cleartext policy (N8). OPEN.** Gate: a test that
-`guardCleartextCredentials` throws for `http://evil.example/v1` with an `Authorization` header and does
-not throw for `http://127.0.0.1:11434/v1`.
+**F5 — classify the phone's cleartext policy (N8). DONE.**
+The policy is upstream's, so it was classified rather than switched off (turning
+`usesCleartextTraffic` off would break the documented self-hosted Ollama setup). What made the global
+flag safe is `HttpClient.guardCleartextCredentials`, and that guard had **no test**. Gate met:
+`app/src/test/java/com/newoether/agora/autopilot/HttpClientCleartextGuardTest.kt` — a credential over
+`http://` to `evil.example` throws, to `127.0.0.1:11434` does not, to a LAN/Tailscale host does not,
+to `localhost.evil.com` does, and a malformed URL fails closed. **Mutation-proved:** replacing the
+guard's header check with `if (false)` turns 4 of those tests red.
 
-**F6 — watch request correctness. OPEN** — one coordinator owning fresh-send/drain/Send-now/retry;
-`callTimeout`; `Exception` not `Throwable`; a real URI builder for `endpoint()`; a parser that accepts
-content-part arrays; typed failure classes (401/404/parse ≠ "Offline"); queue limits + dead-letter
-instead of deletion at attempt 3. Gate: duplicate-tap red→green; 401 no-retry; 429 honours `Retry-After`.
+**F6 — watch request correctness. DONE.**
+One coordinator owns duplicate suppression (`WearSendCoordinator`: same question cannot run twice,
+a different question is never blocked, a cancelled send frees the guard); `callTimeout(90s)` added on
+top of connect/read; the body cap lowered 1 MiB → 256 KiB; the status is read **before** the body; the
+endpoint is built through `HttpUrl` (so a base URL with a query string no longer becomes
+`…/v1?k=v/chat/completions`); the parser accepts content-part arrays; `Exception` replaces `Throwable`
+so an `OutOfMemoryError` is not reported as "question held offline"; failures are typed
+(`WearChatException.kind` + `retryable` + `retryAfterMs`); the queue has a 50-entry cap, a bounded
+dead-letter file instead of deletion at attempt 3, and the drainer honours a `Retry-After` up to 30 s.
+Gate met: duplicate-tap red→green (`WearSendCoordinatorTest`, 7 tests); 401 no-retry
+(`WearQueueDrainerTest`, and `WearChatClientTest.a401IsNotRetryableAndA429Is`); 429 honours
+`Retry-After` (`a Retry-After is honoured before the pass gives up`). **Mutation-proved** on both the
+permanent-failure path and the duplicate guard (4 tests red under mutation).
 
-**F7 — phone↔watch protocol. OPEN** — `requestId` + `schemaVersion` + `configRevision`; a typed ack so a
-protocol mismatch stops rendering as "configuration received"; targeted credential delivery; `await()`
-the `deleteDataItems` task. Gate: a **stale** ack must not satisfy a new request.
+**F7 — phone↔watch protocol. DONE (one item deliberately not done).**
+`requestId` + `schemaVersion` on the request (`PairingRequestSchema`, phone and watch sides), a
+**typed** ack (`PairingAck`) so a protocol mismatch or a late answer stops rendering as "configuration
+received" — the new `PairingStatus.StaleAck` says so instead; the credential item deletion is
+`Tasks.await()`ed rather than fired and forgotten; the watch's `awaitAck` discards an ack that names a
+different request and keeps waiting. Gate met: `an answer for a different request is refused, not
+reported as connected` and `an ack with no request id is not this request's answer` — both red when
+the id check is replaced with `ack != null`.
+**Not done: "targeted credential delivery".** The config still travels on the Data Layer
+(`/hermes/config`), which is the channel the design chose *because* it works whether or not the phone's
+listener service is alive — a Data Layer *message* is best-effort, and a dropped message would be a
+dropped credential with no retry. Narrowing the delivery to the requesting node is a real change to
+that trade-off, not a small one, so it is recorded as open rather than done.
 
-**F8 — memory sync ownership. OPEN** — `MemorySnapshotPusher` lives on `rememberCoroutineScope()`
-(`MainActivity.kt:343-352`) so memory written while the phone UI is closed never reaches the watch, and
-`MemoryManager.activeMemoryRevision` is instance-local (`MemoryManager.kt:22-23`). Gate: background-write
-push test; empty snapshot clears the watch cache.
+**F8 — memory sync ownership. DONE.**
+`MemorySnapshotPusher` lived on the composition scope, so memory written while the phone UI was
+**closed** never reached the watch. `MemoryPushStartup` observes `activeMemoryRevision` from
+`AgoraApplication`'s process scope and hands the transfer to `MemorySnapshotPushWorker`, whose work
+survives the process. Gate met: `CoreContextDerivationTest` covers the derivation and the payload
+measurement; `WearMemoryRulesTest` covers "an empty snapshot clears the watch cache" (the rule was
+extracted out of the `WearableListenerService` precisely so it could be tested at all). The
+**background-write push test** the gate also asked for is the one item here that is *not* a unit test:
+the worker needs WorkManager, so its trigger is asserted structurally (the process-scoped observer
+calls `MemoryPushScheduler.schedule`) rather than by a JVM test that would have to fake WorkManager.
 
-**F9 — the pairing dead end. DONE (fix + regression test written; final suite run pending).**
+**F9 — the pairing dead end. DONE.**
 `WearPairing.request` had no cancellation path, so a cancelled request (wrist-down, config change,
 process death — the coroutine scope is the composition's) left the process-wide
 `WearSignals.pairing` on `Sending`/`Sent`. `WearSetupScreen.kt:89` computes `waitingForPhone` from
 exactly those two states and `:201` disables the Pair button on it (the credential fields go read-only
 too), so the user could not retry and could not type a key — a dead end until the app was killed.
 Fixed by catching `CancellationException`, setting `Idle`, and re-throwing so cancellation still
-propagates. New test `a cancelled request leaves no in-flight status behind` in `WearPairingTest`
-drives a transport whose `awaitAck` throws `CancellationException` and asserts the last status is
-`Idle` — not `Sending`/`Sent`. Gate: `:wear:testDebugUnitTest` green (83 tests) **and** the test fails
-against the pre-fix code.
+propagates. Gate met: `:wear:testDebugUnitTest` green (**137 tests**) **and** the test fails against
+the pre-fix code (verified by the mutation pass on the same file).
 
-**F10 — doc truth. DONE for the numbers** (README counts, sync position, STATUS current-state block).
+**F10 — doc truth. DONE for the numbers** (README counts, sync position, STATUS current-state block),
+and `CODE_MAP.md` is now generated (`scripts/gen_code_map.sh`, `--check` for CI) instead of typed by
+hand — the hand-written version cited an `_tools/` directory that does not exist here.
 
-**F11 — the vacuous tests (§1.4). PARTLY DONE.**
-Fixed and **proved by mutation**: `LatexRendererTest.testAllDollarCases` and `testDollarAmountNotLatex`
-now collect failures and assert (touchpoint #16). The proof is unusually strong — with
-`parseInlineDollarMath` genuinely disabled in the parser, the suite goes red on **7** tests that do
-assert while those two stayed green, and after the fix the same mutation turns them red too. Also
-fixed: `WearChatClientTest.theApiKeyTravelsAsABearerHeaderAndTheModelInTheBody` now asserts the
-`Authorization: Bearer …` header it is named for (the test server captured only the request line and
-body). Proved by mutation: deleting `.addHeader("Authorization", …)` from `WearChatClient.kt` makes that
-test FAIL, and restoring it makes it pass (22/22).
-**Still open:** `IncrementalStreamingMarkdownTest.tracker_serializesWorkerAndInteractionUpdates` has no
-assertion at all, and `DuckDuckGoScraperTest` still re-declares the production regexes inline.
+**F11 — the vacuous tests (§1.4). DONE.**
+Fixed and **proved by mutation**:
+* `LatexRendererTest.testAllDollarCases` / `testDollarAmountNotLatex` now assert (touchpoint #16);
+* `WearChatClientTest.theApiKeyTravelsAsABearerHeaderAndTheModelInTheBody` asserts the
+  `Authorization: Bearer …` header it is named for;
+* `IncrementalStreamingMarkdownTest.tracker_serializesWorkerAndInteractionUpdates` asserted **nothing**
+  — it now asserts the tracker's state contract (bounded deque, monotonic birth times, usable
+  afterwards) and any exception from a lane surfaces through `futures.get()`. The first version of this
+  assertion was **wrong** (it required each sample's glyphs to be born at or before that call's
+  `nowMs`, which two independent clocks do not guarantee) and the suite caught it: `2624 tests, 2
+  failed`. Corrected, then green.
+* `DuckDuckGoScraperTest` no longer re-declares the production regexes: the three constants are
+  `internal` and the tests use them (touchpoints #20/#21).
+* `WearAnswerTextCoverageTest`'s `size > 8000` tautology is replaced by a pinned 8755 (the union the
+  generated file's header documents) plus a new `WearFontCoverageTest` for the table's structural
+  invariants (sorted, disjoint, in-range, and genuinely false for uncovered code points).
+* `AutopilotSettings.underDailyCap` had **no JVM test**; `AutopilotDailyCapTest` now drives the
+  production rule against a fake DAO (cap boundary, `cap <= 0`, the persona-store exclusion, the
+  window timestamp).
+
+**F12 (new, corrected mid-execution) — I wrote here that `audit_gate0.sh` was missing
+`:wear:testDebugUnitTest`. It is not: `git log --oneline -1 -- scripts/audit_gate0.sh` → `82430fbd`,
+and the file's section [3] already runs all three suites. The claim was wrong when I made it and the
+file is unmodified. Left here as a correction rather than deleted, because a plan that silently drops
+its own bad guesses is the failure mode this document was written to avoid.
+
+**F13 (new) — `WearFontCoverage`'s missing generator.** The header names
+`_workbench/gen_coverage.py`, which does not exist in this repo. Rather than re-derive 8755 code points
+from fonts that are not on this machine, the table is now **pinned** by `WearFontCoverageTest`
+(size + structure + the ASCII set the renderer needs), so a bad regeneration fails loudly. The missing
+generator is recorded as an open provenance gap, not claimed as fixed.
 
 ---
 
 ## 4. Plan B — MODIFY (make the claims structural)
 
-**M1 — one release-provenance gate**: download both APKs for a tag, `apksigner verify --print-certs`,
-assert equal digests, assert the tag commit is the CI head SHA, assert both suites ran on it.
-**M2 — Wear in CI** (`:wear:testDebugUnitTest`, `:wear:assembleRelease`, `:wear:lintVitalRelease`, a wear
-artifact).
-**M3 — signing fail-closed**: a release build with no keystore must fail, not sign with debug.
+**M1 — one release-provenance gate. DONE.** `scripts/verify_release_provenance.sh <tag>` downloads
+both APKs, checks `SHA256SUMS`, asserts the two certificates are equal, asserts the tag's commit has
+only successful checks, and asserts a test job ran on it. **Run against the real release:**
+`bash scripts/verify_release_provenance.sh v3.0.3` → `PASS: all four release claims hold`, with both
+APKs printing `7188ce70…aa56d7`. Two defects in the script itself were found by running it (a native
+`gh` cannot write to an MSYS `mktemp` path; Windows ships `apksigner.bat` only) and fixed.
+**M2 — Wear in CI. DONE.** `:wear:testDebugUnitTest` in the `test` job; `:wear:assembleRelease`,
+`:wear:lintVitalRelease` and the wear APK upload in the `build` job.
+**M3 — signing fail-closed. DONE.** Both modules: a release build with no keystore fails at
+configuration time instead of signing with the debug key. **Proved:** `./gradlew assembleFdroidRelease`
+with the keystore removed → exit 1, message naming `local.properties`.
 **M4 — guard hardening. DONE** (default ref + missing-ref failure).
 **M5 — N10 detector. DONE.**
-**M6 — a `wear/src/androidTest` suite**: Keystore round-trip, both listener services resolving from the
-manifest, `rememberSaveable` on the setup fields, the answer card inside the round mask.
-**M7 — generate `CODE_MAP.md`** instead of hand-maintaining it (it still cites an `_tools/` section that
-does not exist here).
+**M6 — a `wear/src/androidTest` suite. DONE (compiles; not yet executed).**
+Two classes, 11 tests: the keystore round-trip, the config file not being plaintext, a truncated
+config being rejected, all three listener services resolving from the manifest, the launcher activity,
+the standalone metadata, the memory cache clearing on empty, and the setup fields' save/restore path.
+`:wear:compileDebugAndroidTestKotlin` is green. **Not run:** this machine has no device or emulator
+(`adb devices` is empty), so no test in the suite has been executed — recorded, not claimed.
+**M7 — generate `CODE_MAP.md`. DONE.** `scripts/gen_code_map.sh` regenerates everything below a
+marker from the tree and the guard registry; `--check` fails when it is stale. The hand-written
+`_tools/` section is gone with it.
 
 ---
 
 ## 5. Plan C — OPTIMISE
 
-**O1 — R8 for the phone release (N7).** `isMinifyEnabled = false` on a 49.6 MB APK. Behind a measured
-comparison: build with R8, run the full 2597-test suite plus a device smoke pass, keep only if both are
-green.
-**O2 — atomic writes**: `WearOfflineQueue.writeAll` rewrites the whole array per op and its rename
-fallback does `file.writeText(temp.readText())`; `WearConfigStore.write` and `WearMemoryCache.write` write
-straight to the final path. One temp+fsync+rename helper.
-**O3 — payload size**: the phone base64s the **full** memory snapshot (Data Layer ≈100 KB, +33%) and the
-watch then truncates to 500 tokens. Send the derived core context instead.
-**O4 — watch call budget**: `callTimeout`, a body cap far below 1 MiB, status read before the body.
-**O5 — strings/locale**: move the remaining hardcoded watch strings into `strings.xml`; revisit
-`localeFilters += listOf("en")`.
-**O6 — split `WearMainActivity` (706 lines)** *after* F6/F7, so it is a mechanical move of tested logic.
+**O1 — R8 for the phone release (N7). NOT DONE, and the reason is a real one.** The gate is "build
+with R8, run the full 2597-test suite plus a device smoke pass, keep only if both are green". The
+device smoke pass cannot be run on this machine (no emulator, no device), and a phone release with R8
+that has never been smoke-tested is exactly the artifact this plan exists to avoid shipping. The
+measurement that *was* taken: the phone release APK is **49.5 MB** unminified against the watch's
+**2.8 MB** minified, so the headroom is real and the item stays open rather than silently dropped.
+**O2 — atomic writes. DONE.** `WearAtomicFile` (temp → fsync → rename, with a copy fallback that is the
+only in-place path) now backs all three watch state files: the offline queue, the config store and the
+memory cache. `WearAtomicFileTest` covers the round trip, the absence of a leftover temp file, a failed
+write leaving the previous contents intact, and the queue end-to-end.
+**O3 — payload size. DONE, measured.** The phone now derives the core context before pushing
+(`CoreContextDerivation`), and the watch's rule is idempotent for a payload from an older phone.
+`CoreContextDerivationTest` asserts the number: an 80 KB+ snapshot's payload falls by more than 10× and
+stays under 4 KB including base64 overhead.
+**O4 — watch call budget. DONE** (`callTimeout(90s)`, 256 KiB body cap, status read before the body —
+same change as F6).
+**O5 — strings/locale. DONE.** Every user-visible sentence in the watch module moved into
+`res/values/strings.xml` (24 in `WearMainActivity`, 12 in `WearSetupScreen`); `Text("…")` literals in
+those files are now 0. `:wear:lintDebug` reports no `UnusedResources`. The `localeFilters = ["en"]`
+filter is **kept deliberately** and the reason is written at the site: one locale is the right size for
+a 2.8 MB watch APK, and adding one is now a `values-<lang>/strings.xml` plus an entry, which is what
+moving the strings bought.
+**O6 — split `WearMainActivity` (748 lines). NOT DONE.** The plan's own sequencing says "after F6/F7,
+so it is a mechanical move of tested logic" — and it is 748 lines, under the 800-line cap. Doing it now
+would be a large diff with no gate of its own, at the end of a session that has already changed this
+file heavily. Recorded as open with the sequencing reason intact.
 
 ---
 
@@ -329,16 +404,181 @@ watch then truncates to 500 tokens. Send the derived core context instead.
 | 1 | F0 land all 5 upstream commits | merged tree green + guard PASS | **DONE** |
 | 2 | F1 strict gate exit codes | seeded failure → nonzero | **DONE** |
 | 3 | F2 the 801-line file | `verifyKotlinFileSize` green with `360ae4f8` merged | **DONE** |
-| 4 | F3 sync conflict + failure notification | dry-run keeps upstream's `@v4`; forced failure opens an issue | **DONE** (notification step + `sync-failure` label; a real forced-failure run is not yet exercised) |
+| 4 | F3 sync conflict + failure notification | dry-run keeps upstream's `@v4`; forced failure opens an issue | **DONE** (notification step + `sync-failure` label; a real forced-failure run is still not exercised) |
 | 5 | F4 dead paths | `bash -n` on all three; sync reaches gradle | **DONE** |
 | 6 | N4 built-in base URL (new) | regression test red→green | **DONE** |
-| 7 | F9 pairing dead end | cancelled request leaves the screen usable | **DONE** (fix + regression test; suite re-run pending) |
-| 8 | F6 + F7 watch correctness and protocol | duplicate-tap red→green; 401 no-retry; typed ack | OPEN |
-| 9 | F8 memory sync ownership | background-write push test; empty snapshot clears the cache | OPEN |
-| 10 | F11 the vacuous tests | each one fails when the behaviour it names is broken | **PARTLY DONE** (2 of 4 fixed and mutation-proved; concurrency + scraper tests OPEN) |
-| 11 | M1–M3, M6, M7 | provenance job green on a tag; wear in CI; release fails without a keystore | OPEN |
-| 12 | F5 cleartext classification | the guard test above | OPEN |
-| 13 | O1–O6 | R8 phone build green on the full suite; payload bytes measured | OPEN |
+| 7 | F9 pairing dead end | cancelled request leaves the screen usable | **DONE** |
+| 8 | F6 + F7 watch correctness and protocol | duplicate-tap red→green; 401 no-retry; typed ack | **DONE** |
+| 9 | F8 memory sync ownership | background-write push test; empty snapshot clears the cache | **DONE** (the empty-cache half is a JVM test; the background trigger is asserted structurally — see F8) |
+| 10 | F11 the vacuous tests | each one fails when the behaviour it names is broken | **DONE** (all six, mutation-proved) |
+| 11 | M1–M3, M6, M7 | provenance job green on a tag; wear in CI; release fails without a keystore | **DONE** (M1 run against the real `v3.0.3`; M6 compiles but is unrun — no device) |
+| 12 | F5 cleartext classification | the guard test above | **DONE** |
+| 13 | O1–O6 | R8 phone build green on the full suite; payload bytes measured | **O2–O5 DONE; O1 and O6 OPEN with the reasons in §5** |
 
 **Stop rule (AGENTS.md):** if a step cannot be closed in 30 minutes, write `BLOCKED.md` with the options
 and take the most conservative safe one. A stopped agent with a green `main` is a success.
+
+---
+
+# Session 2 — the 2026-09-19 audit (171 lines, 37 lanes)
+
+Written 2026-09-19 against `main` @ `dab42ba1` and `upstream/master` @ `360ae4f8`. The section above is
+the previous session's record and is left intact; this one covers the new audit.
+
+Verification harness: 52 checks against the live tree. First full run:
+**49 CONFIRMED, 2 REFUTED, 1 CHECK.** Nothing below is claimed from the audit's word alone.
+
+## S2.1 REFUTED — two findings did not survive contact with the tree
+
+| # | Audit claim | What is actually true |
+|---|---|---|
+| R1 | `gradle/libs.versions.toml:13 ksp="2.3.9"` is the "wrong scheme", "breaks `app/build.gradle.kts:5`", resolution "likely fails" | **False.** KSP 2.x uses plain `MAJOR.MINOR.PATCH`; the `KOTLIN-KSP` joined form is the 1.x scheme. `2.3.9` resolves — `~/.gradle/caches/modules-2/files-2.1/com.google.devtools.ksp/` holds `com.google.devtools.ksp.gradle.plugin/2.3.9` and `symbol-processing-api/2.3.9` — and `:app:compileFdroidDebugKotlin` is **BUILD SUCCESSFUL**. No change. |
+| R2 | `libs.versions.toml:27 playServicesWearable="19.0.0"` "unattested", resolution "likely fails" | **False.** `~/.gradle/…/com.google.android.gms/play-services-wearable/` holds `19.0.0`; `:wear:compileDebugKotlin` is **BUILD SUCCESSFUL**. No change. |
+
+## S2.2 One finding I mis-scored first, and the correction
+
+`wear/proguard-rules.pro` "has no `$$serializer` keeps". My first harness matched the literal string
+`serializer` and reported REFUTED — it had matched the file's *comment*. Reading the rules: the wear
+file uses `-keepclassmembers` on the model classes, which keeps the *members* of `WearConfig`, not the
+generated `WearConfig$$serializer` class kotlinx.serialization resolves by reflection. The phone's file
+has the rules that matter. **CONFIRMED**, fixed below.
+
+## S2.3 CONFIRMED, with the line that decided each
+
+Full evidence table (49 rows, file:line + the command) is in §3 of the audit reconciliation written to
+`STATUS.md`. The load-bearing ones, and what the line actually said:
+
+| # | Finding | The line I read |
+|---|---|---|
+| P1.1 | wear proguard misses `PairingAckListenerService` | 3 `-keep` lines, that name absent; manifest declares it `exported="true"` |
+| P1.3 | `install*Release` escapes the fail-closed filter | `name.startsWith("assemble") \|\| … "bundle" … \|\| … "package"` |
+| P1.4 | keystore `if:` reads an env its own step defines | `:83` `if: ${{ env.KEYSTORE_BASE64 != '' }}` above its own `env:` block |
+| P1.14 | unbounded wire reads | `:328` `else input.readUtf8Line()`; `grep -rn maxLineBytes …/api/` → **only HttpClient.kt itself**, so the bound was never passed |
+| P1.19 | `SELECT * FROM embeddings` | `:662`; callsites = **the declaration only** — latent, not live |
+| P1.25 | CI wires no gate script | `grep touchpoint_guard\|gen_code_map\|audit_gate0\|verify_release` → **no matches** |
+| P1.26 | `audit_gate0.sh` §7 never fails | `:167-183` printed the label counts, compared nothing |
+| H1 | every ack → `Connected` | `:314` `ack.answers(requestId) -> PairingStatus.Connected` |
+| H6 | observer gives up forever | `:47` `awaitContainer() ?: return@launch` |
+| H7 | `fetchModels` ignores its `apiKey` | `:500` `HttpClient.fetchModelsResponse("$effectiveBaseUrl/api/tags")` — no headers param; `Authorization` exists only at `:254` (generate) |
+| H8 | Anthropic URL has no version segment | `:419` `"$baseUrl/messages"`; `defaultBaseUrl` = `…/v1` at `:244` |
+| P2.3 | `WearFontCoverage` has no CJK/ja/ko/ar ranges | `0x4E00`, `0x3040`, `0x0600` all absent from the 77-line file; its named generator `_workbench/gen_coverage.py` absent |
+| G1 | sync position | `git rev-list --left-right --count upstream/master...main` → `0	89` |
+
+## S2.4 Fixed in this session
+
+All edits marked `HERMES INTEGRATION POINT`, per `AGENTS.md` rule 2.
+
+**Release / security.** `wear/proguard-rules.pro` gains the `PairingAckListenerService` keep and the two
+serializer rules (P1.1, P1.2 — a service the platform resolves by name was strippable in release, and
+debug builds do not minify, which is why no test caught it). `app/build.gradle.kts`'s fail-closed filter
+gains `install…` (P1.3). The four CI secrets move to **job-level** `env` so the step's own `if:` can see
+them (P1.4). `SecretCrypto`'s plaintext fallback is marked (`plain:v1:`) and detectable rather than
+silent (P1.9). `CrashReporter` redacts the trace through `DiagnosticRedactor` before persisting it
+(P1.12). `HttpClient`'s stream caps default to 1 MiB / 64 KiB and both public overloads forward them
+(P1.14). `audit_gate0.sh` §7 compares and fails (P1.26). `build.yml` runs `touchpoint_guard.sh`,
+`gen_code_map.sh --check` and `audit_test_counts.py` in the `test` job (P1.25). `OllamaProvider` sends
+the bearer on `fetchModels` (H7). The Anthropic URL gains `/v1` when absent (H8).
+
+**The pairing protocol (H1 + H2) — the most consequential one.** The ack carried `requestId` and a
+sentence, and the watch treated "an answer naming my request" as success. But `NO_KEY`, `NO_ENDPOINT`,
+`PUSH_FAILED`, `STARTING_UP` and the mismatch refusal *all* echo the id — so a watch with no key, or a
+phone that never pushed, or a version mismatch, all rendered *"Phone replied — configuration
+received."* over a config that was never installed. The id says **which** request was answered, not
+whether it was **served**. `PairingRequest.ackBody` now carries `ok` (default `true`, so an older
+phone's ack keeps its meaning); the watch gains `PairingAck.ok` / `serves(requestId)` and the new
+terminal state `PairingStatus.Refused`; `PushReason` gains `ok` so the outcome the phone computed is
+what travels; `PairingListenerService` replies with the `PushOutcome` instead of flattening it to a
+string, and sends `ok = false` for `PROTOCOL_MISMATCH` and the failure fallback.
+
+**Memory push.** `MemoryPushStartup` no longer gives up permanently when the container is not ready —
+`awaitContainer()` answers null while the startup gate is `Blocked`, a state the *user* resolves, so the
+old `?: return@launch` left the watch with no push path for the life of that process; it now waits (5 s
+poll, no deadline, H6). `drop(1)` removed: it discarded the value at subscribe time, so a write landing
+before the subscription was never pushed and the watch kept the older snapshot indefinitely —
+collecting the current value **is** the missing initial sync. `distinctUntilChanged()` went with it (the
+source is a `StateFlow`; the operator is a deprecation *error* on one, and the compiler caught it).
+`MemorySnapshotPusher` no longer pushes directly — both observers are live on the same
+`activeMemoryRevision` when the UI is open, so every write while the user watched went over Bluetooth
+**twice**; both now request through `MemoryPushScheduler`, and `DEBOUNCE_MS` is defined once.
+`pushNow` deleted (zero callers; a second way to push is how the double-push arose).
+`MemorySnapshotPushWorker` gains a 60 s timeout and returns `Result.retry()` (capped at 2) instead of
+`Result.success()` for every outcome, including a failure to produce the payload at all.
+
+**Watch client / queue.** `endpoint()` trims trailing slashes before the `endsWith` check (P2.1);
+`awaitAck` uses `SystemClock.elapsedRealtime()` (P2.2 — a wall-clock deadline broke on an NTP
+correction or DST shift during the 20 s wait).
+
+**Data / performance.** `RemoteImageCache`'s eviction loop moved out of `synchronized(lock)` —
+`length()`, `delete()` and `listFiles()` are blocking syscalls that every concurrent `load` was waiting
+on (P2.6). **`ChatSearchDao` was reverted** — see §S2.7.
+
+## S2.7 A finding the test suite refuted, and my own wrong fix
+
+The audit's `ChatSearchDao` finding ("`CROSS JOIN messages CROSS JOIN conversations` cartesian before
+predicate, should be `INNER JOIN`") is **wrong**, and I acted on it before checking. Two independent
+reasons, both verified:
+
+* **SQLite documents `CROSS JOIN` as a planner directive.** "Programmers can force SQLite to use a
+  particular loop nesting order for a join by using the CROSS JOIN operator instead of just JOIN, INNER
+  JOIN, … SQLite will not reorder the tables of a CROSS JOIN." It is a hint, not a cartesian product —
+  the join predicates were already in the `WHERE`.
+* **It was deliberate upstream.** `git log` on the file: `0071bd1c perf: speed up large semantic
+  searches` introduced it, and `SemanticSearchBoundedSourceContractTest.kt:36-41` pins the exact string
+  so a future edit cannot silently undo the hint.
+
+My change made the suite go red — `2624 tests completed, 1 failed` /
+`semanticSearchHotPathUsesKeysetPagesInsteadOfAFullEmbeddingList` — which is the test doing its job.
+Reverted with `git checkout --`, file confirmed byte-clean against upstream.
+
+This is the one place where I acted on the audit without reproducing it first, and the suite caught it.
+Recorded here rather than quietly dropped, because the audit's framing ("cartesian before predicate")
+sounds correct to anyone who has not read SQLite's join documentation.
+
+**Registry.** Four touchpoints added (`HttpClient.kt`, `AnthropicProvider.kt`, `OllamaProvider.kt`,
+`CrashReporter.kt`); `build.yml` budget 40 → 80 for the three gate steps. `touchpoint_guard.sh` →
+**PASS**. The guard caught each unregistered edit as it happened, which is the correct behaviour.
+
+## S2.5 Still open, with the reason
+
+| # | Item | Why |
+|---|---|---|
+| O1 | R8 for the phone release (P1.27) | Gate needs a device smoke pass; `adb devices` is empty on this machine. Headroom is real (49.5 MB unminified vs 2.8 MB minified watch). |
+| O6 | Split `WearMainActivity` | 748 lines, under the cap, heavily changed this session. |
+| P1.20–P1.22 | Sandbox `--allow-untrusted`, shared-storage bind, TOCTOU | Each is a deliberate design decision in the PRoot integration; the fixes change the sandbox's security *model*, which wants the maintainer's call, not a drive-by patch. |
+| P1.8, P1.10, P1.11, P1.13 | Plaintext secrets in DataStore / export / backup / proxy password | Each needs a **migration** — existing installs hold plaintext that must keep working. P1.9's marked fallback is the prerequisite and is now in place. |
+| P1.15–P1.18 | Destructive migrations, blocked-database delete | Editing a shipped migration rewrites history for installs that already ran it; these need a forward migration. |
+| P1.6, P1.7 | Global cleartext, exported listener without a permission | P1.6 is upstream's line and disabling it breaks the documented self-hosted Ollama setup; the guard that makes it safe now has a test. P1.7's fix (a `signature` permission) changes the pairing contract between two apps. |
+| H3, H4, H5, H9, H10, H11 | Targeted credential delivery, the send race, idempotency keys, work-name collision, the breaker's missing open state, transcript-grounded reflection | Each is a behaviour change with its own trade-off, several documented as deliberate in the code's own KDoc. Evidence is in the audit table so the next session starts from file:line. |
+| P3.1–P3.4 | Fastlane changelogs, `NOTICE` submodule count, `mkdocs` URLs, docs locales | Metadata/doc drift; no code path affected. |
+
+## S2.6 Push plan — and its status
+
+1. **DONE.** Full suite green: fdroid **2624** / play **2607** / wear **141**, 0 failures, 0 errors —
+   `python scripts/audit_test_counts.py` → exit 0.
+2. **DONE.** `bash scripts/touchpoint_guard.sh` → **PASS**, 28 entries, none over budget.
+3. **DONE.** `bash scripts/gen_code_map.sh` regenerated (193 lines); `--check` → exit 0.
+4. **DONE.** `STATUS.md` carries the Session 2 evidence block, counts read from the XML.
+5. Commits, one concern each, `hermes:` prefix:
+   * the wear proguard keeps (`PairingAckListenerService` + serializers)
+   * the ack's `ok` — the phone says whether it *served* the request
+   * bounded wire reads, the redacted crash trace, the release-task filter, the job-level CI env
+   * one owner for the memory push, plus the initial sync
+   * the CI gates + the label check that can actually fail
+   * the docs reconciliation
+6. `git push origin main` (11 commits already ahead, plus these).
+7. `gh run watch` the triggered run — the three new gate steps have never executed in CI before, so
+   they are the ones to read.
+
+No force-push, no history rewrite, no tag: `AGENTS.md` rule 5 forbids disabling a guard to pass a gate,
+and nothing above does.
+
+### What "done" does and does not mean here
+
+Fixed and proved: 14 of the audit's findings, including the one with real user impact (the pairing ack
+that reported success for every refusal). Two findings refuted with evidence, one more refuted by the
+test suite after I had acted on it — and that revert is recorded in §S2.7 rather than dropped.
+
+Not fixed, each with its reason in §S2.5: the sandbox's security model, the plaintext-secret
+migrations, the destructive migrations, the exported listener's permission, the phone's R8 build, and
+six HIGH behaviour items whose fixes are design trade-offs rather than bug fixes. Those are listed with
+their `file:line` so the next session starts from the evidence, not from this summary.

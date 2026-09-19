@@ -7,29 +7,48 @@ No proof = phase not done. Human-setup items are marked **[HS]** and never block
 
 ---
 
-## CURRENT STATE — 2026-09-18 (read this first; everything below is dated history)
+## CURRENT STATE — 2026-09-19 (read this first; everything below is dated history)
 
 Every number here was produced by a command run on this date. A phase section further down describes
 the repo **as it was when that phase closed** and may legitimately contradict this block.
 
 | | Value | Command |
 |---|---|---|
-| `main` HEAD | `2c2c10f1` | `git rev-parse --short main` |
+| `main` HEAD | `dab42ba1` + the MEGA_PLAN execution working tree | `git rev-parse --short main` |
 | Versions | `3.0.3-hermesx` / `versionCode` 34, both modules | `app/build.gradle.kts`, `wear/build.gradle.kts` |
 | Releases | `v3.0.3` (latest), `v3.0.2`, `v3.0.1` (pre-release) | `gh release list -R michaelxdips/Agora` |
-| App unit tests | **2562 tests, 0 failures, 0 errors, 3 skipped** (394 XML files) | `./gradlew :app:testFdroidDebugUnitTest`; plain **and** `--rerun-tasks`, twice |
-| Wear unit tests | **82 tests, 0 failures, 0 errors** (9 XML files) | `./gradlew :wear:testDebugUnitTest` |
-| Play flavor tests | 2545 tests, 0 failures, 0 errors, 3 skipped | `:app:testPlayDebugUnitTest` |
-| Upstream position | `main` is **83 ahead** of the fork point `914e7c8d`; upstream is **5 ahead** | `git rev-list --left-right --count upstream/master...main` |
-| Release certificate | `7188ce70…aa56d7` on **both** published APKs | `apksigner verify --print-certs` on the downloaded `v3.0.3` assets |
-| Published asset digests | match `SHA256SUMS` byte-for-byte | `sha256sum -c SHA256SUMS` |
+| App unit tests | **2624 tests, 0 failures, 0 errors, 3 skipped** (403 XML files) | `./gradlew :app:testFdroidDebugUnitTest` |
+| Wear unit tests | **141 tests, 0 failures, 0 errors** (13 XML files) | `./gradlew :wear:testDebugUnitTest` |
+| Play flavor tests | 2607 tests, 0 failures, 0 errors, 3 skipped | `:app:testPlayDebugUnitTest` |
+| Kotlin size gate | 1044 files, maximum 800 lines, 0 baseline entries | `verifyKotlinFileSize` |
+| Upstream position | `main` is **89 ahead** of the fork point `914e7c8d`; upstream is **0 ahead** | `git rev-list --left-right --count upstream/master...main` |
+| Release certificate | `7188ce70…aa56d7` on **both** published APKs | `bash scripts/verify_release_provenance.sh v3.0.3` → **PASS, all four claims** |
+| Published asset digests | match `SHA256SUMS` byte-for-byte | same script, claim 2 |
+| Release signing | **fail-closed**: `assembleFdroidRelease` with no keystore now exits 1 instead of signing with the debug key | `./gradlew assembleFdroidRelease` on a clean `local.properties` |
 | Branch protection | **off** — `gh api …/branches/main/protection` → `404 Branch not protected` | same |
-| Wear instrumentation | **none** — `wear/src/androidTest` does not exist | `ls` |
+| Wear instrumentation | **exists** (`wear/src/androidTest`, 2 classes, 11 tests) and compiles; **not yet run on hardware** — no device or emulator is attached to this machine | `./gradlew :wear:compileDebugAndroidTestKotlin` |
+| Wear in CI | `:wear:testDebugUnitTest` in the `test` job, `:wear:assembleRelease` + `:wear:lintVitalRelease` + APK upload in the `build` job | `.github/workflows/build.yml` |
+| `CODE_MAP.md` | generated: `bash scripts/gen_code_map.sh --check` → up to date | same |
 
-**Open, known-broken, do not claim otherwise:** the fork merges upstream through `a37759f9` only;
-upstream's tip `360ae4f8` pushes `SettingsModelsPage.kt` to 801 lines against the 800-line cap and
-turns the gate red (upstream's own CI is red for the same reason, run `35171806965`). See
-[`MEGA_PLAN.md`](MEGA_PLAN.md) for the reconciliation, the fix plan and the optimisation plan.
+**Everything in `MEGA_PLAN.md`'s fix/modify/optimise plan is closed or explicitly recorded as not
+done in that document.** The one item that is *verified but unexercised* is the wear instrumented
+suite: it compiles and the source set exists, but this machine has no watch image, so no test in it
+has been executed. That is stated here rather than counted as a pass.
+
+### Session 2 evidence — the 2026-09-19 audit (see `MEGA_PLAN.md` §Session 2)
+
+| | Value | Command |
+|---|---|---|
+| Audit findings reconciled | 49 **CONFIRMED**, 2 **REFUTED**, 1 reverted after the suite caught it | verification harness, 52 checks against the live tree |
+| Refuted | `ksp="2.3.9"` and `playServicesWearable="19.0.0"` both resolve; the audit's "wrong scheme / likely fails" is false | `~/.gradle/caches/…/com.google.devtools.ksp/…/2.3.9`, `…/play-services-wearable/19.0.0`, `:app:compileFdroidDebugKotlin` + `:wear:compileDebugKotlin` **BUILD SUCCESSFUL** |
+| Refuted by the suite | the audit's `ChatSearchDao` "`CROSS JOIN` cartesian" claim. SQLite documents `CROSS JOIN` as a planner hint that pins loop order, not a cartesian product, and upstream commit `0071bd1c` introduced it deliberately. My change made `2624 tests completed, 1 failed`; reverted with `git checkout --` | `SemanticSearchBoundedSourceContractTest.kt:36-41` pins the string |
+| Pairing fix, mutation-proved | replacing `ack.serves(requestId)` with the old `ack.answers(requestId)`, **and** forcing `PairingAck.ok = true`, turns **2 of the new tests red** | `./gradlew :wear:testDebugUnitTest --tests "*WearPairingTest*"` → `22 tests completed, 2 failed`; restored → green |
+| Full suite after the work | fdroid **2624** / play **2607** / wear **141** — 0 failures, 0 errors | `python scripts/audit_test_counts.py` → exit 0 |
+| Kotlin size gate | 1044 files, maximum 800 lines, 0 baseline entries | `verifyKotlinFileSize` |
+| `touchpoint_guard.sh` | **PASS** — 28 entries in the guard's data block (26 with a live diff against upstream), none over budget | `bash scripts/touchpoint_guard.sh` → exit 0 |
+| `gen_code_map.sh --check` | up to date | exit 0 |
+| CI now runs the gates | `touchpoint_guard.sh`, `gen_code_map.sh --check`, `audit_test_counts.py` added to the `test` job — before this, `grep` for those names in `build.yml` was **0** | `.github/workflows/build.yml` |
+| Still open, with reasons | R8 for the phone release, `WearMainActivity` split, the sandbox security model, the plaintext-secret migrations, the destructive migrations, the exported listener's permission, and six HIGH behaviour items | `MEGA_PLAN.md` §S2.5 |
 
 ---
 

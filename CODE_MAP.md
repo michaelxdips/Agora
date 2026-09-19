@@ -152,7 +152,7 @@ Upstream ref used for the classification: `upstream/master`
 | `scripts/persona_update.sh` | 141 | fork-only |
 | `scripts/round_icon.py` | 39 | upstream (budgeted) |
 | `scripts/test-native-utf8.py` | 76 | upstream (budgeted) |
-| `scripts/touchpoint_guard.sh` | 136 | fork-only |
+| `scripts/touchpoint_guard.sh` | 154 | fork-only |
 | `scripts/upstream_sync.sh` | 180 | fork-only |
 | `scripts/verify_release_provenance.sh` | 145 | fork-only |
 
@@ -169,6 +169,10 @@ so this table cannot disagree with what the guard enforces.
 | `.github/workflows/build.yml` | 100 | 85 |
 | `.github/workflows/mkdocs.yml` | 4 | 4 |
 | `mkdocs.yml` | 16 | 12 |
+| `fastlane/metadata/android/en-US/changelogs/32.txt` | 8 | 4 |
+| `fastlane/metadata/android/en-US/changelogs/33.txt` | 8 | 2 |
+| `fastlane/metadata/android/en-US/changelogs/34.txt` | 8 | 4 |
+| `fastlane/metadata/android/en-US/changelogs/35.txt` | 8 | 4 |
 | `.gitignore` | 12 | 11 |
 | `app/src/main/AndroidManifest.xml` | 6 | 5 |
 | `app/src/main/res/values/strings.xml` | 4 | 0 |

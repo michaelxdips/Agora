@@ -276,11 +276,12 @@ no repo change at all — no ABI added, no upstream file touched.
 **Tooling paths used locally (never committed):** `_tools/` (JDK, SDK, keystore) on the machine that
 runs the builds; `local.properties` supplies `sdk.dir` + the signing aliases.
 
-Build environment used for every Gradle command below:
+Build environment used for every Gradle command below (paths generalized; the real ones are local and
+never committed):
 
 ```bash
-export JAVA_HOME='C:/Users/Michael/Documents/Chatapp/_tools/jdk21/jdk-21.0.12.1+1'
-export ANDROID_HOME='C:/Users/Michael/Documents/Chatapp/_tools/sdk'
+export JAVA_HOME="$JDK21_HOME"        # Temurin 21, path is machine-local
+export ANDROID_HOME="$ANDROID_SDK"    # Android SDK, path is machine-local
 export ANDROID_SDK_ROOT="$ANDROID_HOME"
 export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
 ```

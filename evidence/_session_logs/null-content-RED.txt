@@ -36,7 +36,7 @@ Kotlin source size verified: 1010 files, maximum 800 lines at app/src/test/java/
 > Task :wear:bundleDebugClassesToCompileJar
 
 > Task :wear:compileDebugUnitTestKotlin
-w: file:///C:/Users/Michael/Documents/Chatapp/Agora/wear/src/test/java/com/newoether/agora/wear/WearMainThreadSentinelTest.kt:31:24 Java type mismatch: inferred type is 'String?', but 'String' was expected.
+w: file:///<old-checkout>/wear/src/test/java/com/newoether/agora/wear/WearMainThreadSentinelTest.kt:31:24 Java type mismatch: inferred type is 'String?', but 'String' was expected.
 
 > Task :wear:compileDebugUnitTestJavaWithJavac NO-SOURCE
 > Task :wear:processDebugUnitTestJavaRes
@@ -55,7 +55,7 @@ FAILURE: Build failed with an exception.
 
 * What went wrong:
 Execution failed for task ':wear:testDebugUnitTest'.
-> There were failing tests. See the report at: file:///C:/Users/Michael/Documents/Chatapp/Agora/wear/build/reports/tests/testDebugUnitTest/index.html
+> There were failing tests. See the report at: file:///<old-checkout>/wear/build/reports/tests/testDebugUnitTest/index.html
 
 * Try:
 > Run with --scan to get full insights from a Build Scan (powered by Develocity).

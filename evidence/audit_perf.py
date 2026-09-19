@@ -8,7 +8,7 @@ import subprocess
 import statistics
 import time
 
-ADB = r"C:\Users\Michael\Documents\Chatapp\_tools\sdk\platform-tools\adb.exe"
+ADB = r"<old-checkout>\_tools\sdk\platform-tools\adb.exe"
 WEAR = ["-s", "emulator-5556"]
 PHONE = ["-s", "emulator-5554"]
 PKG = "com.hermes.app"

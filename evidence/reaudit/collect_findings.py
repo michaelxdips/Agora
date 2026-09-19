@@ -2,7 +2,7 @@ import json
 import os
 import re
 
-base = r"C:\Users\Michael\AppData\Local\hermes\cache\delegation\live\deleg_2a56a355"
+base = r"<home>\AppData\Local\hermes\cache\delegation\live\deleg_2a56a355"
 
 TITLE = re.compile(r'"title"\s*:\s*"((?:[^"\\]|\\.){5,200})"')
 FILE_LINE = re.compile(r'"file_line"\s*:\s*"((?:[^"\\]|\\.){3,300})"')

@@ -19,26 +19,26 @@ Kotlin source size verified: 1027 files, maximum 800 lines at app/src/test/java/
 > Task :app:kspFdroidDebugKotlin
 
 > Task :app:compileFdroidDebugKotlin
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt:220:73 'val Icons.Filled.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Chat.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt:223:60 'val Icons.Filled.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Chat.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt:251:51 'val Icons.Filled.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Chat.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:285:61 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:291:50 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:292:52 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:295:60 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:316:76 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:320:46 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:321:48 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:158:46 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:158:91 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:158:116 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:159:77 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:167:78 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:188:47 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:189:48 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt:220:73 'val Icons.Filled.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Chat.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt:223:60 'val Icons.Filled.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Chat.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt:251:51 'val Icons.Filled.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Chat.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt:220:73 'val Icons.Filled.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Chat.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt:223:60 'val Icons.Filled.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Chat.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt:251:51 'val Icons.Filled.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Chat.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:285:61 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:291:50 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:292:52 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:295:60 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:316:76 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:320:46 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:321:48 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:158:46 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:158:91 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:158:116 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:159:77 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:167:78 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:188:47 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:189:48 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt:220:73 'val Icons.Filled.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Chat.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt:223:60 'val Icons.Filled.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Chat.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt:251:51 'val Icons.Filled.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Chat.
 
 > Task :app:javaPreCompileFdroidDebug UP-TO-DATE
 > Task :app:compileFdroidDebugJavaWithJavac NO-SOURCE
@@ -81,26 +81,26 @@ OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader clas
 > Task :app:kspPlayDebugKotlin
 
 > Task :app:compilePlayDebugKotlin
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt:220:73 'val Icons.Filled.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Chat.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt:223:60 'val Icons.Filled.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Chat.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt:251:51 'val Icons.Filled.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Chat.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:285:61 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:291:50 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:292:52 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:295:60 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:316:76 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:320:46 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:321:48 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:158:46 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:158:91 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:158:116 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:159:77 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:167:78 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:188:47 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:189:48 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt:220:73 'val Icons.Filled.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Chat.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt:223:60 'val Icons.Filled.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Chat.
-w: file:///C:/Users/Michael/Documents/Hermes%20X/Agora/app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt:251:51 'val Icons.Filled.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Chat.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt:220:73 'val Icons.Filled.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Chat.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt:223:60 'val Icons.Filled.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Chat.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt:251:51 'val Icons.Filled.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Chat.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:285:61 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:291:50 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:292:52 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:295:60 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:316:76 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:320:46 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/gemini/GeminiProvider.kt:321:48 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:158:46 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:158:91 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:158:116 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:159:77 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:167:78 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:188:47 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt:189:48 Unnecessary non-null assertion (!!) on a non-null receiver of type 'ToolCallData'.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt:220:73 'val Icons.Filled.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Chat.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt:223:60 'val Icons.Filled.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Chat.
+w: file:///<checkout>/app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt:251:51 'val Icons.Filled.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Chat.
 
 > Task :app:javaPreCompilePlayDebug UP-TO-DATE
 > Task :app:compilePlayDebugJavaWithJavac NO-SOURCE

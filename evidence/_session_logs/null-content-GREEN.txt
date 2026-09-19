@@ -31,7 +31,7 @@ Kotlin source size verified: 1010 files, maximum 800 lines at app/src/test/java/
 > Task :wear:javaPreCompileDebugUnitTest UP-TO-DATE
 
 > Task :wear:compileDebugKotlin
-w: file:///C:/Users/Michael/Documents/Chatapp/Agora/wear/src/main/java/com/newoether/agora/wear/WearChatClient.kt:97:41 Unnecessary safe call on a non-null receiver of type 'ResponseBody'.
+w: file:///<old-checkout>/wear/src/main/java/com/newoether/agora/wear/WearChatClient.kt:97:41 Unnecessary safe call on a non-null receiver of type 'ResponseBody'.
 
 > Task :wear:compileDebugJavaWithJavac NO-SOURCE
 > Task :wear:processDebugJavaRes UP-TO-DATE

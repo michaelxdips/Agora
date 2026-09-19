@@ -22,7 +22,7 @@ import sys
 import time
 import urllib.request
 
-ADB = r"C:\Users\Michael\Documents\Chatapp\_tools\sdk\platform-tools\adb.exe"
+ADB = r"<old-checkout>\_tools\sdk\platform-tools\adb.exe"
 DEV = ["-s", "emulator-5556"]
 PKG = "com.hermes.app"
 ACT = f"{PKG}/com.newoether.agora.wear.WearMainActivity"

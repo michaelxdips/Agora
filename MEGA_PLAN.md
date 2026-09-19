@@ -57,7 +57,7 @@ Consequence: the P0 "29 failures / do not call v3.0.3 verified-green" verdict is
 
 | # | Defect | Evidence I read |
 |---|---|---|
-| C1 | `audit_gate0.sh` cd's into a machine that does not exist | real run → `cd: /c/Users/Michael/Documents/Chatapp/Agora: No such file or directory`, `REAL_EXIT=1`. Dead on arrival for anyone else. |
+| C1 | `audit_gate0.sh` cd's into a machine that does not exist | real run → `cd: /c/Users/<name>/Documents/<old-checkout>: No such file or directory`, `REAL_EXIT=1`. Dead on arrival for anyone else. |
 | C2 | `audit_gate0.sh` could print FAIL and still exit 0 | `grep -n exit scripts/audit_gate0.sh` → only the cd's `exit 1`; no `fail` accumulator anywhere |
 | C3 | Signature section printed the expected digest, never compared it | lines 96-104: `echo "  expected: … 7188ce70…aa56d7"` with no comparison |
 | C4 | `audit_test_counts.py` treats a failing suite as success | `sys.exit(0 if total > 0 else 1)`; 10 tests / 10 failures / 10 errors → exit 0 |
@@ -110,7 +110,7 @@ test that is red on the old line and green on the new.
 
 **N5 (P2) — dead toolchain paths in three scripts.**
 `grep -n Chatapp scripts/*.sh` → `audit_gate0.sh:12,13,18`, `persona_update.sh:81,82`,
-`upstream_sync.sh:131,132`; `ls /c/Users/Michael/Documents/Chatapp` → **No such file or directory**.
+`upstream_sync.sh:131,132`; `ls /c/Users/<name>/Documents/<old-checkout>` → **No such file or directory**.
 For `upstream_sync.sh` that meant the post-merge gate would run with a `JAVA_HOME` containing no `java`
 and abort a good merge with "TESTS/BUILD FAILED".
 

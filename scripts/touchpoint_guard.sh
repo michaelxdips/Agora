@@ -52,7 +52,22 @@ if ! git rev-parse --verify --quiet "$UPSTREAM_REF" >/dev/null; then
     fi
 else
     MERGE_BASE="$(git merge-base "$UPSTREAM_REF" HEAD 2>/dev/null)"
-    DIFF_ARGS="${MERGE_BASE:-$UPSTREAM_REF}"
+    # HERMES INTEGRATION POINT (Session 5): this used to fall back to `DIFF_ARGS=$UPSTREAM_REF`,
+    # i.e. diff HEAD against the upstream TIP. That is not a weaker check, it is a wrong one: in a
+    # shallow clone (`actions/checkout@v4` depth 1 + `git fetch --depth=1 upstream`) the merge base
+    # cannot be computed, and every upstream commit landed after the fork point then appeared as a
+    # fork edit — CI run 35450226040 reported 10 false "unregistered upstream file modified" for
+    # files the *upstream* had changed (app/src/.../remote/*), while the fork had not touched them.
+    # A guard that cannot compute the comparison is a FAIL with the fix named, exactly like the
+    # missing-ref path above — never a silent downgrade to a comparison that answers a different
+    # question.
+    if [ -z "$MERGE_BASE" ]; then
+        note "touchpoint_guard: FAIL cannot compute the merge base between '$UPSTREAM_REF' and HEAD."
+        note "touchpoint_guard: this clone is shallow (or the histories are unrelated). Fetch full history:"
+        note "touchpoint_guard:   git fetch --unshallow origin && git fetch --no-tags upstream master"
+        exit 1
+    fi
+    DIFF_ARGS="$MERGE_BASE"
 fi
 
 # ── 1. collect registered paths + budgets from the GUARD:DATA block ──────────

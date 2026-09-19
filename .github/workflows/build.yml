@@ -26,6 +26,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+          # HERMES INTEGRATION POINT (Session 5): depth 1 made `git merge-base upstream/master HEAD`
+          # impossible, and the guard's fallback then compared HEAD against the upstream TIP — so
+          # every upstream commit landed after the fork point became a false "unregistered upstream
+          # file modified" (CI run 35450226040: 10 files under app/src/.../remote/, all changed by
+          # upstream, none by this fork). The guard's diff is only correct against the real fork
+          # point, so the fork side keeps its full history.
+          fetch-depth: 0
 
       - uses: actions/setup-java@v4
         with:
@@ -49,7 +56,13 @@ jobs:
       - name: Add the upstream remote
         run: |
           git remote add upstream https://github.com/newo-ether/Agora.git 2>/dev/null || true
-          git fetch --no-tags --depth=1 upstream master
+          # HERMES INTEGRATION POINT (Session 5): `--depth=1` left the guard unable to compute a
+          # merge base, and its old fallback then diffed against the upstream TIP — 10 false
+          # "unregistered upstream file modified" in run 35450226040 for files upstream itself had
+          # changed. The guard needs the real fork point, so the upstream side is fetched as a full
+          # graph too (blobs are still skipped when the server supports the filter).
+          git fetch --no-tags --filter=blob:none upstream master 2>/dev/null \
+            || git fetch --no-tags upstream master
           git rev-parse --verify upstream/master
 
       # HERMES INTEGRATION POINT: the guard scripts existed and were wired to nothing. `grep -c` over

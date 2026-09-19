@@ -13,7 +13,7 @@ never remove upstream behaviour — add, don't rewrite.
 app/build.gradle.kts :: max=60
 settings.gradle.kts :: max=4
 gradle/libs.versions.toml :: max=10
-.github/workflows/build.yml :: max=80
+.github/workflows/build.yml :: max=100
 .github/workflows/mkdocs.yml :: max=4
 .gitignore :: max=12
 app/src/main/AndroidManifest.xml :: max=6

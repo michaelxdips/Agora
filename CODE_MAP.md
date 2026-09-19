@@ -165,7 +165,7 @@ so this table cannot disagree with what the guard enforces.
 | `app/build.gradle.kts` | 60 | 54 |
 | `settings.gradle.kts` | 4 | 3 |
 | `gradle/libs.versions.toml` | 10 | 6 |
-| `.github/workflows/build.yml` | 80 | 78 |
+| `.github/workflows/build.yml` | 100 | 85 |
 | `.github/workflows/mkdocs.yml` | 4 | 4 |
 | `.gitignore` | 12 | 11 |
 | `app/src/main/AndroidManifest.xml` | 6 | 5 |

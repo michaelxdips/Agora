@@ -52,22 +52,29 @@ jobs:
           git fetch --no-tags --depth=1 upstream master
           git rev-parse --verify upstream/master
 
-      - name: Run application and build-logic tests
-        run: |
-          chmod +x ./gradlew
-          ./gradlew -p build-logic test --stacktrace
-          ./gradlew :app:testFdroidDebugUnitTest :app:testPlayDebugUnitTest :wear:testDebugUnitTest verifyKotlinFileSize --no-daemon --max-workers=1 --stacktrace
-
       # HERMES INTEGRATION POINT: the guard scripts existed and were wired to nothing. `grep -c` over
       # this file for `touchpoint_guard|gen_code_map|audit_gate0|audit_test_counts|verify_release` was
       # 0, so a PR could edit an upstream file without registering it, ship a stale CODE_MAP, or land
       # an unminified/unsigned release shape, and CI stayed green. Only `upstream-sync.yml` ran the
       # touchpoint guard, and only on its own schedule.
+      #
+      # These two steps run BEFORE the tests, and that order matters: `gradlew` is committed
+      # non-executable (mode 100644) and the tests step starts with `chmod +x ./gradlew`, so on Linux —
+      # where `core.fileMode` is true — that chmod is a *mode change to an upstream file*, which the
+      # guard then correctly reports as `FAIL unregistered upstream file modified: gradlew`. Observed
+      # exactly that in run 35422153801. Running the guard first checks the tree as committed, which is
+      # what the guard is for; the chmod afterwards is a local build convenience, not part of the tree.
       - name: Touchpoint guard
         run: bash scripts/touchpoint_guard.sh
 
       - name: CODE_MAP is up to date
         run: bash scripts/gen_code_map.sh --check
+
+      - name: Run application and build-logic tests
+        run: |
+          chmod +x ./gradlew
+          ./gradlew -p build-logic test --stacktrace
+          ./gradlew :app:testFdroidDebugUnitTest :app:testPlayDebugUnitTest :wear:testDebugUnitTest verifyKotlinFileSize --no-daemon --max-workers=1 --stacktrace
 
       - name: Test counts match the documented numbers
         run: python scripts/audit_test_counts.py

@@ -98,8 +98,8 @@ Upstream ref used for the classification: `upstream/master`
 | `app/src/main/java/com/newoether/agora/autopilot/wearsync/CoreContextDerivation.kt` | 99 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/wearsync/MemoryPushScheduler.kt` | 52 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/wearsync/MemoryPushStartup.kt` | 94 | fork-only |
-| `app/src/main/java/com/newoether/agora/autopilot/wearsync/MemorySnapshotPusher.kt` | 67 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/wearsync/MemorySnapshotPushWorker.kt` | 105 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/wearsync/MemorySnapshotPusher.kt` | 67 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/wearsync/PairingListenerService.kt` | 148 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/wearsync/PairingRequest.kt` | 97 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/wearsync/PushReason.kt` | 59 | fork-only |
@@ -146,8 +146,8 @@ Upstream ref used for the classification: `upstream/master`
 | `scripts/audit_gate0.sh` | 205 | fork-only |
 | `scripts/audit_test_counts.py` | 36 | fork-only |
 | `scripts/gen_code_map.sh` | 134 | fork-only |
-| `scripts/native-tests/native_utf8_probe.cpp` | 23 | upstream (budgeted) |
 | `scripts/native-tests/NativeUtf8Probe.java` | 46 | upstream (budgeted) |
+| `scripts/native-tests/native_utf8_probe.cpp` | 23 | upstream (budgeted) |
 | `scripts/persona_update.sh` | 141 | fork-only |
 | `scripts/round_icon.py` | 39 | upstream (budgeted) |
 | `scripts/test-native-utf8.py` | 76 | upstream (budgeted) |

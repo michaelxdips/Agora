@@ -58,9 +58,9 @@ emit_generated() {
     printf 'Upstream ref used for the classification: `%s`\n\n' "$UPSTREAM_REF"
 
     # ── fork-only: the watch ────────────────────────────────────────────────────────────────
-    mapfile -t wear_main < <(find wear/src/main -name '*.kt' | sort)
-    mapfile -t wear_test < <(find wear/src/test -name '*.kt' | sort)
-    mapfile -t wear_android < <(find wear/src/androidTest -name '*.kt' 2>/dev/null | sort)
+    mapfile -t wear_main < <(find wear/src/main -name '*.kt' | LC_ALL=C sort)
+    mapfile -t wear_test < <(find wear/src/test -name '*.kt' | LC_ALL=C sort)
+    mapfile -t wear_android < <(find wear/src/androidTest -name '*.kt' 2>/dev/null | LC_ALL=C sort)
     emit_inventory "wear/ — main" "${wear_main[@]}"
     emit_inventory "wear/ — unit tests" "${wear_test[@]}"
     if [ "${#wear_android[@]}" -gt 0 ]; then
@@ -70,15 +70,15 @@ emit_generated() {
     fi
 
     # ── fork-only: the phone feature set ────────────────────────────────────────────────────
-    mapfile -t ap_main < <(find app/src/main/java/com/newoether/agora/autopilot -name '*.kt' | sort)
-    mapfile -t ap_test < <(find app/src/test/java/com/newoether/agora/autopilot -name '*.kt' | sort)
-    mapfile -t ap_android < <(find app/src/androidTest/java/com/newoether/agora/autopilot -name '*.kt' 2>/dev/null | sort)
+    mapfile -t ap_main < <(find app/src/main/java/com/newoether/agora/autopilot -name '*.kt' | LC_ALL=C sort)
+    mapfile -t ap_test < <(find app/src/test/java/com/newoether/agora/autopilot -name '*.kt' | LC_ALL=C sort)
+    mapfile -t ap_android < <(find app/src/androidTest/java/com/newoether/agora/autopilot -name '*.kt' 2>/dev/null | LC_ALL=C sort)
     emit_inventory "app/.../autopilot/ — main" "${ap_main[@]}"
     emit_inventory "app/.../autopilot/ — unit tests" "${ap_test[@]}"
     [ "${#ap_android[@]}" -gt 0 ] && emit_inventory "app/.../autopilot/ — instrumented tests" "${ap_android[@]}"
 
     # ── the scripts ────────────────────────────────────────────────────────────────────────
-    mapfile -t scripts < <(find scripts -type f | sort)
+    mapfile -t scripts < <(find scripts -type f | LC_ALL=C sort)
     emit_inventory "scripts/" "${scripts[@]}"
 
     # ── upstream files this fork edits, straight from the registry ─────────────────────────

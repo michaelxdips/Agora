@@ -10,11 +10,16 @@ never remove upstream behaviour — add, don't rewrite.
 
 <!-- GUARD:DATA:START -->
 # path :: max=<changed lines allowed>
-app/build.gradle.kts :: max=60
+app/build.gradle.kts :: max=64
 settings.gradle.kts :: max=4
 gradle/libs.versions.toml :: max=10
 .github/workflows/build.yml :: max=100
 .github/workflows/mkdocs.yml :: max=4
+mkdocs.yml :: max=16
+fastlane/metadata/android/en-US/changelogs/32.txt :: max=8
+fastlane/metadata/android/en-US/changelogs/33.txt :: max=8
+fastlane/metadata/android/en-US/changelogs/34.txt :: max=8
+fastlane/metadata/android/en-US/changelogs/35.txt :: max=8
 .gitignore :: max=12
 app/src/main/AndroidManifest.xml :: max=6
 app/src/main/res/values/strings.xml :: max=4
@@ -43,7 +48,7 @@ app/src/main/java/com/newoether/agora/util/SecretCrypto.kt :: max=32
 
 | # | Path | Why | Phase |
 |---|------|-----|-------|
-| 1 | `app/build.gradle.kts` | `applicationId` → `com.hermes.app`; `testInstrumentationRunner`; androidTest deps for the instrumented verification. **Budget raised 16 → 20 (Phase 15):** `versionCode 31 → 32` and `versionName 3.0.0-hermesx → 3.0.1-hermesx` — the fork's first published release. The two version lines are the only addition; without the raise the guard would have failed on a change that ships the release | 1, 3, 15 |
+| 1 | `app/build.gradle.kts` | `applicationId` → `com.hermes.app`; `testInstrumentationRunner`; androidTest deps for the instrumented verification. **Budget raised 16 → 20 (Phase 15):** `versionCode 31 → 32` and `versionName 3.0.0-hermesx → 3.0.1-hermesx` — the fork's first published release. The two version lines are the only addition; without the raise the guard would have failed on a change that ships the release. **Raised 60 → 64 (Session 3):** `versionCode 34 → 35` and `versionName 3.0.3-hermesx → 3.0.4-hermesx`, the two lines the next release needs | 1, 3, 15, 18 |
 | 2 | `app/src/main/AndroidManifest.xml` | only if the fdroid overlay cannot carry a manifest change | 1 |
 | 3 | `app/src/main/res/values/strings.xml` | only if the fdroid resource overlay cannot carry `app_name` | 1 |
 | 4 | `app/src/main/java/com/newoether/agora/ui/settings/SettingsScreen.kt` | Adaptation History entry + `"adaptation"` dispatch + `initialCategory`; Phase 6 persona entry + `"personas"` dispatch |
@@ -66,6 +71,8 @@ app/src/main/java/com/newoether/agora/util/SecretCrypto.kt :: max=32
 | 21 | `app/src/main/java/com/newoether/agora/api/DuckDuckGoScraper.kt` (max=8) | F11, same fix: `CAPTCHA_REGEX` / `VQD_REGEX` / `OFFSET_REGEX` go from `private val` to `internal val` so the tests can assert on the real pattern instead of a copy. Visibility only; no behaviour change |
 | 22 | `app/build.gradle.kts` (raised 20 → 60) | M3: release signing is **fail-closed**. `releaseSigning = if (hasKeystore) release else debug` produced an APK signed with the *debug* key on any machine without a keystore — same versionName, same output path, distinguishable only by `apksigner verify`, and un-updatable by the real release. A release build with no keystore now fails at configuration time with a sentence naming `local.properties`. The same change is in `wear/build.gradle.kts` (fork-only, no entry needed) |
 | 23 | `.github/workflows/build.yml` (raised 12 → 40) | M2: the Wear module was never exercised by CI (`grep -c "wear:" build.yml` → 0). `:wear:testDebugUnitTest` joins the `test` job, and `:wear:assembleRelease` + `:wear:lintVitalRelease` + the APK upload join the `build` job, where the keystore is restored — without it the new fail-closed signing rule would (correctly) refuse the release build |
+| 24 | `mkdocs.yml` (max=16) | Session 3: `site_url`, `repo_url` and `repo_name` pointed at `newo-ether/Agora`. The fork runs its own Deploy MkDocs workflow and serves its own Pages site (`gh api repos/michaelxdips/Agora/pages` → `https://michaelxdips.github.io/Agora/`), so the built site's canonical links and sitemap named a domain this fork does not own — the same class of defect as the Phase 13 in-app link fix (entry 11), in the docs pipeline instead of the app. Budget 16 covers the 3 changed values plus the 6-line marker comment |
+| 25 | `fastlane/metadata/android/en-US/changelogs/{32,33,34,35}.txt` (max=8 each) | Session 3: no changelog existed for `versionCode` 32–34 while those versions shipped, and none for 35. Added, each written from the matching GitHub release body. These are **fork-added files inside an upstream-owned directory** — upstream has no `32.txt`, so there is no upstream line to mark and no `HERMES INTEGRATION POINT` comment (a marker in a store listing's changelog text would be user-visible). Registration is still required; `touchpoint_guard.sh` now distinguishes "edited an upstream file" from "added a file upstream never had", which previously forced a marker into user-facing text |
 
 Each edit site is marked `// HERMES INTEGRATION POINT`; the guard enforces both the budget and the
 marker. Upstream behaviour is added to, never removed.

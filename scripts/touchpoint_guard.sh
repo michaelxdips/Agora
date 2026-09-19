@@ -75,6 +75,17 @@ if [ -z "$NUMSTAT" ]; then
     note "touchpoint_guard: no diff against $DIFF_ARGS — nothing to check."
 fi
 
+# HERMES INTEGRATION POINT: "does this path exist in upstream?" — the question the marker rule needs.
+# The diff is taken against the merge base, so it contains BOTH files upstream owns and files the fork
+# adds inside upstream-owned directories. Those two are not the same thing: the marker exists to point
+# at the edited site *inside an upstream file*, and a file upstream has never had has no such site to
+# mark. Requiring it there forced a marker into `fastlane/.../changelogs/*.txt`, which is text a store
+# listing shows to users. Registration is still required either way — this only decides whether a
+# marker is meaningful.
+exists_upstream() {
+    git cat-file -e "$UPSTREAM_REF:$1" 2>/dev/null
+}
+
 while IFS=$'\t' read -r added removed path; do
     [ -z "${path:-}" ] && continue
     if [[ "$path" =~ $ALLOWED_RE ]]; then
@@ -86,17 +97,24 @@ while IFS=$'\t' read -r added removed path; do
         if [ "$changed" -gt "$max" ]; then
             note "touchpoint_guard: FAIL $path changed $changed lines (budget $max)."
             fail=1
-        else
+        elif exists_upstream "$path"; then
             note "touchpoint_guard: ok   $path ($changed/$max lines)"
+        else
+            note "touchpoint_guard: ok   $path ($changed/$max lines, fork-added file)"
         fi
-        # marker check: registered files must declare the integration point
-        if ! grep -q 'HERMES INTEGRATION POINT' "$path" 2>/dev/null; then
+        # marker check: a registered file that EXISTS upstream must declare the integration point.
+        # A fork-added file is skipped — see exists_upstream above for why.
+        if exists_upstream "$path" && ! grep -q 'HERMES INTEGRATION POINT' "$path" 2>/dev/null; then
             note "touchpoint_guard: FAIL $path is registered but has no 'HERMES INTEGRATION POINT' marker."
             fail=1
         fi
         continue
     fi
-    note "touchpoint_guard: FAIL unregistered upstream file modified: $path"
+    if exists_upstream "$path"; then
+        note "touchpoint_guard: FAIL unregistered upstream file modified: $path"
+    else
+        note "touchpoint_guard: FAIL undeclared new file in an upstream-owned path: $path"
+    fi
     fail=1
 done <<< "$NUMSTAT"
 

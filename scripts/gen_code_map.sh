@@ -98,7 +98,12 @@ emit_generated() {
     done < <(awk '/GUARD:DATA:START/{f=1;next} /GUARD:DATA:END/{f=0} f' UPSTREAM_TOUCHPOINTS.md)
     printf '\n'
 
-    printf 'Generated %s from `%s`.\n' "$(git rev-parse --short HEAD)" "$UPSTREAM_REF"
+    # HERMES INTEGRATION POINT: this line used to print `$(git rev-parse --short HEAD)`, i.e. the hash
+    # of the commit that was *being made*. The file therefore could never be up to date: committing the
+    # regenerated CODE_MAP.md moved HEAD, so the next `--check` compared the new hash against the one
+    # written a moment earlier and failed. A check that cannot pass on a clean tree is not a check.
+    # The upstream ref is stable and is the thing the table is actually keyed to.
+    printf 'Generated from `%s` (line counts are `git diff --numstat` against that ref).\n' "$UPSTREAM_REF"
 }
 
 if [ "$CHECK" -eq 1 ]; then

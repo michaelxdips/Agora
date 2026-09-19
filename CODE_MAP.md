@@ -145,7 +145,7 @@ Upstream ref used for the classification: `upstream/master`
 |---|---|---|
 | `scripts/audit_gate0.sh` | 205 | fork-only |
 | `scripts/audit_test_counts.py` | 36 | fork-only |
-| `scripts/gen_code_map.sh` | 123 | fork-only |
+| `scripts/gen_code_map.sh` | 128 | fork-only |
 | `scripts/native-tests/native_utf8_probe.cpp` | 23 | upstream (budgeted) |
 | `scripts/native-tests/NativeUtf8Probe.java` | 46 | upstream (budgeted) |
 | `scripts/persona_update.sh` | 141 | fork-only |
@@ -190,4 +190,4 @@ so this table cannot disagree with what the guard enforces.
 | `app/src/main/java/com/newoether/agora/remote/RemoteImageCache.kt` | 32 | 22 |
 | `app/src/main/java/com/newoether/agora/util/SecretCrypto.kt` | 32 | 24 |
 
-Generated f7797f16 from `upstream/master`.
+Generated from `upstream/master` (line counts are `git diff --numstat` against that ref).

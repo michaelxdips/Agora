@@ -30,11 +30,11 @@ Upstream ref used for the classification: `upstream/master`
 | `wear/src/main/java/com/newoether/agora/wear/WearCoreContext.kt` | 111 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearCrypto.kt` | 102 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearListeners.kt` | 209 | fork-only |
-| `wear/src/main/java/com/newoether/agora/wear/WearMainActivity.kt` | 748 | fork-only |
+| `wear/src/main/java/com/newoether/agora/wear/WearMainActivity.kt` | 756 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearMemoryRules.kt` | 54 | fork-only |
-| `wear/src/main/java/com/newoether/agora/wear/WearOfflineQueue.kt` | 169 | fork-only |
+| `wear/src/main/java/com/newoether/agora/wear/WearOfflineQueue.kt` | 183 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearPairing.kt` | 380 | fork-only |
-| `wear/src/main/java/com/newoether/agora/wear/WearQueueDrainer.kt` | 182 | fork-only |
+| `wear/src/main/java/com/newoether/agora/wear/WearQueueDrainer.kt` | 197 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearSendCoordinator.kt` | 66 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearSetupScreen.kt` | 335 | fork-only |
 | `wear/src/main/java/com/newoether/agora/wear/WearSignals.kt` | 38 | fork-only |
@@ -56,14 +56,15 @@ Upstream ref used for the classification: `upstream/master`
 | `wear/src/test/java/com/newoether/agora/wear/WearMemoryRulesTest.kt` | 92 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearOfflineQueueTest.kt` | 181 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearPairingTest.kt` | 354 | fork-only |
-| `wear/src/test/java/com/newoether/agora/wear/WearQueueDrainerTest.kt` | 326 | fork-only |
+| `wear/src/test/java/com/newoether/agora/wear/WearQueueDrainerTest.kt` | 379 | fork-only |
 | `wear/src/test/java/com/newoether/agora/wear/WearSendCoordinatorTest.kt` | 122 | fork-only |
+| `wear/src/test/java/com/newoether/agora/wear/WearSendNowContractTest.kt` | 109 | fork-only |
 
 ### wear/ — instrumented tests
 
 | File | Lines | Status |
 |---|---|---|
-| `wear/src/androidTest/java/com/newoether/agora/wear/WearPlatformInstrumentedTest.kt` | 161 | fork-only |
+| `wear/src/androidTest/java/com/newoether/agora/wear/WearPlatformInstrumentedTest.kt` | 176 | fork-only |
 | `wear/src/androidTest/java/com/newoether/agora/wear/WearSetupFieldsSaveableTest.kt` | 80 | fork-only |
 
 ### app/.../autopilot/ — main
@@ -95,6 +96,14 @@ Upstream ref used for the classification: `upstream/master`
 | `app/src/main/java/com/newoether/agora/autopilot/SkillCandidateDetector.kt` | 35 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/SkillSynthesisProtocol.kt` | 103 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/SkillSynthesizer.kt` | 76 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/update/UpdateChannel.kt` | 60 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/update/UpdateChannelStartup.kt` | 40 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/update/UpdateChannelUi.kt` | 81 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/update/UpdateCheckStore.kt` | 43 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/update/UpdateCheckWorker.kt` | 98 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/update/UpdateDownloadAction.kt` | 79 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/update/UpdateDownloadWorker.kt` | 102 | fork-only |
+| `app/src/main/java/com/newoether/agora/autopilot/update/UpdateInstaller.kt` | 184 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/wearsync/CoreContextDerivation.kt` | 99 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/wearsync/MemoryPushScheduler.kt` | 52 | fork-only |
 | `app/src/main/java/com/newoether/agora/autopilot/wearsync/MemoryPushStartup.kt` | 94 | fork-only |
@@ -129,14 +138,16 @@ Upstream ref used for the classification: `upstream/master`
 | `app/src/test/java/com/newoether/agora/autopilot/ReleaseVersionOrderingTest.kt` | 81 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/SkillSynthesizerTest.kt` | 196 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/UpstreamContractSentinelTest.kt` | 158 | fork-only |
+| `app/src/test/java/com/newoether/agora/autopilot/update/UpdateChannelTest.kt` | 60 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/wearsync/CoreContextDerivationTest.kt` | 133 | fork-only |
 | `app/src/test/java/com/newoether/agora/autopilot/wearsync/PairingRequestTest.kt` | 119 | fork-only |
+| `app/src/test/java/com/newoether/agora/autopilot/wearsync/WatchProtocolContractTest.kt` | 189 | fork-only |
 
 ### app/.../autopilot/ — instrumented tests
 
 | File | Lines | Status |
 |---|---|---|
-| `app/src/androidTest/java/com/newoether/agora/autopilot/AutopilotMemoryInstrumentedTest.kt` | 184 | fork-only |
+| `app/src/androidTest/java/com/newoether/agora/autopilot/AutopilotMemoryInstrumentedTest.kt` | 191 | fork-only |
 | `app/src/androidTest/java/com/newoether/agora/autopilot/PersonaInstrumentedTest.kt` | 115 | fork-only |
 | `app/src/androidTest/java/com/newoether/agora/autopilot/PersonaUpdaterInstrumentedTest.kt` | 154 | fork-only |
 
@@ -152,7 +163,7 @@ Upstream ref used for the classification: `upstream/master`
 | `scripts/persona_update.sh` | 141 | fork-only |
 | `scripts/round_icon.py` | 39 | upstream (budgeted) |
 | `scripts/test-native-utf8.py` | 76 | upstream (budgeted) |
-| `scripts/touchpoint_guard.sh` | 154 | fork-only |
+| `scripts/touchpoint_guard.sh` | 158 | fork-only |
 | `scripts/upstream_sync.sh` | 180 | fork-only |
 | `scripts/verify_release_provenance.sh` | 145 | fork-only |
 
@@ -163,24 +174,24 @@ so this table cannot disagree with what the guard enforces.
 
 | Path | Budget (changed lines) | Current |
 |---|---|---|
-| `app/build.gradle.kts` | 64 | 54 |
+| `app/build.gradle.kts` | 68 | 65 |
 | `settings.gradle.kts` | 4 | 3 |
 | `gradle/libs.versions.toml` | 10 | 6 |
-| `.github/workflows/build.yml` | 100 | 85 |
+| `.github/workflows/build.yml` | 140 | 123 |
 | `.github/workflows/mkdocs.yml` | 4 | 4 |
 | `mkdocs.yml` | 16 | 12 |
 | `fastlane/metadata/android/en-US/changelogs/32.txt` | 8 | 4 |
 | `fastlane/metadata/android/en-US/changelogs/33.txt` | 8 | 2 |
 | `fastlane/metadata/android/en-US/changelogs/34.txt` | 8 | 4 |
 | `fastlane/metadata/android/en-US/changelogs/35.txt` | 8 | 4 |
-| `.gitignore` | 12 | 11 |
-| `app/src/main/AndroidManifest.xml` | 6 | 5 |
+| `.gitignore` | 24 | 20 |
+| `app/src/main/AndroidManifest.xml` | 16 | 11 |
 | `app/src/main/res/values/strings.xml` | 4 | 0 |
 | `app/src/main/java/com/newoether/agora/ui/settings/SettingsScreen.kt` | 32 | 30 |
 | `app/src/main/java/com/newoether/agora/ui/settings/SettingsAboutPage.kt` | 16 | 15 |
 | `app/src/main/java/com/newoether/agora/util/UpdateChecker.kt` | 130 | 108 |
 | `app/src/test/java/com/newoether/agora/util/UpdateCheckerTest.kt` | 100 | 100 |
-| `app/src/main/java/com/newoether/agora/MainActivity.kt` | 44 | 41 |
+| `app/src/main/java/com/newoether/agora/MainActivity.kt` | 48 | 44 |
 | `app/src/main/java/com/newoether/agora/viewmodel/GenerationRequestBuilder.kt` | 8 | 5 |
 | `app/src/main/java/com/newoether/agora/ui/settings/SettingsModelsPage.kt` | 20 | 15 |
 | `app/src/main/java/com/newoether/agora/viewmodel/ProviderRegistry.kt` | 24 | 17 |
@@ -188,12 +199,13 @@ so this table cannot disagree with what the guard enforces.
 | `app/src/test/java/com/newoether/agora/ui/components/LatexRendererTest.kt` | 22 | 22 |
 | `app/src/test/java/com/newoether/agora/ui/chat/message/IncrementalStreamingMarkdownTest.kt` | 40 | 32 |
 | `app/src/test/java/com/newoether/agora/api/DuckDuckGoScraperTest.kt` | 30 | 19 |
-| `app/src/main/java/com/newoether/agora/AgoraApplication.kt` | 8 | 6 |
+| `app/src/main/java/com/newoether/agora/AgoraApplication.kt` | 12 | 9 |
 | `app/src/main/java/com/newoether/agora/api/HttpClient.kt` | 40 | 32 |
 | `app/src/main/java/com/newoether/agora/api/anthropic/AnthropicProvider.kt` | 16 | 9 |
 | `app/src/main/java/com/newoether/agora/api/ollama/OllamaProvider.kt` | 16 | 8 |
 | `app/src/main/java/com/newoether/agora/util/CrashReporter.kt` | 16 | 9 |
 | `app/src/main/java/com/newoether/agora/remote/RemoteImageCache.kt` | 32 | 22 |
 | `app/src/main/java/com/newoether/agora/util/SecretCrypto.kt` | 32 | 24 |
+| `app/proguard-rules.pro` | 180 | 88 |
 
 Generated from `upstream/master` (line counts are `git diff --numstat` against that ref).

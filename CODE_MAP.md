@@ -208,5 +208,6 @@ so this table cannot disagree with what the guard enforces.
 | `app/src/main/java/com/newoether/agora/remote/RemoteImageCache.kt` | 32 | 22 |
 | `app/src/main/java/com/newoether/agora/util/SecretCrypto.kt` | 32 | 24 |
 | `app/proguard-rules.pro` | 180 | 88 |
+| `app/src/test/java/com/newoether/agora/api/util/ProviderWireFormatRejectionTest.kt` | 190 | 183 |
 
 Generated from `upstream/master` (line counts are `git diff --numstat` against that ref).

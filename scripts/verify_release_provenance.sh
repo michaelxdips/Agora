@@ -53,18 +53,48 @@ if [ "$TAG_TYPE" = "tag" ]; then
 fi
 note "tag $TAG -> commit $TAG_SHA"
 
-CI_STATE="$(gh api "repos/$REPO/commits/$TAG_SHA/check-runs" \
+# HERMES INTEGRATION POINT (Session 5 audit): a release's provenance note names the commit CI built
+# (`Built by CI run N on <sha>`), and after a history rewrite the tag's *current* SHA is a new object
+# that has never been built — the old run's SHA no longer resolves as a ref, so checking only the tag
+# made claims 3/4 fail on a release that was in fact built and tested. When the note names a commit,
+# the script checks claims 3/4 against it — **but only if its tree is byte-identical to the tag's
+# tree**, because "built and tested" is a claim about content: a named SHA whose tree differs proves
+# nothing about what the tag actually ships.
+BUILT_SHA="$TAG_SHA"
+PROVENANCE_NOTE="$(gh release view "$TAG" -R "$REPO" --json body --jq '.body' 2>/dev/null \
+    | grep -oE 'Built by CI run \[[0-9]+\]\([^)]+\) on `[0-9a-f]{7,40}`' | head -1)"
+if [ -n "$PROVENANCE_NOTE" ]; then
+    NAMED_SHA="$(printf '%s' "$PROVENANCE_NOTE" | grep -oE '`[0-9a-f]{7,40}`' | tr -d '`')"
+    if [ -n "$NAMED_SHA" ]; then
+        RESOLVED="$(gh api "repos/$REPO/commits/$NAMED_SHA" --jq '.sha' 2>/dev/null)"
+        if [ -n "$RESOLVED" ]; then
+            TAG_TREE="$(gh api "repos/$REPO/git/commits/$TAG_SHA" --jq '.tree.sha' 2>/dev/null)"
+            BUILT_TREE="$(gh api "repos/$REPO/git/commits/$RESOLVED" --jq '.tree.sha' 2>/dev/null)"
+            if [ -n "$TAG_TREE" ] && [ "$TAG_TREE" = "$BUILT_TREE" ]; then
+                BUILT_SHA="$RESOLVED"
+                note "provenance note names the built commit $BUILT_SHA — its tree matches the tag's"
+            else
+                note "note: the provenance note names $RESOLVED, but its tree differs from the tag's — ignored"
+            fi
+        fi
+    fi
+fi
+if [ "$BUILT_SHA" != "$TAG_SHA" ]; then
+    note "checking claims 3/4 against the built commit $BUILT_SHA (the tag itself is $TAG_SHA)"
+fi
+
+CI_STATE="$(gh api "repos/$REPO/commits/$BUILT_SHA/check-runs" \
     --jq '[.check_runs[] | select(.conclusion != null) | "\(.name)=\(.conclusion)"] | join(" ")' 2>/dev/null)"
 if [ -z "$CI_STATE" ]; then
-    note "FAIL  claim 3: no completed check runs for $TAG_SHA — the tagged commit was never built"
+    note "FAIL  claim 3: no completed check runs for $BUILT_SHA — that commit was never built"
     fail=1
 else
-    note "checks on the tagged commit: $CI_STATE"
+    note "checks on the built commit: $CI_STATE"
     if printf '%s' "$CI_STATE" | grep -qE '=failure|=(cancelled|timed_out|action_required)'; then
-        note "FAIL  claim 3: a check on the tagged commit did not succeed"
+        note "FAIL  claim 3: a check on the built commit did not succeed"
         fail=1
     else
-        note "ok    claim 3: the tag's commit has only successful checks"
+        note "ok    claim 3: the built commit has only successful checks"
     fi
 fi
 

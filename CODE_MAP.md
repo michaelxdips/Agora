@@ -169,8 +169,8 @@ Upstream ref used for the classification: `upstream/master`
 | `scripts/round_icon.py` | 39 | upstream (budgeted) |
 | `scripts/test-native-utf8.py` | 76 | upstream (budgeted) |
 | `scripts/touchpoint_guard.sh` | 173 | fork-only |
-| `scripts/upstream_sync.sh` | 180 | fork-only |
-| `scripts/verify_release_provenance.sh` | 145 | fork-only |
+| `scripts/upstream_sync.sh` | 186 | fork-only |
+| `scripts/verify_release_provenance.sh` | 181 | fork-only |
 
 ### Upstream files this fork edits
 
